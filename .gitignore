@@ -417,8 +417,3 @@ FodyWeavers.xsd
 *.msm
 *.msp
 
-# Custom ignores for Darb.Api
-wwwroot/uploads/
-**/wwwroot/uploads/
-[Bb]in/
-[Oo]bj/
