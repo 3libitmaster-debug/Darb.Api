@@ -26,7 +26,7 @@ namespace Darb.Api.Models
         public DateTime? EndDateAds { get; set; }
 
         [Required]
-        public bool Status { get; set; }
+        public bool IsActive { get; set; }
 
   
 

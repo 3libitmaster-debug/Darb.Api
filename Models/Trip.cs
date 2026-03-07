@@ -1,13 +1,10 @@
 ﻿using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Models
 {
-    public enum Periods
-    {
-        Day = 0,
-        Night = 1
-    }
+   
 
     public enum TripStatus
     {
