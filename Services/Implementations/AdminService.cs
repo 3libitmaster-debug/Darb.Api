@@ -169,7 +169,7 @@ public class AdminService : IAdminService
             ImageUrl = a.Image,
             StartDateAds = a.StartDateAds,
             EndDateAds = a.EndDateAds,
-            Status = a.Status,
+            IsActive = a.IsActive,
             CreatedAt = a.CreatedAt
         }).ToList();
 
@@ -198,7 +198,7 @@ public class AdminService : IAdminService
             ImageUrl = ad.Image,
             StartDateAds = ad.StartDateAds,
             EndDateAds = ad.EndDateAds,
-            Status = ad.Status,
+            IsActive = ad.IsActive,
             CreatedAt = ad.CreatedAt
         };
 
@@ -222,7 +222,7 @@ public class AdminService : IAdminService
             Description = dto.Description,
             StartDateAds = dto.StartDateAds,
             EndDateAds = dto.EndDateAds,
-            Status = dto.Status = true, // Default to active if status is null
+            IsActive = dto.IsActive = true, // Default to active if status is null
             CreatedAt = DateHelper.GetYemenTime() // Log the creation time in local timezone
         };
 
@@ -253,7 +253,7 @@ public class AdminService : IAdminService
         if (!string.IsNullOrEmpty(dto.Description)) ad.Description = dto.Description;
         if (dto.StartDateAds.HasValue) ad.StartDateAds = dto.StartDateAds.Value;
         if (dto.EndDateAds.HasValue) ad.EndDateAds = dto.EndDateAds.Value;
-        if (dto.Status.HasValue) ad.Status = dto.Status.Value;
+        if (dto.IsActive.HasValue) ad.IsActive = dto.IsActive.Value;
 
         // Process new image if provided, replacing the old path
         if (dto.ImageFile != null)
