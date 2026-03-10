@@ -20,13 +20,16 @@ namespace Darb.Api.Controllers
 
         [HttpGet("home-page")]
         [SwaggerOperation(
-            Summary = "Get Home Page Data",
-            Description = "Retrieves ads and search card data (Governorates, Companies, and Periods) for the mobile app home screen.")]
+          Summary = "Get Home Page Data",
+          Description = "Retrieves ads and search card data (Governorates, Companies, and Periods) for the mobile app home screen.")]
         public async Task<IActionResult> GetHomePage()
-            => Ok(await _passengerService.GetHomePageDataAsync());
+          => Ok(await _passengerService.GetHomePageDataAsync());
 
         [HttpPost("search-trips")]
+        [SwaggerOperation(
+            Summary = "Search for Trips ",
+            Description = "Filters scheduled trips based on optional criteria: From/To Governorates, Company, Period, and Travel Date. If no filters are provided, it returns all scheduled trips.")]
         public async Task<IActionResult> SearchTrips([FromBody] TripSearchQueryDto query)
-    => Ok(await _passengerService.SearchTripsAsync(query));
+            => Ok(await _passengerService.SearchTripsAsync(query));
     }
 }

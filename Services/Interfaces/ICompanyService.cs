@@ -56,5 +56,10 @@ namespace Darb.Api.Services.Interfaces
         // Removes a station from the company.
         Task<ResponseDto> DeleteStationAsync(int stationId, int companyId);
         #endregion
+
+        #region Governorate Management
+        // Retrieves all governorates in the system.
+        Task<ResponseDto> GetAllGovernoratesAsync();
+        #endregion
     }
 }

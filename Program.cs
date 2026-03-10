@@ -1,4 +1,5 @@
-﻿using Darb.Api.Helpers;
+﻿using Darb.Api.Extensions;
+using Darb.Api.Helpers;
 using Darb.Api.Interfaces;
 using Darb.Api.Models;
 using Darb.Api.Repositories.Implementations;
@@ -95,6 +96,8 @@ builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
 
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
 builder.Services.AddScoped<IRepository<TripFare>, Repository<TripFare>>();
+
+builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
 
 
 builder.Services.AddAuthorization();

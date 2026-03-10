@@ -1,4 +1,5 @@
-﻿using Darb.Api.Dtos;
+﻿using Darb.Api.DTOs.Governorate;
+using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Trip;
 using Darb.Api.Helpers;
@@ -600,6 +601,24 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم حذف بيانات المحطة بنجاح.");
         }
 
+        #endregion
+
+        #region Governorate Management Logic
+        /// <summary>
+        /// Retrieves all governorates in the system.
+        /// </summary>
+        public async Task<ResponseDto> GetAllGovernoratesAsync()
+        {
+            var governorates = await _context.Governorates
+                .Select(g => new GovernorateReadDto
+                {
+                    Id = g.GovernorateId,
+                    Name = g.Name
+                })
+                .ToListAsync();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({governorates.Count}) محافظة بنجاح.", governorates);
+        }
         #endregion
     }
 }

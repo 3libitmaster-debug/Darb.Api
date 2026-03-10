@@ -281,5 +281,20 @@ namespace Darb.Api.Controllers
         }
 
         #endregion
+
+
+        #region Governorate Management Endpoints
+
+        [HttpGet("Get-all-governorates")]
+        [SwaggerOperation(
+            Summary = "Get All Governorates",
+            Description = "Retrieves a comprehensive list of all governorates in the system.")]
+        public async Task<IActionResult> GetGovernorates()
+        {
+            var response = await _companyService.GetAllGovernoratesAsync();
+            return Ok(response);
+        }
+
+        #endregion
     }
 }
