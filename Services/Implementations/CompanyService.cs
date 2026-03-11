@@ -487,10 +487,9 @@ namespace Darb.Api.Services.Implementations
             var stationList = stations.Select(s => new Darb.Api.DTOs.Station.StationReadDto
             {
                 StationId = s.StationId,
-                Name = s.Name ?? "غير محدد",
                 Address = s.Address ?? "غير محدد",
                 Order = s.Order,
-                DurationFromStart = s.DurationFromStart,
+                DurationToEndStation = s.DurationToEndStation,
                 ExtraFee = s.ExtraFee,
                 CityId = s.CityId,
                 CityName = s.City?.Name ?? "غير محدد",
@@ -515,10 +514,9 @@ namespace Darb.Api.Services.Implementations
             var stationDto = new Darb.Api.DTOs.Station.StationReadDto
             {
                 StationId = station.StationId,
-                Name = station.Name ?? "غير محدد",
                 Address = station.Address ?? "غير محدد",
                 Order = station.Order,
-                DurationFromStart = station.DurationFromStart,
+                DurationToEndStation = station.DurationToEndStation,
                 ExtraFee = station.ExtraFee,
                 CityId = station.CityId,
                 CityName = station.City?.Name ?? "غير محدد",
@@ -534,10 +532,10 @@ namespace Darb.Api.Services.Implementations
         {
             var station = new Darb.Api.Models.Station
             {
-                Name = stationDto.Name,
+
                 Address = stationDto.Address,
                 Order = stationDto.Order,
-                DurationFromStart = stationDto.DurationFromStart,
+                DurationToEndStation = stationDto.DurationToEndStation,
                 ExtraFee = stationDto.ExtraFee,
                 CityId = stationDto.CityId,
                 GovernorateId = stationDto.GovernorateId,
@@ -558,17 +556,14 @@ namespace Darb.Api.Services.Implementations
             if (station == null)
                 return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على المحطة المطلوبة أو قد لا تملك صلاحية الوصول إليها.");
 
-            if (!string.IsNullOrEmpty(stationDto.Name))
-                station.Name = stationDto.Name;
-
             if (!string.IsNullOrEmpty(stationDto.Address))
                 station.Address = stationDto.Address;
 
             if (stationDto.Order.HasValue)
                 station.Order = stationDto.Order.Value;
 
-            if (stationDto.DurationFromStart.HasValue)
-                station.DurationFromStart = stationDto.DurationFromStart.Value;
+            if (stationDto.DurationToEndStation.HasValue)
+                station.DurationToEndStation = stationDto.DurationToEndStation.Value;
 
             if (stationDto.ExtraFee.HasValue)
                 station.ExtraFee = stationDto.ExtraFee.Value;

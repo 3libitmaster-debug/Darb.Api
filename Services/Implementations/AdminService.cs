@@ -8,6 +8,7 @@ using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Darb.Api.Helpers;
+using Microsoft.Extensions.Options;
 
 public class AdminService : IAdminService
 {
@@ -16,14 +17,16 @@ public class AdminService : IAdminService
     private readonly IRepository<Advertisement> _adRepo;
     private readonly IImageService _imageService;
     private readonly ApplicationDbContext _context;
+    private readonly string _baseUrl;
 
-    public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context)
+    public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context, IOptions<ApiSettings> apiOptions)
     {
         _govRepo = govRepo;
         _cityRepo = cityRepo;
         _adRepo = adRepo;
         _imageService = imageService;
         _context = context;
+        _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
     }
 
     #region Governorate Logic
@@ -166,7 +169,7 @@ public class AdminService : IAdminService
             User_Email = users.ContainsKey(a.UserId) ? users[a.UserId] : "Unknown User",
             Title = a.Title,
             Description = a.Description,
-            ImageUrl = a.Image,
+            ImageUrl = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : string.Empty,
             StartDateAds = a.StartDateAds,
             EndDateAds = a.EndDateAds,
             IsActive = a.IsActive,
@@ -195,7 +198,7 @@ public class AdminService : IAdminService
             User_Email = user?.Email ?? "Unknown User",
             Title = ad.Title,
             Description = ad.Description,
-            ImageUrl = ad.Image,
+            ImageUrl = !string.IsNullOrEmpty(ad.Image) ? _baseUrl + ad.Image : string.Empty,
             StartDateAds = ad.StartDateAds,
             EndDateAds = ad.EndDateAds,
             IsActive = ad.IsActive,
@@ -255,11 +258,11 @@ public class AdminService : IAdminService
         if (dto.EndDateAds.HasValue) ad.EndDateAds = dto.EndDateAds.Value;
         if (dto.IsActive.HasValue) ad.IsActive = dto.IsActive.Value;
 
-        // Process new image if provided, replacing the old path
+        // Process image update via the centralized ImageService method
         if (dto.ImageFile != null)
         {
-            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "Advertisements");
-            if (!string.IsNullOrEmpty(imagePath)) ad.Image = imagePath;
+            var newImagePath = await _imageService.UpdateImageAsync(dto.ImageFile, ad.Image, "Advertisements");
+            if (!string.IsNullOrEmpty(newImagePath)) ad.Image = newImagePath;
         }
 
         // Mark entity as modified and save changes
@@ -275,6 +278,12 @@ public class AdminService : IAdminService
     {
         var ad = await _adRepo.GetByIdAsync(id);
         if (ad == null) return ResponseDto.FailureResponse("Advertisement not found or already deleted.");
+
+        // Delete the image from disk before removing the record
+        if (!string.IsNullOrEmpty(ad.Image))
+        {
+            _imageService.DeleteImage(ad.Image);
+        }
 
         // Remove the record via repository
         _adRepo.Delete(ad);

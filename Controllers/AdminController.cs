@@ -12,7 +12,7 @@ namespace Darb.Api.Controllers
     [Authorize(Roles = "Admin")]
     [Route("api/[controller]")]
     [ApiController]
-    [SwaggerTag("Admin Management: Governorate and City configurations")]
+    [SwaggerTag("")]
     public class AdminController : ControllerBase
     {
         private readonly IAdminService _adminService;

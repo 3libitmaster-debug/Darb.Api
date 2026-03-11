@@ -1,4 +1,4 @@
-﻿using Darb.Api.Extensions;
+﻿using Darb.Api.DTOs.Base;
 using Darb.Api.Helpers;
 using Darb.Api.Interfaces;
 using Darb.Api.Models;
@@ -93,9 +93,8 @@ builder.Services.AddScoped<IRepository<City>, Repository<City>>();
 builder.Services.AddScoped<IRepository<Advertisement>, Repository<Advertisement>>();
 builder.Services.AddScoped<IPassengerService, PassengerService>();
 builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
-
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
-builder.Services.AddScoped<IRepository<TripFare>, Repository<TripFare>>();
+
 
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
 

@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Extensions
+﻿namespace Darb.Api.DTOs.Base
 {
     public class ApiSettings
     {

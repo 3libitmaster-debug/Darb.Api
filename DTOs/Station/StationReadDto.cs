@@ -3,10 +3,9 @@ namespace Darb.Api.DTOs.Station
     public class StationReadDto
     {
         public int StationId { get; set; }
-        public string Name { get; set; } = string.Empty;
         public string Address { get; set; } = string.Empty;
         public int Order { get; set; }
-        public TimeSpan DurationFromStart { get; set; }
+        public TimeSpan DurationToEndStation { get; set; }
         public double ExtraFee { get; set; }
         
         public int CityId { get; set; }

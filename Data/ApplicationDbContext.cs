@@ -20,7 +20,6 @@ namespace darbWebApp.Data
         public DbSet<Bus> Buses { get; set; }
         public DbSet<City> Cities { get; set; }
         public DbSet<Station> Stations { get; set; }
-        public DbSet<TripFare> TripFares { get; set; }
         public DbSet<Advertisement> Advertisements { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -155,19 +154,7 @@ namespace darbWebApp.Data
                 .HasForeignKey(c => c.GovernorateId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // --- TripFare (Pricing) Relationships ---
-            // Linking pricing records to specific trips and stops (stations).
-            modelBuilder.Entity<TripFare>()
-                .HasOne(tf => tf.Trip)
-                .WithMany(t => t.TripFare)
-                .HasForeignKey(tf => tf.TripId)
-                .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<TripFare>()
-                .HasOne(tf => tf.Station)
-                .WithMany(s => s.TripFare)
-                .HasForeignKey(tf => tf.StationId)
-                .OnDelete(DeleteBehavior.NoAction);
 
             // --- Advertisement & User Relationships ---
             // An advertisement is created by a user and owned by a user (Admin).

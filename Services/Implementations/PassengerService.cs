@@ -1,7 +1,6 @@
 ﻿using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Passenger;
 using Darb.Api.DTOs.Passenger.Darb.Api.DTOs.Passenger;
-using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using Darb.Api.Repository.Interfaces;

@@ -4,15 +4,13 @@ namespace Darb.Api.DTOs.Station
 {
     public class UpdateStationDto
     {
-        [StringLength(100)]
-        public string? Name { get; set; }
 
         [StringLength(250)]
         public string? Address { get; set; }
 
         public int? Order { get; set; }
 
-        public TimeSpan? DurationFromStart { get; set; }
+        public TimeSpan? DurationToEndStation { get; set; }
 
         public double? ExtraFee { get; set; }
 

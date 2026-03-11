@@ -4,17 +4,15 @@ namespace Darb.Api.DTOs.Station
 {
     public class CreateStationDto
     {
-        [Required, StringLength(100)]
-        public string Name { get; set; }
 
         [Required, StringLength(250)]
-        public string Address { get; set; }
+        public string ?Address { get; set; }
 
         [Required]
         public int Order { get; set; }
 
         [Required]
-        public TimeSpan DurationFromStart { get; set; }
+        public TimeSpan DurationToEndStation { get; set; }
 
         [Required]
         public double ExtraFee { get; set; }
