@@ -21,6 +21,8 @@ namespace darbWebApp.Data
         public DbSet<City> Cities { get; set; }
         public DbSet<Station> Stations { get; set; }
         public DbSet<Advertisement> Advertisements { get; set; }
+        public DbSet<Bank> Banks { get; set; }
+        public DbSet<BankAccount> BankAccounts { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -170,6 +172,19 @@ namespace darbWebApp.Data
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- Bank & BankAccount Relationships ---
+            modelBuilder.Entity<BankAccount>()
+                .HasOne(ba => ba.Bank)
+                .WithMany(b => b.BankAccounts)
+                .HasForeignKey(ba => ba.BankId)
+                .OnDelete(DeleteBehavior.Restrict); 
+
+            modelBuilder.Entity<BankAccount>()
+                .HasOne(ba => ba.Company)
+                .WithMany(c => c.BankAccounts)
+                .HasForeignKey(ba => ba.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade); 
         }
     }
 }

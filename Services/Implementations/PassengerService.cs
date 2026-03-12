@@ -211,5 +211,23 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse($"Failed to retrieve stations: {ex.Message}");
             }
         }
+
+        public async Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId)
+        {
+            var bankAccounts = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .Where(ba => ba.CompanyId == companyId)
+                .Select(ba => new Darb.Api.DTOs.BankAccount.BankAccountsDropDownListDto
+                {
+                    BankAccountId = ba.BankAccountId,
+                    BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
+                    AccountNumber = ba.AccountNumber,
+                    AccountHolderName = ba.AccountHolderName,
+                    LogoUrl = !string.IsNullOrEmpty(ba.Bank.LogoUrl) ? _baseUrl + ba.Bank.LogoUrl : string.Empty 
+                })
+                .ToListAsync();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع حسابات الشركة البنكية بنجاح. ({bankAccounts.Count})", bankAccounts);
+        }
     }
 }

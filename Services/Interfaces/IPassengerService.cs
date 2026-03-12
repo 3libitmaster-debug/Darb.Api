@@ -10,5 +10,6 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetHomePageDataAsync();
         Task<ResponseDto> SearchTripsAsync(TripSearchQueryDto query);
         Task<ResponseDto> GetStationsByCompanyAndGovernorateAsync(int companyId, int governorateId);
+        Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId);
     }
 }

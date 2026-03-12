@@ -1,5 +1,6 @@
-﻿using Darb.Api.Dtos;
+using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.BankAccount;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -60,6 +61,14 @@ namespace Darb.Api.Services.Interfaces
         #region Governorate Management
         // Retrieves all governorates in the system.
         Task<ResponseDto> GetAllGovernoratesAsync();
+        #endregion
+
+        #region BankAccount Management
+        Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
+        Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId);
+        Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId);
+        Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId);
+        Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId);
         #endregion
     }
 }

@@ -1,7 +1,8 @@
-﻿using Darb.Api.DTOs.Advertisement;
+using Darb.Api.DTOs.Advertisement;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.City;
 using Darb.Api.DTOs.Governorate;
+using Darb.Api.DTOs.Bank;
 using Darb.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -99,6 +100,30 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Delete Advertisement", Description = "Permanently removes an advertisement from the database.")]
         public async Task<IActionResult> DeleteAd(int id)
             => Ok(await _adminService.DeleteAdvertisementAsync(id));
+
+        #endregion
+
+        #region Bank Endpoints
+
+        [HttpGet("banks")]
+        [SwaggerOperation(Summary = "Get All Banks", Description = "Retrieves a list of all banks registered in the system.")]
+        public async Task<IActionResult> GetBanks() => Ok(await _adminService.GetAllBanksAsync());
+
+        [HttpGet("banks/{id}")]
+        [SwaggerOperation(Summary = "Get Bank by ID", Description = "Retrieves detailed information about a specific bank using its unique ID.")]
+        public async Task<IActionResult> GetBank(int id) => Ok(await _adminService.GetBankByIdAsync(id));
+
+        [HttpPost("create-bank")]
+        [SwaggerOperation(Summary = "Add New Bank", Description = "Creates a new bank record in the system.")]
+        public async Task<IActionResult> CreateBank([FromForm] BankCreateDto dto) => Ok(await _adminService.CreateBankAsync(dto));
+
+        [HttpPut("banks/{id}")]
+        [SwaggerOperation(Summary = "Update Bank", Description = "Modifies an existing bank's details.")]
+        public async Task<IActionResult> UpdateBank(int id, [FromBody] BankUpdateDto dto) => Ok(await _adminService.UpdateBankAsync(id, dto));
+
+        [HttpDelete("banks/{id}")]
+        [SwaggerOperation(Summary = "Delete Bank", Description = "Permanently removes a bank from the system. Note: Only banks without linked accounts can be deleted.")]
+        public async Task<IActionResult> DeleteBank(int id) => Ok(await _adminService.DeleteBankAsync(id));
 
         #endregion
     }

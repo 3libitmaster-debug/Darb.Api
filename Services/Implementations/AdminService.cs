@@ -1,8 +1,9 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.City;
 using Darb.Api.DTOs.Governorate;
 using Darb.Api.DTOs.Advertisement;
+using Darb.Api.DTOs.Bank;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
@@ -293,5 +294,83 @@ public class AdminService : IAdminService
 
     #endregion
 
+    #region Bank Logic
+
+    public async Task<ResponseDto> GetAllBanksAsync()
+    {
+        var banks = await _context.Banks.ToListAsync();
+        var dtos = banks.Select(b => new BankReadDto 
+        { 
+            BankId = b.BankId, 
+            BankName = b.BankName, 
+            LogoUrl = !string.IsNullOrEmpty(b.LogoUrl) ? _baseUrl + b.LogoUrl : string.Empty 
+        }).ToList();
+        return ResponseDto.SuccessResponse($"تم استرجاع ({dtos.Count}) بنك بنجاح.", dtos);
+    }
+
+    public async Task<ResponseDto> GetBankByIdAsync(int bankId)
+    {
+        var bank = await _context.Banks.FindAsync(bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+        
+        var dto = new BankReadDto 
+        { 
+            BankId = bank.BankId, 
+            BankName = bank.BankName, 
+            LogoUrl = !string.IsNullOrEmpty(bank.LogoUrl) ? _baseUrl + bank.LogoUrl : string.Empty 
+        };
+        return ResponseDto.SuccessResponse("تم استرجاع البنك بنجاح.", dto);
+    }
+
+    public async Task<ResponseDto> CreateBankAsync(BankCreateDto dto)
+    {
+        var bank = new Bank { BankName = dto.BankName, LogoUrl = string.Empty };
+        
+        if (dto.LogoFile != null)
+        {
+            var logoPath = await _imageService.SaveImageAsync(dto.LogoFile, "Banks");
+            if (!string.IsNullOrEmpty(logoPath)) bank.LogoUrl = logoPath;
+        }
+
+        await _context.Banks.AddAsync(bank);
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم اضافة البنك بنجاح.");
+    }
+
+    public async Task<ResponseDto> UpdateBankAsync(int bankId, BankUpdateDto dto)
+    {
+        var bank = await _context.Banks.FindAsync(bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+
+        if (!string.IsNullOrEmpty(dto.BankName)) bank.BankName = dto.BankName;
+
+        if (dto.LogoFile != null)
+        {
+            var newLogoPath = await _imageService.UpdateImageAsync(dto.LogoFile, bank.LogoUrl, "Banks");
+            if (!string.IsNullOrEmpty(newLogoPath)) bank.LogoUrl = newLogoPath;
+        }
+
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم تحديث البنك بنجاح.");
+    }
+
+    public async Task<ResponseDto> DeleteBankAsync(int bankId)
+    {
+        var bank = await _context.Banks.Include(b => b.BankAccounts).FirstOrDefaultAsync(b => b.BankId == bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+        if (bank.BankAccounts != null && bank.BankAccounts.Any())
+            return ResponseDto.FailureResponse("لا يمكن حذف البنك لوجود حسابات مرتبطة به.");
+
+        if (!string.IsNullOrEmpty(bank.LogoUrl))
+        {
+            _imageService.DeleteImage(bank.LogoUrl);
+        }
+
+        _context.Banks.Remove(bank);
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم حذف البنك بنجاح.");
+    }
+
+    #endregion
 
 }

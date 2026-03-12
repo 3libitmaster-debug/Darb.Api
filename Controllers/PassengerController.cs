@@ -38,5 +38,12 @@ namespace Darb.Api.Controllers
             Description = "Retrieves all stations for a specific company within a specific governorate.")]
         public async Task<IActionResult> GetStations(int companyId, int governorateId)
             => Ok(await _passengerService.GetStationsByCompanyAndGovernorateAsync(companyId, governorateId));
+
+        [HttpGet("bank-accounts/{companyId}")]
+        [SwaggerOperation(
+            Summary = "Get Company Bank Accounts",
+            Description = "Retrieves all bank accounts for a specific company.")]
+        public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
+            => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
     }
 }

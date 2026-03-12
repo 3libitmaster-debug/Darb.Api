@@ -1,7 +1,8 @@
-﻿using Darb.Api.DTOs.Governorate;
+using Darb.Api.DTOs.Governorate;
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Trip;
+using Darb.Api.DTOs.BankAccount;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
@@ -614,6 +615,94 @@ namespace Darb.Api.Services.Implementations
 
             return ResponseDto.SuccessResponse($"تم استرجاع ({governorates.Count}) محافظة بنجاح.", governorates);
         }
+        #endregion
+
+        #region BankAccount Management Logic
+
+        public async Task<ResponseDto> GetAllBankAccountsAsync(int companyId)
+        {
+            var accounts = await _context.BankAccounts
+                .Include(ba => ba.Bank)
+                .Where(ba => ba.CompanyId == companyId)
+                .Select(ba => new BankAccountReadDto
+                {
+                    BankAccountId = ba.BankAccountId,
+                    AccountNumber = ba.AccountNumber,
+                    AccountHolderName = ba.AccountHolderName,
+                    BankId = ba.BankId,
+                    BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
+                    CompanyId = ba.CompanyId
+                }).ToListAsync();
+            return ResponseDto.SuccessResponse($"تم استرجاع ({accounts.Count}) حساب بنكي بنجاح.", accounts);
+        }
+
+        public async Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId)
+        {
+            var ba = await _context.BankAccounts
+                .Include(b => b.Bank)
+                .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
+                
+            if (ba == null) return ResponseDto.FailureResponse("الحساب غير موجود أو لا تملك صلاحية الوصول إليه.");
+
+            var dto = new BankAccountReadDto
+            {
+                BankAccountId = ba.BankAccountId,
+                AccountNumber = ba.AccountNumber,
+                AccountHolderName = ba.AccountHolderName,
+                BankId = ba.BankId,
+                BankName = ba.Bank?.BankName ?? "غير متوفر",
+                CompanyId = ba.CompanyId
+            };
+            return ResponseDto.SuccessResponse("تم استرجاع الحساب بنجاح.", dto);
+        }
+
+        public async Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId)
+        {
+            var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId);
+            if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود في النظام.");
+
+            var account = new BankAccount
+            {
+                AccountNumber = dto.AccountNumber,
+                AccountHolderName = dto.AccountHolderName,
+                BankId = dto.BankId,
+                CompanyId = companyId
+            };
+            await _context.BankAccounts.AddAsync(account);
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم إضافة الحساب البنكي بنجاح.");
+        }
+
+        public async Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId)
+        {
+            var account = await _context.BankAccounts
+                .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
+            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+
+            if (!string.IsNullOrEmpty(dto.AccountNumber)) account.AccountNumber = dto.AccountNumber;
+            if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.AccountHolderName = dto.AccountHolderName;
+            if (dto.BankId.HasValue) 
+            {
+                var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId.Value);
+                if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود.");
+                account.BankId = dto.BankId.Value;
+            }
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم تحديث الحساب البنكي بنجاح.");
+        }
+
+        public async Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId)
+        {
+            var account = await _context.BankAccounts
+                .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
+            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+
+            _context.BankAccounts.Remove(account);
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم حذف الحساب البنكي بنجاح.");
+        }
+
         #endregion
     }
 }

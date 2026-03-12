@@ -1,5 +1,6 @@
-﻿using Darb.Api.Dtos;
+using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.BankAccount;
 using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
@@ -294,6 +295,35 @@ namespace Darb.Api.Controllers
             var response = await _companyService.GetAllGovernoratesAsync();
             return Ok(response);
         }
+
+        #endregion
+
+        #region BankAccount Management Endpoints
+
+        [HttpGet("bank-accounts")]
+        [SwaggerOperation(Summary = "Get All Bank Accounts", Description = "Retrieves a list of all bank accounts for the authenticated company.")]
+        public async Task<IActionResult> GetBankAccounts() 
+            => Ok(await _companyService.GetAllBankAccountsAsync(User.GetCompanyId()));
+
+        [HttpGet("bank-accounts/{id}")]
+        [SwaggerOperation(Summary = "Get Bank Account by ID", Description = "Retrieves detailed information about a specific bank account.")]
+        public async Task<IActionResult> GetBankAccount(int id) 
+            => Ok(await _companyService.GetBankAccountByIdAsync(id, User.GetCompanyId()));
+
+        [HttpPost("create-bank-account")]
+        [SwaggerOperation(Summary = "Add New Bank Account", Description = "Creates a new bank account record for the company.")]
+        public async Task<IActionResult> CreateBankAccount([FromBody] BankAccountCreateDto dto) 
+            => Ok(await _companyService.CreateBankAccountAsync(dto, User.GetCompanyId()));
+
+        [HttpPut("bank-accounts/{id}")]
+        [SwaggerOperation(Summary = "Update Bank Account", Description = "Modifies an existing bank account's details.")]
+        public async Task<IActionResult> UpdateBankAccount(int id, [FromBody] BankAccountUpdateDto dto) 
+            => Ok(await _companyService.UpdateBankAccountAsync(id, dto, User.GetCompanyId()));
+
+        [HttpDelete("bank-accounts/{id}")]
+        [SwaggerOperation(Summary = "Delete Bank Account", Description = "Permanently removes a bank account from the system.")]
+        public async Task<IActionResult> DeleteBankAccount(int id) 
+            => Ok(await _companyService.DeleteBankAccountAsync(id, User.GetCompanyId()));
 
         #endregion
     }
