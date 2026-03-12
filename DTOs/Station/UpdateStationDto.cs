@@ -12,7 +12,7 @@ namespace Darb.Api.DTOs.Station
 
         public TimeSpan? DurationToEndStation { get; set; }
 
-        public double? ExtraFee { get; set; }
+        public decimal? ExtraFee { get; set; }
 
         public int? CityId { get; set; }
         public int? GovernorateId { get; set; }

@@ -1,4 +1,4 @@
-﻿using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Passenger;
 using Darb.Api.DTOs.Passenger.Darb.Api.DTOs.Passenger;
 using Darb.Api.Services.Interfaces;
@@ -18,7 +18,7 @@ namespace Darb.Api.Controllers
             _passengerService = passengerService;
         }
 
-        [HttpGet("home-page")]
+        [HttpGet("home")]
         [SwaggerOperation(
           Summary = "Get Home Page Data",
           Description = "Retrieves ads and search card data (Governorates, Companies, and Periods) for the mobile app home screen.")]
@@ -31,5 +31,12 @@ namespace Darb.Api.Controllers
             Description = "Filters scheduled trips based on optional criteria: From/To Governorates, Company, Period, and Travel Date. If no filters are provided, it returns all scheduled trips.")]
         public async Task<IActionResult> SearchTrips([FromBody] TripSearchQueryDto query)
             => Ok(await _passengerService.SearchTripsAsync(query));
+
+        [HttpGet("stations/{companyId}/{governorateId}")]
+        [SwaggerOperation(
+            Summary = "Get Stations by Company and Governorate",
+            Description = "Retrieves all stations for a specific company within a specific governorate.")]
+        public async Task<IActionResult> GetStations(int companyId, int governorateId)
+            => Ok(await _passengerService.GetStationsByCompanyAndGovernorateAsync(companyId, governorateId));
     }
 }

@@ -22,7 +22,7 @@ namespace Darb.Api.Models
 
         // التكاليف الاضافية التي تضاف على سعر الرحلة في حال كانت المحطة المختارة ليست اخر محطة داخل محافظة أنطلاق الرحلة
         [Required]
-        public double ExtraFee { get; set; }
+        public decimal ExtraFee { get; set; }
     
         public int CityId { get; set; }
         [ForeignKey("CityId")]

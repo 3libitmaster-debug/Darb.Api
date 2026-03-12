@@ -1,6 +1,7 @@
-﻿using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Passenger;
 using Darb.Api.DTOs.Passenger.Darb.Api.DTOs.Passenger;
+using Darb.Api.DTOs.Station;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using Darb.Api.Repository.Interfaces;
@@ -171,6 +172,43 @@ namespace Darb.Api.Services.Implementations
             {
                 // Global exception handling for search operation
                 return ResponseDto.FailureResponse($"Search failed due to an error: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Retrieves all stations for a specific company within a specific governorate.
+        /// </summary>
+        /// <param name="companyId">The ID of the company.</param>
+        /// <param name="governorateId">The ID of the governorate.</param>
+        /// <returns>A ResponseDto containing a list of StationReadDto.</returns>
+        public async Task<ResponseDto> GetStationsByCompanyAndGovernorateAsync(int companyId, int governorateId)
+        {
+            try
+            {
+                var stations = await _context.Stations
+                    .Include(s => s.City)
+                    .Include(s => s.Governorate)
+                    .OrderBy(s => s.Order) // Ensure stations are ordered by the 'Order' property
+                    .Where(s => s.CompanyId == companyId && s.GovernorateId == governorateId)
+                    .Select(s => new StationForSelectionDto
+                    
+                    {
+                        StationId = s.StationId,
+                        CityName = s.City != null ? s.City.Name ?? string.Empty : string.Empty,
+                        Address = s.Address ?? string.Empty,
+                        DurationToEndStation = s.DurationToEndStation,
+                        ExtraFee = s.ExtraFee
+
+                    }).ToListAsync();
+
+                if (stations.Count == 0)
+                    return ResponseDto.SuccessResponse("No stations found for the specified company and governorate.", stations);
+
+                return ResponseDto.SuccessResponse($"Retrieved {stations.Count} stations successfully.", stations);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Failed to retrieve stations: {ex.Message}");
             }
         }
     }

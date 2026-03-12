@@ -6,7 +6,7 @@ namespace Darb.Api.DTOs.Station
         public string Address { get; set; } = string.Empty;
         public int Order { get; set; }
         public TimeSpan DurationToEndStation { get; set; }
-        public double ExtraFee { get; set; }
+        public decimal ExtraFee { get; set; }
         
         public int CityId { get; set; }
         public string CityName { get; set; } = string.Empty;
