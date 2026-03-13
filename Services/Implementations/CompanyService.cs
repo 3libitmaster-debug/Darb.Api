@@ -239,6 +239,28 @@ namespace Darb.Api.Services.Implementations
                 await _context.Trips.AddAsync(trip);
                 await _context.SaveChangesAsync();
 
+                // --- NEW: Automatic TripRoute Creation ---
+                // Get all stations for this company in the start governorate
+                var stations = await _context.Stations
+                    .Where(s => s.CompanyId == companyId && s.GovernorateId == trip.StartGoveId)
+                    .ToListAsync();
+
+                foreach (var station in stations)
+                {
+                    var tripRoute = new TripRoute
+                    {
+                        TripId = trip.TripId,
+                        StationId = station.StationId,
+                        // RouteFare = Base Price + Extra Fee
+                        RouteFare = trip.BasePrice + station.ExtraFee,
+                        // DepartureTime = Trip Departure Time - Station Extra Time (DurationToEndStation)
+                        DepartureTime = trip.DepartureDateTime.TimeOfDay.Subtract(station.DurationToEndStation)
+                    };
+                    await _context.TripRoutes.AddAsync(tripRoute);
+                }
+                await _context.SaveChangesAsync();
+                // ----------------------------------------
+
                 var resultDto = new TripDto
                 {
                     TripId = trip.TripId,
@@ -249,7 +271,7 @@ namespace Darb.Api.Services.Implementations
                     Status = trip.Status.ToString()
                 };
 
-                return ResponseDto.SuccessResponse("تمت إضافة الرحلة الجديدة إلى نظام الجدولة بنجاح.", resultDto);
+                return ResponseDto.SuccessResponse("تمت إضافة الرحلة الجديدة والمسارات التابعة لها بنجاح.", resultDto);
             }
             catch (Exception ex)
             {
@@ -306,9 +328,39 @@ namespace Darb.Api.Services.Implementations
 
             try
             {
+                bool recalculateRoutes = updateDto.BasePrice.HasValue || updateDto.DepartureDateTime.HasValue;
+
                 await _context.SaveChangesAsync();
+
+                if (recalculateRoutes)
+                {
+                    // Remove existing routes and recreate them
+                    var existingRoutes = await _context.TripRoutes
+                        .Where(tr => tr.TripId == trip.TripId)
+                        .ToListAsync();
+                    
+                    _context.TripRoutes.RemoveRange(existingRoutes);
+
+                    var stations = await _context.Stations
+                        .Where(s => s.CompanyId == companyId && s.GovernorateId == trip.StartGoveId)
+                        .ToListAsync();
+
+                    foreach (var station in stations)
+                    {
+                        var tripRoute = new TripRoute
+                        {
+                            TripId = trip.TripId,
+                            StationId = station.StationId,
+                            RouteFare = trip.BasePrice + station.ExtraFee,
+                            DepartureTime = trip.DepartureDateTime.TimeOfDay.Subtract(station.DurationToEndStation)
+                        };
+                        await _context.TripRoutes.AddAsync(tripRoute);
+                    }
+                    await _context.SaveChangesAsync();
+                }
+
                 var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.BasePrice, Status = trip.Status.ToString() };
-                return ResponseDto.SuccessResponse("تم تحديث بيانات الرحلة بنجاح وفق التعديلات الجديدة.", resultDto);
+                return ResponseDto.SuccessResponse("تم تحديث بيانات الرحلة والمسارات التابعة لها بنجاح وفق التعديلات الجديدة.", resultDto);
             }
             catch (Exception ex)
             {
@@ -333,6 +385,18 @@ namespace Darb.Api.Services.Implementations
             // Safety Rule: Completed trips should remain in history and cannot be deleted.
             if (trip.Status == TripStatus.completed)
                 return ResponseDto.FailureResponse("حفاظاً على سلامة السجلات المالية والإحصائية، لا يمكن حذف الرحلات المكتملة.");
+
+            // --- NEW: Booking Check ---
+            // Check if there are any bookings associated with this trip's routes
+            var hasBookings = await _context.Bookings
+                .AnyAsync(b => _context.TripRoutes.Where(tr => tr.TripId == tripId).Select(tr => tr.TripRouteId).Contains(b.TripRouteId));
+
+            if (hasBookings)
+                return ResponseDto.FailureResponse("لا يمكن حذف هذه الرحلة لوجود حجوزات فعالة مرتبطة بمساراتها.");
+            // ------------------------
+
+            var relatedRoutes = await _context.TripRoutes.Where(tr => tr.TripId == tripId).ToListAsync();
+            _context.TripRoutes.RemoveRange(relatedRoutes);
 
             _context.Trips.Remove(trip);
             await _context.SaveChangesAsync();

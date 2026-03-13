@@ -1,7 +1,8 @@
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Passenger;
-using Darb.Api.DTOs.Passenger.Darb.Api.DTOs.Passenger;
 using Darb.Api.Services.Interfaces;
+using Darb.Api.Extensions;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 
@@ -18,6 +19,8 @@ namespace Darb.Api.Controllers
             _passengerService = passengerService;
         }
 
+        #region Home & Search Endpoints
+
         [HttpGet("home")]
         [SwaggerOperation(
           Summary = "Get Home Page Data",
@@ -32,6 +35,10 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> SearchTrips([FromBody] TripSearchQueryDto query)
             => Ok(await _passengerService.SearchTripsAsync(query));
 
+        #endregion
+
+        #region Information Endpoints
+
         [HttpGet("stations/{companyId}/{governorateId}")]
         [SwaggerOperation(
             Summary = "Get Stations by Company and Governorate",
@@ -45,5 +52,58 @@ namespace Darb.Api.Controllers
             Description = "Retrieves all bank accounts for a specific company.")]
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
+
+        #endregion
+
+        #region Booking Endpoints
+
+        [HttpPost("book")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(
+            Summary = "Book a Trip (Stage 1)",
+            Description = "Allows an authorized passenger to create a booking without the receipt image. Returns the BookingId to be used in Stage 2.")]
+        public async Task<IActionResult> BookTrip([FromBody] BookingRequestDto request)
+        {
+            try
+            {
+                int userId = User.GetPassengerId();
+                var response = await _passengerService.BookTripAsync(userId, request);
+                
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
+
+        [HttpPost("upload-receipt")]
+        [Authorize(Roles = "Passenger")]
+        [Consumes("multipart/form-data")]
+        [SwaggerOperation(
+            Summary = "Upload Payment Receipt (Stage 2)",
+            Description = "Upload the payment receipt image for a previously created booking. This confirms the booking.")]
+        public async Task<IActionResult> UploadReceipt([FromForm] UploadReceiptDto request)
+        {
+            try
+            {
+                int userId = User.GetPassengerId();
+                var response = await _passengerService.UploadReceiptAsync(userId, request);
+                
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
+
+        #endregion
     }
 }

@@ -1,5 +1,5 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.Passenger.Darb.Api.DTOs.Passenger;
+using Darb.Api.DTOs.Passenger;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -11,5 +11,7 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> SearchTripsAsync(TripSearchQueryDto query);
         Task<ResponseDto> GetStationsByCompanyAndGovernorateAsync(int companyId, int governorateId);
         Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId);
+        Task<ResponseDto> BookTripAsync(int userId, BookingRequestDto request);
+        Task<ResponseDto> UploadReceiptAsync(int userId, UploadReceiptDto request);
     }
 }

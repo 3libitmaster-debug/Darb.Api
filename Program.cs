@@ -1,4 +1,4 @@
-﻿using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Base;
 using Darb.Api.Helpers;
 using Darb.Api.Interfaces;
 using Darb.Api.Models;
@@ -8,6 +8,7 @@ using Darb.Api.Services;
 using Darb.Api.Services.Implementations;
 using Darb.Api.Services.Implemention;
 using Darb.Api.Services.Interfaces;
+using Darb.Api.Services.BackgroundServices;
 using darbWebApp.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -95,6 +96,7 @@ builder.Services.AddScoped<IPassengerService, PassengerService>();
 builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
 
+builder.Services.AddHostedService<DatabaseCleanupService>();
 
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
 

@@ -233,7 +233,7 @@ public class AdminService : IAdminService
         // Handle image upload via the dedicated ImageService
         if (dto.ImageFile != null)
         {
-            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "Advertisements");
+            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "AdvertisementsImages");
             if (!string.IsNullOrEmpty(imagePath)) ad.Image = imagePath;
         }
 
@@ -262,7 +262,7 @@ public class AdminService : IAdminService
         // Process image update via the centralized ImageService method
         if (dto.ImageFile != null)
         {
-            var newImagePath = await _imageService.UpdateImageAsync(dto.ImageFile, ad.Image, "Advertisements");
+            var newImagePath = await _imageService.UpdateImageAsync(dto.ImageFile, ad.Image, "AdvertisementsImages");
             if (!string.IsNullOrEmpty(newImagePath)) ad.Image = newImagePath;
         }
 
@@ -328,7 +328,7 @@ public class AdminService : IAdminService
         
         if (dto.LogoFile != null)
         {
-            var logoPath = await _imageService.SaveImageAsync(dto.LogoFile, "Banks");
+            var logoPath = await _imageService.SaveImageAsync(dto.LogoFile, "Banks logo");
             if (!string.IsNullOrEmpty(logoPath)) bank.LogoUrl = logoPath;
         }
 
@@ -346,7 +346,7 @@ public class AdminService : IAdminService
 
         if (dto.LogoFile != null)
         {
-            var newLogoPath = await _imageService.UpdateImageAsync(dto.LogoFile, bank.LogoUrl, "Banks");
+            var newLogoPath = await _imageService.UpdateImageAsync(dto.LogoFile, bank.LogoUrl, "Banks logo");
             if (!string.IsNullOrEmpty(newLogoPath)) bank.LogoUrl = newLogoPath;
         }
 

@@ -1,4 +1,4 @@
-﻿using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.AuthDtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Interfaces;
 using Darb.Api.Models;
@@ -17,6 +17,8 @@ namespace Darb.Api.Controllers
         {
             _authService = authService;
         }
+
+        #region Authentication Endpoints
 
         /// <summary>
         /// Handles user login for both Passengers and Companies.
@@ -45,6 +47,10 @@ namespace Darb.Api.Controllers
             // Return 200 OK with the token inside the result object
             return Ok(result);
         }
+
+        #endregion
+
+        #region Registration Endpoints
 
         /// <summary>
         /// Registers a new passenger in the system.
@@ -101,5 +107,7 @@ namespace Darb.Api.Controllers
 
             return Ok(result);
         }
+
+        #endregion
     }
 }

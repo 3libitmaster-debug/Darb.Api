@@ -117,6 +117,49 @@ namespace Darb.Api.Migrations
                     b.ToTable("BankAccounts");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.Booking", b =>
+                {
+                    b.Property<int>("BookingId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BookingId"));
+
+                    b.Property<int>("BankAccountId")
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("BookingAt")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("NumberOfSeats")
+                        .HasColumnType("int");
+
+                    b.Property<int>("PassengerId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("ReceiptImagePath")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<decimal>("TotalAmount")
+                        .HasColumnType("decimal(18,2)");
+
+                    b.Property<int>("TripRouteId")
+                        .HasColumnType("int");
+
+                    b.HasKey("BookingId");
+
+                    b.HasIndex("BankAccountId");
+
+                    b.HasIndex("PassengerId");
+
+                    b.HasIndex("TripRouteId");
+
+                    b.ToTable("Bookings");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.Bus", b =>
                 {
                     b.Property<int>("BusId")
@@ -211,6 +254,34 @@ namespace Darb.Api.Migrations
                     b.ToTable("Companies");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.ETicket", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
+
+                    b.Property<bool>("IsConfirmed")
+                        .HasColumnType("bit");
+
+                    b.Property<int>("PassengerDetailId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("TicketCode")
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("PassengerDetailId")
+                        .IsUnique();
+
+                    b.ToTable("ETickets");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.Governorate", b =>
                 {
                     b.Property<int>("GovernorateId")
@@ -264,6 +335,48 @@ namespace Darb.Api.Migrations
                         .IsUnique();
 
                     b.ToTable("Passengers");
+                });
+
+            modelBuilder.Entity("Darb.Api.Models.PassengerDetails", b =>
+                {
+                    b.Property<int>("PassengerDetailsId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("PassengerDetailsId"));
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(250)
+                        .HasColumnType("nvarchar(250)");
+
+                    b.Property<DateTime?>("BirthDate")
+                        .HasColumnType("datetime2");
+
+                    b.Property<int>("BookingId")
+                        .HasColumnType("int");
+
+                    b.Property<string>("FullName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Gender")
+                        .HasColumnType("int");
+
+                    b.Property<string>("NationalId")
+                        .IsRequired()
+                        .HasMaxLength(11)
+                        .HasColumnType("nvarchar(11)");
+
+                    b.Property<string>("PhoneNumber")
+                        .IsRequired()
+                        .HasColumnType("nvarchar(max)");
+
+                    b.HasKey("PassengerDetailsId");
+
+                    b.HasIndex("BookingId");
+
+                    b.ToTable("PassengerDetails");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.Station", b =>
@@ -391,6 +504,35 @@ namespace Darb.Api.Migrations
                     b.ToTable("Trips");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.TripRoute", b =>
+                {
+                    b.Property<int>("TripRouteId")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripRouteId"));
+
+                    b.Property<TimeSpan>("DepartureTime")
+                        .HasColumnType("time");
+
+                    b.Property<decimal>("RouteFare")
+                        .HasColumnType("decimal(18, 2)");
+
+                    b.Property<int>("StationId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("TripId")
+                        .HasColumnType("int");
+
+                    b.HasKey("TripRouteId");
+
+                    b.HasIndex("StationId");
+
+                    b.HasIndex("TripId");
+
+                    b.ToTable("TripRoutes");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.User", b =>
                 {
                     b.Property<int>("UserId")
@@ -456,6 +598,33 @@ namespace Darb.Api.Migrations
                     b.Navigation("Company");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.Booking", b =>
+                {
+                    b.HasOne("Darb.Api.Models.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.HasOne("Darb.Api.Models.Passenger", "Passenger")
+                        .WithMany()
+                        .HasForeignKey("PassengerId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.HasOne("Darb.Api.Models.TripRoute", "TripRoute")
+                        .WithMany()
+                        .HasForeignKey("TripRouteId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("BankAccount");
+
+                    b.Navigation("Passenger");
+
+                    b.Navigation("TripRoute");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.Bus", b =>
                 {
                     b.HasOne("Darb.Api.Models.Company", "Company")
@@ -489,6 +658,17 @@ namespace Darb.Api.Migrations
                     b.Navigation("User");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.ETicket", b =>
+                {
+                    b.HasOne("Darb.Api.Models.PassengerDetails", "PassengerDetails")
+                        .WithOne("ETicket")
+                        .HasForeignKey("Darb.Api.Models.ETicket", "PassengerDetailId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("PassengerDetails");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.Passenger", b =>
                 {
                     b.HasOne("Darb.Api.Models.User", "User")
@@ -498,6 +678,17 @@ namespace Darb.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("User");
+                });
+
+            modelBuilder.Entity("Darb.Api.Models.PassengerDetails", b =>
+                {
+                    b.HasOne("Darb.Api.Models.Booking", "Booking")
+                        .WithMany("Passengers")
+                        .HasForeignKey("BookingId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Booking");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.Station", b =>
@@ -573,9 +764,33 @@ namespace Darb.Api.Migrations
                     b.Navigation("StartGovernate");
                 });
 
+            modelBuilder.Entity("Darb.Api.Models.TripRoute", b =>
+                {
+                    b.HasOne("Darb.Api.Models.Station", "Station")
+                        .WithMany()
+                        .HasForeignKey("StationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("Darb.Api.Models.Trip", "Trip")
+                        .WithMany("TripRoutes")
+                        .HasForeignKey("TripId")
+                        .OnDelete(DeleteBehavior.NoAction)
+                        .IsRequired();
+
+                    b.Navigation("Station");
+
+                    b.Navigation("Trip");
+                });
+
             modelBuilder.Entity("Darb.Api.Models.Bank", b =>
                 {
                     b.Navigation("BankAccounts");
+                });
+
+            modelBuilder.Entity("Darb.Api.Models.Booking", b =>
+                {
+                    b.Navigation("Passengers");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.Bus", b =>
@@ -601,6 +816,16 @@ namespace Darb.Api.Migrations
                     b.Navigation("City");
 
                     b.Navigation("Station");
+                });
+
+            modelBuilder.Entity("Darb.Api.Models.PassengerDetails", b =>
+                {
+                    b.Navigation("ETicket");
+                });
+
+            modelBuilder.Entity("Darb.Api.Models.Trip", b =>
+                {
+                    b.Navigation("TripRoutes");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.User", b =>

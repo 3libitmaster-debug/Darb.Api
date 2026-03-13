@@ -23,7 +23,11 @@ namespace darbWebApp.Data
         public DbSet<Advertisement> Advertisements { get; set; }
         public DbSet<Bank> Banks { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
-
+        public DbSet<TripRoute> TripRoutes { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<PassengerDetails> PassengerDetails { get; set; }
+        public DbSet<ETicket> ETickets { get; set; }
+    
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -36,10 +40,6 @@ namespace darbWebApp.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasConversion<string>();
-
-            //modelBuilder.Entity<Trip>()
-            //    .Property(t => t.BasePrice)
-            //    .HasColumnType("decimal(18,2)"); 
 
             // Convert Subscription PlanType Enum to String in Database
             modelBuilder.Entity<Subscription>()
@@ -185,6 +185,41 @@ namespace darbWebApp.Data
                 .WithMany(c => c.BankAccounts)
                 .HasForeignKey(ba => ba.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade); 
+
+            // --- PassengerDetails & ETicket Relationship (One-to-One) ---
+            modelBuilder.Entity<PassengerDetails>()
+                .HasOne(pd => pd.ETicket)
+                .WithOne(e => e.PassengerDetails)
+                .HasForeignKey<ETicket>(e => e.PassengerDetailId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // --- Booking Relationships (Prevent multiple cascade paths) ---
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.Passenger)
+                .WithMany()
+                .HasForeignKey(b => b.PassengerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.TripRoute)
+                .WithMany()
+                .HasForeignKey(b => b.TripRouteId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.BankAccount)
+                .WithMany()
+                .HasForeignKey(b => b.BankAccountId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripRoute>()
+                .HasOne(tr => tr.Trip)
+                .WithMany(t => t.TripRoutes)
+                .HasForeignKey(tr => tr.TripId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+
         }
     }
 }

@@ -24,6 +24,8 @@ namespace Darb.Api.Controllers
             _companyService = companyService;
         }
 
+        #region Trip Management Endpoints
+
         [HttpGet("Get-trips")]
         [SwaggerOperation(
             Summary = "Get All Company Trips",
@@ -105,8 +107,9 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : BadRequest(response);
         }
 
+        #endregion
 
-       
+        #region Bus Management Endpoints
 
         [HttpGet("Get-buses")]
         [SwaggerOperation(
@@ -193,6 +196,8 @@ namespace Darb.Api.Controllers
 
             return Ok(response);
         }
+
+        #endregion
 
         #region Station Management Endpoints
 
@@ -282,7 +287,6 @@ namespace Darb.Api.Controllers
         }
 
         #endregion
-
 
         #region Governorate Management Endpoints
 

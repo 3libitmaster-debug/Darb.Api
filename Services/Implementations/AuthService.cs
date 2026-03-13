@@ -139,9 +139,9 @@ namespace Darb.Api.Services
                 try
                 {
                     // --- STEP 1: Process and optimize image uploads (Converted to WebP internally) ---
-                    var logoPath = await _ImageService.SaveImageAsync(request.Logo, "logos");
-                    var licensePath = await _ImageService.SaveImageAsync(request.License, "licenses");
-                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip, "Subscription payment-slips");
+                    var logoPath = await _ImageService.SaveImageAsync(request.Logo, "Transport company logos");
+                    var licensePath = await _ImageService.SaveImageAsync(request.License, "Transport company licenses");
+                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip, "Subscription payment receipts");
 
                     // Validate that all required documents are successfully uploaded
                     if (logoPath == null || licensePath == null || paymentPath == null)
