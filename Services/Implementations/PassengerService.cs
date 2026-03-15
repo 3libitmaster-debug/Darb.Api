@@ -244,60 +244,54 @@ namespace Darb.Api.Services.Implementations
         }
         #endregion
 
-        #region Book Trip Logic 
+        #region Book Trip Logic
         /// <summary>
-        /// Handles the full e-ticket booking process using PassengerId directly.
+        /// Orchestrates the booking process. 
+        /// Handles seat inventory, multi-passenger registration, and owner-as-passenger injection.
         /// </summary>
         public async Task<ResponseDto> BookTripAsync(int passengerId, BookingRequestDto request)
         {
             // --- 1. PRE-TRANSACTION VALIDATIONS ---
 
-            // Optimization: Find the passenger by PassengerId directly 
-            // (since it was extracted from the token extension)
-            var passenger = await _context.Passengers.FirstOrDefaultAsync(p => p.PassengerId == passengerId);
-            if (passenger == null)
-                return ResponseDto.FailureResponse("Passenger profile not found.");
+            // Fetch the account owner's profile (The person making the booking)
+            var passengerProfile = await _context.Passengers
+                .FirstOrDefaultAsync(p => p.PassengerId == passengerId);
 
-            // Validate TripRoute (which covers trip, station, company, and governorate)
+            if (passengerProfile == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على ملف تعريف المستخدم.");
+
+            // Validate the existence of the TripRoute and the associated Trip
             var tripRoute = await _context.TripRoutes
-                .Include(tr => tr.Trip) // Include Trip to avoid extra query later
+                .Include(tr => tr.Trip)
                 .FirstOrDefaultAsync(tr => tr.TripRouteId == request.TripRouteId);
 
-            if (tripRoute == null)
-                return ResponseDto.FailureResponse("عذراً، مسار الرحلة المختار غير متاح حالياً.");
+            if (tripRoute == null || tripRoute.Trip == null)
+                return ResponseDto.FailureResponse("مسار الرحلة المختار غير متاح حالياً.");
 
-            // Use the trip from the tripRoute
             var trip = tripRoute.Trip;
 
-            if (trip == null)
-                return ResponseDto.FailureResponse("The requested trip does not exist.");
-
-            // Ensure the trip is still 'Scheduled'
+            // Ensure the trip is still open for booking
             if (trip.Status != TripStatus.scheduled)
-                return ResponseDto.FailureResponse("This trip is no longer available for booking.");
+                return ResponseDto.FailureResponse("عذراً، هذه الرحلة لم تعد متاحة للحجز.");
 
-            // Check if passengers list is empty 
-            if (request.PassengerDetails == null || request.PassengerDetails.Count == 0)
-                return ResponseDto.FailureResponse("يجب إدخال تفاصيل راكب واحد على الأقل. يرجى التأكد من إرسال البيانات بالتنسيق الصحيح.");
+            // Calculate total seats required: (1 if Owner is traveling) + (count of additional passengers)
+            int additionalCount = request.AdditionalPassengers?.Count ?? 0;
+            int totalSeatsRequired = additionalCount + (request.IsOwnerPassenger ? 1 : 0);
 
-            if (request.PassengerDetails.Count > 10)
-                return ResponseDto.FailureResponse("لا يمكنك حجز أكثر من 10 مقاعد.");
+            if (totalSeatsRequired == 0)
+                return ResponseDto.FailureResponse("يجب إضافة راكب واحد على الأقل (سواء صاحب الحساب أو مرافق).");
 
-            // Check seat availability
-            if (trip.AvailableSeats < request.PassengerDetails.Count)
-                return ResponseDto.FailureResponse($"Insufficient seats. Only {trip.AvailableSeats} seats remaining.");
+            if (totalSeatsRequired > 10)
+                return ResponseDto.FailureResponse("لا يمكن حجز أكثر من 10 مقاعد في عملية واحدة.");
 
-            var bankAccount = await _context.BankAccounts.FirstOrDefaultAsync(ba => ba.BankAccountId == request.BankAccountId);
+            // Verify physical seat availability in the bus
+            if (trip.AvailableSeats < totalSeatsRequired)
+                return ResponseDto.FailureResponse($"عذراً، لا توجد مقاعد كافية. المقاعد المتاحة: {trip.AvailableSeats}");
 
-            if (bankAccount == null)
-                return ResponseDto.FailureResponse("Invalid bank account selection.");
+            // Calculate total financial amount based on route fare
+            decimal totalAmount = tripRoute.RouteFare * totalSeatsRequired;
 
-            // --- 2. CALCULATE PRICING ---
-            decimal totalAmount = tripRoute.RouteFare * request.PassengerDetails.Count;
-
-            // No image processing in this stage
-
-            // --- 3. EXECUTION STRATEGY ---
+            // --- 2. EXECUTION STRATEGY (Resiliency) ---
             var strategy = _context.Database.CreateExecutionStrategy();
 
             return await strategy.ExecuteAsync(async () =>
@@ -305,65 +299,87 @@ namespace Darb.Api.Services.Implementations
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // A. Create the Main Booking Header
+                    // A. Create Booking Header
                     var booking = new Booking
                     {
-                        PassengerId = passenger.PassengerId, // Linked to the fetched profile
+                        PassengerId = passengerProfile.PassengerId,
                         TripRouteId = tripRoute.TripRouteId,
-                        BankAccountId = request.BankAccountId,
-                        NumberOfSeats = request.PassengerDetails.Count,
+                        NumberOfSeats = totalSeatsRequired,
                         TotalAmount = totalAmount,
-                        ReceiptImagePath = null, // Will be updated in stage 2
-                        Status = BookingStatus.PendingAttachment,
+                        Status = BookingStatus.PendingAttachment, // Phase 1: Waiting for receipt upload
                         BookingAt = DateHelper.GetYemenTime()
                     };
 
                     _context.Bookings.Add(booking);
-                    await _context.SaveChangesAsync();
+                    await _context.SaveChangesAsync(); // Commit to generate BookingId for FK relations
 
-                    // B. Create Passenger Details and E-Tickets
-                    foreach (var passengerDto in request.PassengerDetails)
+                    // B. Build Unified Passenger List (Mapping Profile & DTOs)
+                    var allPassengersList = new List<PassengerDetails>();
+
+                    // Logic: If IsOwnerPassenger is true, "Pull" owner's profile data into PassengerDetails
+                    if (request.IsOwnerPassenger)
                     {
-                        var passengerDetail = new PassengerDetails
+                        allPassengersList.Add(new PassengerDetails
                         {
                             BookingId = booking.BookingId,
-                            FullName = passengerDto.FullName,
-                            NationalId = passengerDto.NationalId,
-                            PhoneNumber = passengerDto.PhoneNumber,
-                            BirthDate = passengerDto.BirthDate,
-                            Gender = passengerDto.Gender
-                        };
+                            FullName = passengerProfile.FullName ?? "",
+                            NationalId = passengerProfile.NationalId,
+                            PhoneNumber = passengerProfile.Phone ?? "",
+                            BirthDate = passengerProfile.DateOfBirth,
+                            Address = passengerProfile.Address
+                        });
+                    }
 
-                        _context.PassengerDetails.Add(passengerDetail);
-                        await _context.SaveChangesAsync();
+                    // Append additional companions from the request
+                    if (additionalCount > 0)
+                    {
+                        foreach (var pDto in request.AdditionalPassengers!)
+                        {
+                            allPassengersList.Add(new PassengerDetails
+                            {
+                                BookingId = booking.BookingId,
+                                FullName = pDto.FullName,
+                                NationalId = pDto.NationalId,
+                                PhoneNumber = pDto.PhoneNumber,
+                                BirthDate = pDto.BirthDate,
+                            });
+                        }
+                    }
 
-                        // Generate a placeholder E-Ticket
+                    // Bulk save all passengers to optimize database performance
+                    _context.PassengerDetails.AddRange(allPassengersList);
+                    await _context.SaveChangesAsync();
+
+                    // C. Generate Placeholder E-Tickets for each passenger
+                    foreach (var pDetail in allPassengersList)
+                    {
                         _context.ETickets.Add(new ETicket
                         {
-                            PassengerDetailId = passengerDetail.PassengerDetailsId,
-                            TicketCode = null,
+                            PassengerDetailId = pDetail.PassengerDetailsId,
+                            TicketCode = null, // Generated by admin later
                             Status = ETicketStatus.Active,
                             IsConfirmed = false
                         });
                     }
 
-                    // C. Inventory Management
-                    trip.AvailableSeats -= request.PassengerDetails.Count;
+                    // D. Inventory Management: Deduct seats and update trip status if full
+                    trip.AvailableSeats -= totalSeatsRequired;
                     if (trip.AvailableSeats == 0)
                         trip.Status = TripStatus.Fulled;
 
                     _context.Trips.Update(trip);
                     await _context.SaveChangesAsync();
 
+                    // Finalize the transaction
                     await transaction.CommitAsync();
 
-                    return ResponseDto.SuccessResponse("Stage 1 complete: Booking created. Please upload the receipt.", booking.BookingId);
+                    return ResponseDto.SuccessResponse("تم إنشاء الحجز المبدئي بنجاح. يرجى رفع صورة السند لتأكيد الحجز.", booking.BookingId);
                 }
                 catch (Exception ex)
                 {
+                    // Rollback all changes in case of failure to maintain data integrity
                     await transaction.RollbackAsync();
-
-                    return ResponseDto.FailureResponse($"System Error: {ex.Message}");
+                    return ResponseDto.FailureResponse($"فشلت عملية الحجز: {ex.Message}");
                 }
             });
         }

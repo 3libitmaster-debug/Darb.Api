@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using darbWebApp.Data;
 
@@ -11,9 +12,11 @@ using darbWebApp.Data;
 namespace Darb.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260315025011_altertablePassenger")]
+    partial class altertablePassenger
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -125,6 +128,9 @@ namespace Darb.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BookingId"));
 
+                    b.Property<int>("BankAccountId")
+                        .HasColumnType("int");
+
                     b.Property<DateTime>("BookingAt")
                         .HasColumnType("datetime2");
 
@@ -150,6 +156,8 @@ namespace Darb.Api.Migrations
                         .HasColumnType("int");
 
                     b.HasKey("BookingId");
+
+                    b.HasIndex("BankAccountId");
 
                     b.HasIndex("PassengerId");
 
@@ -362,6 +370,9 @@ namespace Darb.Api.Migrations
                         .IsRequired()
                         .HasMaxLength(100)
                         .HasColumnType("nvarchar(100)");
+
+                    b.Property<int>("Gender")
+                        .HasColumnType("int");
 
                     b.Property<string>("NationalId")
                         .IsRequired()
@@ -600,6 +611,12 @@ namespace Darb.Api.Migrations
 
             modelBuilder.Entity("Darb.Api.Models.Booking", b =>
                 {
+                    b.HasOne("Darb.Api.Models.BankAccount", "BankAccount")
+                        .WithMany()
+                        .HasForeignKey("BankAccountId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
                     b.HasOne("Darb.Api.Models.Passenger", "Passenger")
                         .WithMany()
                         .HasForeignKey("PassengerId")
@@ -611,6 +628,8 @@ namespace Darb.Api.Migrations
                         .HasForeignKey("TripRouteId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
+
+                    b.Navigation("BankAccount");
 
                     b.Navigation("Passenger");
 

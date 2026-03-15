@@ -40,11 +40,6 @@ namespace Darb.Api.Models
         [ForeignKey("TripRouteId")]
         public virtual TripRoute? TripRoute { get; set; } 
 
-        [Required]
-        public int BankAccountId { get; set; }
-        [ForeignKey("BankAccountId")]
-        public virtual BankAccount? BankAccount { get; set; }
-
         public virtual ICollection<PassengerDetails> Passengers { get; set; } = new List<PassengerDetails>();
 
         [Range(1, 10, ErrorMessage = "You can book between 1 to 10 seats.")]
@@ -53,6 +48,8 @@ namespace Darb.Api.Models
         public decimal TotalAmount { get; set; }
         
         public string? ReceiptImagePath { get; set; }
+
+        public bool IsOwnerPassenger { get; set; } 
 
         [Required]
         public BookingStatus Status { get; set; } 

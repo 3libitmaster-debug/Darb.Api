@@ -207,12 +207,6 @@ namespace darbWebApp.Data
                 .HasForeignKey(b => b.TripRouteId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<Booking>()
-                .HasOne(b => b.BankAccount)
-                .WithMany()
-                .HasForeignKey(b => b.BankAccountId)
-                .OnDelete(DeleteBehavior.Restrict);
-
             modelBuilder.Entity<TripRoute>()
                 .HasOne(tr => tr.Trip)
                 .WithMany(t => t.TripRoutes)

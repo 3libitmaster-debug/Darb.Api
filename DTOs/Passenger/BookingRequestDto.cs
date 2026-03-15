@@ -1,20 +1,15 @@
 using System.ComponentModel.DataAnnotations;
-using Microsoft.AspNetCore.Http;
 
 namespace Darb.Api.DTOs.Passenger
 {
     public class BookingRequestDto
     {
-        [Required]
+        [Required(ErrorMessage = "„”«— «·—Õ·… „ÿ·Ê».")]
         public int TripRouteId { get; set; }
 
-        [Required]
-        public int BankAccountId { get; set; }
+        public bool IsOwnerPassenger { get; set; }
 
-        [Required]
-        [MinLength(1, ErrorMessage = "At least one passenger is required.")]
-        [MaxLength(10, ErrorMessage = "You cannot book more than 10 seats.")]
-
-        public List<PassengerDetailDto> PassengerDetails { get; set; } = new List<PassengerDetailDto>();
+        [Required(ErrorMessage = "·« Ì„ﬂ‰ «·ÕÃ“ »œÊ‰  ›«’Ì· «·—ﬂ«»!.")]
+        public List<PassengerDetailDto> AdditionalPassengers { get; set; } = new List<PassengerDetailDto>();
     }
 }
