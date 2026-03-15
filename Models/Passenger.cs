@@ -20,6 +20,9 @@ namespace Darb.Api.Models
         [Required,MaxLength(255)]
         public string ?Address { get; set; }
 
+        [Required, MaxLength(11)]
+        public string ?NationalId { get; set; } 
+
         [ForeignKey("UserId")]
         public int UserId { get; set; }
 

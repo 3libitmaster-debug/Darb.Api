@@ -21,8 +21,5 @@ namespace Darb.Api.DTOs.Passenger
         [DataType(DataType.Date)]
         [Display(Name = "Date of Birth")]
         public DateTime? BirthDate { get; set; }
-
-        [Required(ErrorMessage = "Gender is required.")]
-        public Gender Gender { get; set; }
     }
 }

@@ -26,9 +26,6 @@ namespace Darb.Api.Models
         [Display(Name = "Date of Birth")]
         public DateTime? BirthDate { get; set; }
 
-        [Required(ErrorMessage = "Gender is required.")]
-        public Gender Gender { get; set; }
-
         [Required(ErrorMessage = "National ID is required.")]
         [RegularExpression(@"^\d+$", ErrorMessage = "National ID must contain only digits.")]
         [StringLength(11, ErrorMessage = "National ID cannot exceed 11 numbers.")]
