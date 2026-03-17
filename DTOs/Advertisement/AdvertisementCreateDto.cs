@@ -17,6 +17,6 @@ namespace Darb.Api.DTOs.Advertisement
         public DateTime? EndDateAds { get; set; }
 
         [Required(ErrorMessage = "Status is required")]
-        public bool IsActive { get; set; } = true;
+        public bool IsActive { get; set; }
     }
 }

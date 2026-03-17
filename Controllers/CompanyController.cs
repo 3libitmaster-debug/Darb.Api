@@ -302,6 +302,54 @@ namespace Darb.Api.Controllers
 
         #endregion
 
+        #region Booking Management Endpoints
+
+        [HttpGet("bookings")]
+        [SwaggerOperation(Summary = "Get All Bookings", Description = "Retrieves a comprehensive list of all bookings for trips owned by the authenticated company.")]
+        public async Task<IActionResult> GetBookings()
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.GetAllCompanyBookingsAsync(companyId);
+            return Ok(response);
+        }
+
+        [HttpGet("bookings/{id}")]
+        [SwaggerOperation(Summary = "Get Booking By ID", Description = "Retrieves detailed information about a specific booking and its passengers.")]
+        public async Task<IActionResult> GetBooking(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.GetCompanyBookingByIdAsync(id, companyId);
+            return response.Success ? Ok(response) : NotFound(response);
+        }
+
+        [HttpPut("bookings/{id}/status")]
+        [SwaggerOperation(Summary = "Update Booking Status", Description = "Modifies the status of a booking (e.g. to Confirmed). Confirming generates ETickets.")]
+        public async Task<IActionResult> UpdateBookingStatus(int id, [FromBody] Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.UpdateCompanyBookingStatusAsync(id, dto, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpDelete("bookings/{id}")]
+        [SwaggerOperation(Summary = "Delete Booking", Description = "Permanently removes a booking from the system. Confirmed bookings must be cancelled first.")]
+        public async Task<IActionResult> DeleteBooking(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.DeleteCompanyBookingAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        #endregion
+
         #region BankAccount Management Endpoints
 
         [HttpGet("bank-accounts")]

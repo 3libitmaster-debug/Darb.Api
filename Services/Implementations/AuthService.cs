@@ -104,6 +104,7 @@ namespace Darb.Api.Services
                         FullName = dto.FullName,
                         Phone = dto.Phone,
                         Address = dto.Address,
+                        NationalId = dto.NationalId,
                         DateOfBirth = dto.DateOfBirth
                     };
 

@@ -63,6 +63,13 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetAllGovernoratesAsync();
         #endregion
 
+        #region Booking Management
+        Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId);
+        Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId);
+        Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId);
+        Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId);
+        #endregion
+
         #region BankAccount Management
         Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
         Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId);

@@ -39,12 +39,12 @@ namespace Darb.Api.Controllers
 
         #region Information Endpoints
 
-        [HttpGet("stations/{companyId}/{governorateId}")]
+        [HttpGet("stations/{tripId}")]
         [SwaggerOperation(
             Summary = "Get Stations by Company and Governorate",
             Description = "Retrieves all stations for a specific company within a specific governorate.")]
-        public async Task<IActionResult> GetStations(int companyId, int governorateId)
-            => Ok(await _passengerService.GetStationsByCompanyAndGovernorateAsync(companyId, governorateId));
+        public async Task<IActionResult> GetStations(int tripId)
+            => Ok(await _passengerService.GetTripStationsAsync(tripId));
 
         [HttpGet("bank-accounts/{companyId}")]
         [SwaggerOperation(

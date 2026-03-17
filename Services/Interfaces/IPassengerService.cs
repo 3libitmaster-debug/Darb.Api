@@ -9,7 +9,7 @@ namespace Darb.Api.Services.Interfaces
         // Retrieves all data required for the passenger home page 
         Task<ResponseDto> GetHomePageDataAsync();
         Task<ResponseDto> SearchTripsAsync(TripSearchQueryDto query);
-        Task<ResponseDto> GetStationsByCompanyAndGovernorateAsync(int companyId, int governorateId);
+        Task<ResponseDto> GetTripStationsAsync(int tripId);
         Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId);
         Task<ResponseDto> BookTripAsync(int userId, BookingRequestDto request);
         Task<ResponseDto> UploadReceiptAsync(int userId, UploadReceiptDto request);

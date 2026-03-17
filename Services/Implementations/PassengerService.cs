@@ -56,13 +56,18 @@ namespace Darb.Api.Services.Implementations
                 // 1. FETCH ACTIVE ADVERTISEMENTS
                 // Maps advertisements to AdCardDto and appends the Base Server URL to images.
                 var ads = await _adRepo.GetAllAsync();
-                homePageData.AdCards = ads.Where(a => a.IsActive)
+                homePageData.AdCards = ads.Where(a => a.IsActive == true)
                     .Select(a => new AdCardDto
                     {
                         AdvertisementID = a.AdvertisementID,
                         Title = a.Title,
                         Description = a.Description,
-                        Image = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : ""
+                        Image = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : "",
+                        StartDate = a.StartDateAds,
+                        EndDate = a.EndDateAds,
+                        IsActive = a.IsActive,
+                        CreatedAt = a.CreatedAt
+
                     }).ToList();
 
                 // 2. FETCH GOVERNORATES FOR SEARCH FILTERS
@@ -187,29 +192,29 @@ namespace Darb.Api.Services.Implementations
 
         #region Company Stations Retrieval Logic
         /// <summary>
-        /// Retrieves all stations for a specific company within a specific governorate.
+        /// Retrieves all stations for a specific trip by its TripId.
         /// </summary>
-        /// <param name="companyId">The ID of the company.</param>
-        /// <param name="governorateId">The ID of the governorate.</param>
-        /// <returns>A ResponseDto containing a list of StationReadDto.</returns>
-        public async Task<ResponseDto> GetStationsByCompanyAndGovernorateAsync(int companyId, int governorateId)
+        /// <param name="tripId">The ID of the trip.</param>
+        /// <returns>A ResponseDto containing a list of TripRouteResponseDto.</returns>
+        public async Task<ResponseDto> GetTripStationsAsync(int tripId)
         {
             try
             {
-                var stations = await _context.Stations
-                    .Include(s => s.City)
-                    .Include(s => s.Governorate)
-                    .OrderBy(s => s.Order) // Ensure stations are ordered by the 'Order' property
-                    .Where(s => s.CompanyId == companyId && s.GovernorateId == governorateId)
-                    .Select(s => new StationForSelectionDto
-
+                var stations = await _context.TripRoutes
+                    .Include(tr => tr.Station)
+                        .ThenInclude(s => s.City)
+                    .Where(tr => tr.TripId == tripId)
+                    .OrderBy(tr => tr.Station.Order)
+                    .Select(tr => new TripRouteResponseDto
                     {
-                        StationId = s.StationId,
-                        CityName = s.City != null ? s.City.Name ?? string.Empty : string.Empty,
-                        Address = s.Address ?? string.Empty,
-                        DurationToEndStation = s.DurationToEndStation,
-                        ExtraFee = s.ExtraFee
-
+                        TripRouteId = tr.TripRouteId,
+                        TripId = tr.TripId,
+                        StationId = tr.StationId,
+                        DepartureTime = tr.DepartureTime.ToString(@"hh\:mm"),
+                        RouteFare = tr.RouteFare,
+                        CityName = tr.Station.City != null ? tr.Station.City.Name ?? string.Empty : string.Empty,
+                        Address = tr.Station.Address ?? string.Empty,
+                        Order = tr.Station.Order
                     }).ToListAsync();
 
                 if (stations.Count == 0)

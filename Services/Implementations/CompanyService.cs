@@ -15,11 +15,11 @@ namespace Darb.Api.Services.Implementations
     public class CompanyService : ICompanyService
     {
         private readonly IRepository<Trip> _tripRepository;
-        private readonly IRepository<Bus> _busRepository; 
+        private readonly IRepository<Bus> _busRepository;
         private readonly IRepository<Station> _stationRepository;
         private readonly ApplicationDbContext _context;
 
-        
+
         public CompanyService(
 
             IRepository<Trip> tripRepository,
@@ -115,8 +115,8 @@ namespace Darb.Api.Services.Implementations
                     BusId = t.BusId
                 }).ToList();
 
-           
-            return ResponseDto.SuccessResponse($"تم العثور على ({tripList.Count}) رحلة بنجاح.",tripList);
+
+            return ResponseDto.SuccessResponse($"تم العثور على ({tripList.Count}) رحلة بنجاح.", tripList);
         }
         #endregion
 
@@ -229,7 +229,7 @@ namespace Darb.Api.Services.Implementations
                 EndGoveId = tripDto.EndGoveId,
                 DepartureDateTime = tripDto.DepartureDateTime,
                 ArrivalDateTime = tripDto.ArrivalDateTime,
-                BasePrice = tripDto.BasePrice, 
+                BasePrice = tripDto.BasePrice,
                 Status = TripStatus.scheduled,
                 AvailableSeats = bus.Capacity
             };
@@ -338,7 +338,7 @@ namespace Darb.Api.Services.Implementations
                     var existingRoutes = await _context.TripRoutes
                         .Where(tr => tr.TripId == trip.TripId)
                         .ToListAsync();
-                    
+
                     _context.TripRoutes.RemoveRange(existingRoutes);
 
                     var stations = await _context.Stations
@@ -681,6 +681,179 @@ namespace Darb.Api.Services.Implementations
         }
         #endregion
 
+        #region Booking Management Logic
+
+        public async Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId)
+        {
+            var bookings = await _context.Bookings
+                .Include(b => b.Passenger)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                        .ThenInclude(t => t.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                        .ThenInclude(t => t.EndGovernate)
+                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            var bookingList = bookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
+            {
+                BookingId = b.BookingId,
+                PassengerName = b.Passenger?.FullName ?? "غير محدد",
+                PhoneNumber = b.Passenger?.Phone ?? "غير محدد",
+                TripId = b.TripRoute?.TripId ?? 0,
+                TripRouteId = b.TripRouteId,
+                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDateTime = b.TripRoute?.Trip?.DepartureDateTime ?? DateTime.MinValue,
+                NumberOfSeats = b.NumberOfSeats,
+                TotalAmount = b.TotalAmount,
+                ReceiptImagePath = b.ReceiptImagePath,
+                Status = b.Status.ToString(),
+                BookingAt = b.BookingAt
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز بنجاح.", bookingList);
+        }
+
+        public async Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Passenger)
+                .Include(b => b.Passengers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                        .ThenInclude(t => t.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                        .ThenInclude(t => t.EndGovernate)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول إليه.");
+            }
+
+            var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
+            var eTickets = await _context.ETickets
+                .Where(e => passengerDetailIds.Contains(e.PassengerDetailId))
+                .ToListAsync();
+
+            var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
+            {
+                BookingId = booking.BookingId,
+                PassengerName = booking.Passenger?.FullName ?? "غير محدد",
+                PhoneNumber = booking.Passenger?.Phone ?? "غير محدد",
+                TripId = booking.TripRoute?.TripId ?? 0,
+                TripRouteId = booking.TripRouteId,
+                StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = booking.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDateTime = booking.TripRoute?.Trip?.DepartureDateTime ?? DateTime.MinValue,
+                NumberOfSeats = booking.NumberOfSeats,
+                TotalAmount = booking.TotalAmount,
+                ReceiptImagePath = booking.ReceiptImagePath,
+                Status = booking.Status.ToString(),
+                BookingAt = booking.BookingAt,
+                Passengers = booking.Passengers.Select(p =>
+                {
+                    var ticket = eTickets.FirstOrDefault(e => e.PassengerDetailId == p.PassengerDetailsId);
+                    return new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
+                    {
+                        PassengerDetailId = p.PassengerDetailsId,
+                        FullName = p.FullName,
+                        NationalId = p.NationalId ?? "غير متوفر",
+                        TicketCode = ticket?.TicketCode,
+                        IsConfirmed = ticket?.IsConfirmed ?? false
+                    };
+                }).ToList()
+            };
+
+            return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الحجز بنجاح.", bookingDto);
+        }
+
+        public async Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Passengers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
+
+            if (booking.Status == dto.Status)
+                return ResponseDto.FailureResponse("حالة الحجز الحالية مطابقة للحالة المطلوبة.");
+
+            booking.Status = dto.Status;
+
+            if (dto.Status == BookingStatus.Confirmed)
+            {
+                foreach (var passenger in booking.Passengers)
+                {
+                    var ticketExists = await _context.ETickets.AnyAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
+                    if (!ticketExists)
+                    {
+                        var ticket = new ETicket
+                        {
+                            PassengerDetailId = passenger.PassengerDetailsId,
+                            TicketCode = Guid.NewGuid().ToString(),
+                            IsConfirmed = true,
+                            Status = Darb.Api.Models.Enums.ETicketStatus.Active
+                        };
+                        await _context.ETickets.AddAsync(ticket);
+                    }
+                }
+            }
+            else if (dto.Status == BookingStatus.Cancelled)
+            {
+                var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
+                var eTickets = await _context.ETickets.Where(e => passengerDetailIds.Contains(e.PassengerDetailId)).ToListAsync();
+                foreach (var ticket in eTickets)
+                {
+                    ticket.Status = Darb.Api.Models.Enums.ETicketStatus.Cancelled;
+                    ticket.IsConfirmed = false;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse($"تم تحديث حالة الحجز إلى {dto.Status} بنجاح.");
+        }
+
+        public async Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
+
+            if (booking.Status == BookingStatus.Confirmed)
+            {
+                return ResponseDto.FailureResponse("لا يمكن حذف حجز مؤكد. الرجاء تغيير حالته إلى ملغى أولاً إذا لزم الأمر.");
+            }
+
+            // Must remove related passengers and their etickets before deleting booking. Or rely on cascade delete.
+            // Explicit delete for safety
+            var passengers = await _context.PassengerDetails.Where(pd => pd.BookingId == bookingId).ToListAsync();
+            if (passengers.Any())
+            {
+                var passengerIds = passengers.Select(p => p.PassengerDetailsId).ToList();
+                var etickets = await _context.ETickets.Where(e => passengerIds.Contains(e.PassengerDetailId)).ToListAsync();
+                _context.ETickets.RemoveRange(etickets);
+                _context.PassengerDetails.RemoveRange(passengers);
+            }
+
+            _context.Bookings.Remove(booking);
+            await _context.SaveChangesAsync();
+
+            return ResponseDto.SuccessResponse("تم حذف الحجز نهائياً من النظام.");
+        }
+        #endregion
+
         #region BankAccount Management Logic
 
         public async Task<ResponseDto> GetAllBankAccountsAsync(int companyId)
@@ -705,7 +878,7 @@ namespace Darb.Api.Services.Implementations
             var ba = await _context.BankAccounts
                 .Include(b => b.Bank)
                 .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
-                
+
             if (ba == null) return ResponseDto.FailureResponse("الحساب غير موجود أو لا تملك صلاحية الوصول إليه.");
 
             var dto = new BankAccountReadDto
@@ -745,7 +918,7 @@ namespace Darb.Api.Services.Implementations
 
             if (!string.IsNullOrEmpty(dto.AccountNumber)) account.AccountNumber = dto.AccountNumber;
             if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.AccountHolderName = dto.AccountHolderName;
-            if (dto.BankId.HasValue) 
+            if (dto.BankId.HasValue)
             {
                 var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId.Value);
                 if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود.");
