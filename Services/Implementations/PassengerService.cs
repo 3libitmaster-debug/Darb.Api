@@ -430,5 +430,39 @@ namespace Darb.Api.Services.Implementations
             }
         }
         #endregion
+        
+        #region Passenger Profile Logic
+        public async Task<ResponseDto> GetProfileAsync(int passengerId)
+        {
+            try
+            {
+                var profile = await _context.Passengers
+                    .Include(p => p.User)
+                    .Where(p => p.PassengerId == passengerId)
+                    .Select(p => new PassengerProfileDto
+                    {
+                        PassengerId = p.PassengerId,
+                        FullName = p.FullName ?? "",
+                        DateOfBirth = p.DateOfBirth,
+                        PhoneNumber = p.Phone ?? "",
+                        Address = p.Address ?? "",
+                        NationalId = p.NationalId ?? "",
+                        Email = p.User != null ? p.User.Email ?? "" : "",
+                        Password = p.User != null ? p.User.Password ?? "" : "",
+                        CreatedAt = p.User != null ? p.User.JoinDate : DateTime.MinValue
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (profile == null)
+                    return ResponseDto.FailureResponse("لم يتم العثور على بيانات الحساب الشخصي.");
+
+                return ResponseDto.SuccessResponse("تم استرجاع بيانات الحساب الشخصي بنجاح.", profile);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل استرجاع بيانات الحساب الشخصي: {ex.Message}");
+            }
+        }
+        #endregion
     }
 }

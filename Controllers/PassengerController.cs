@@ -53,6 +53,29 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
 
+        [HttpGet("profile")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(
+            Summary = "Get Passenger Profile",
+            Description = "Retrieves personal profile details for the authenticated passenger.")]
+        public async Task<IActionResult> GetProfile()
+        {
+            try
+            {
+                int passengerId = User.GetPassengerId();
+                var response = await _passengerService.GetProfileAsync(passengerId);
+
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
+
         #endregion
 
         #region Booking Endpoints
