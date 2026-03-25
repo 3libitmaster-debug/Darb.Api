@@ -27,6 +27,7 @@ namespace darbWebApp.Data
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<PassengerDetails> PassengerDetails { get; set; }
         public DbSet<ETicket> ETickets { get; set; }
+        public DbSet<TripFare> TripFares { get; set; }
     
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -105,6 +106,31 @@ namespace darbWebApp.Data
                 .HasOne(t => t.EndGovernate)
                 .WithMany()
                 .HasForeignKey(t => t.EndGoveId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            // --- TripFare & Governorate Relationships ---
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.FromGovernorate)
+                .WithMany()
+                .HasForeignKey(tf => tf.FromGovId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.ToGovernorate)
+                .WithMany()
+                .HasForeignKey(tf => tf.ToGovId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.Station)
+                .WithMany()
+                .HasForeignKey(tf => tf.StationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.Company)
+                .WithMany()
+                .HasForeignKey(tf => tf.CompanyId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // --- Bus & Company Relationship (One-to-Many) ---

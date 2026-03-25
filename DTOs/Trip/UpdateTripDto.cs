@@ -1,9 +1,8 @@
-﻿namespace Darb.Api.Dtos
+namespace Darb.Api.Dtos
 {
     public class UpdateTripDto
     {
      
-        public decimal? BasePrice { get; set; }
 
         public DateTime? DepartureDateTime { get; set; }
 

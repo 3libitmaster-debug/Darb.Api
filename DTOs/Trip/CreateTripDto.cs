@@ -1,4 +1,4 @@
-﻿using Darb.Api.Models;
+using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -11,10 +11,6 @@ public class CreateTripDto
 
     [Required(ErrorMessage = "Destination location is required.")]
     public int EndGoveId { get; set; }
-
-    [Required(ErrorMessage = "Price is required.")]
-    [Range(0.01, double.MaxValue, ErrorMessage = "Price must be greater than zero.")]
-    public decimal BasePrice { get; set; }
 
     [Required(ErrorMessage = "Departure date and time are required.")]
     [DataType(DataType.DateTime)]

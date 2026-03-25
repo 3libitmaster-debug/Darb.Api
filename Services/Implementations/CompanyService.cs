@@ -3,6 +3,7 @@ using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Trip;
 using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.TripFare;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
@@ -220,6 +221,20 @@ namespace Darb.Api.Services.Implementations
             if (isBusBusy)
                 return ResponseDto.FailureResponse("هذه الحافلة مرتبطة حالياً برحلة أخرى مجدولة، يرجى اختيار حافلة متاحة.");
 
+            // Fetch the primary fare (MinutesOffset == 0) to set as BasePrice
+            var tripFares = await _context.TripFares
+                .Where(tf => tf.CompanyId == companyId && 
+                             tf.FromGovId == tripDto.StartGoveId && 
+                             tf.ToGovId == tripDto.EndGoveId)
+                .ToListAsync();
+
+            if (!tripFares.Any())
+                return ResponseDto.FailureResponse("لا توجد تسعيرات مسجلة لهذا المسار، يرجى إضافة تسعيرات المحطات أولاً.");
+
+            var primaryFare = tripFares.FirstOrDefault(tf => tf.MinutesOffset == 0);
+            if (primaryFare == null)
+                return ResponseDto.FailureResponse("يجب تحديد تسعيرة المحطة الرئيسية (التي يكون الوقت الإضافي لها سفراً) لتعيين سعر الرحلة الأساسي.");
+
             // Create Entity: Assign bus capacity to available seats upon creation.
             var trip = new Trip
             {
@@ -229,7 +244,7 @@ namespace Darb.Api.Services.Implementations
                 EndGoveId = tripDto.EndGoveId,
                 DepartureDateTime = tripDto.DepartureDateTime,
                 ArrivalDateTime = tripDto.ArrivalDateTime,
-                BasePrice = tripDto.BasePrice,
+                BasePrice = primaryFare.Price,
                 Status = TripStatus.scheduled,
                 AvailableSeats = bus.Capacity
             };
@@ -239,22 +254,16 @@ namespace Darb.Api.Services.Implementations
                 await _context.Trips.AddAsync(trip);
                 await _context.SaveChangesAsync();
 
-                // --- NEW: Automatic TripRoute Creation ---
-                // Get all stations for this company in the start governorate
-                var stations = await _context.Stations
-                    .Where(s => s.CompanyId == companyId && s.GovernorateId == trip.StartGoveId)
-                    .ToListAsync();
-
-                foreach (var station in stations)
+                foreach (var fare in tripFares)
                 {
                     var tripRoute = new TripRoute
                     {
                         TripId = trip.TripId,
-                        StationId = station.StationId,
-                        // RouteFare = Base Price + Extra Fee
-                        RouteFare = trip.BasePrice + station.ExtraFee,
-                        // DepartureTime = Trip Departure Time - Station Extra Time (DurationToEndStation)
-                        DepartureTime = trip.DepartureDateTime.TimeOfDay.Subtract(station.DurationToEndStation)
+                        StationId = fare.StationId,
+                        // RouteFare = Extra Price from TripFare directly to match frontend expectations
+                        RouteFare = fare.Price,
+                        // DepartureTime = Trip Departure Time + Station Extra Time (MinutesOffset)
+                        DepartureTime = trip.DepartureDateTime.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset))
                     };
                     await _context.TripRoutes.AddAsync(tripRoute);
                 }
@@ -301,8 +310,6 @@ namespace Darb.Api.Services.Implementations
             }
 
             // Partial Mapping: Update fields only if new values are provided in the DTO.
-            if (updateDto.BasePrice.HasValue)
-                trip.BasePrice = updateDto.BasePrice.Value;
 
             if (updateDto.DepartureDateTime.HasValue)
             {
@@ -328,7 +335,7 @@ namespace Darb.Api.Services.Implementations
 
             try
             {
-                bool recalculateRoutes = updateDto.BasePrice.HasValue || updateDto.DepartureDateTime.HasValue;
+                bool recalculateRoutes = updateDto.DepartureDateTime.HasValue;
 
                 await _context.SaveChangesAsync();
 
@@ -341,18 +348,26 @@ namespace Darb.Api.Services.Implementations
 
                     _context.TripRoutes.RemoveRange(existingRoutes);
 
-                    var stations = await _context.Stations
-                        .Where(s => s.CompanyId == companyId && s.GovernorateId == trip.StartGoveId)
+                    var tripFares = await _context.TripFares
+                        .Where(tf => tf.CompanyId == companyId && 
+                                     tf.FromGovId == trip.StartGoveId && 
+                                     tf.ToGovId == trip.EndGoveId)
                         .ToListAsync();
 
-                    foreach (var station in stations)
+                    var primaryFare = tripFares.FirstOrDefault(tf => tf.MinutesOffset == 0);
+                    if (primaryFare != null)
+                    {
+                        trip.BasePrice = primaryFare.Price;
+                    }
+
+                    foreach (var fare in tripFares)
                     {
                         var tripRoute = new TripRoute
                         {
                             TripId = trip.TripId,
-                            StationId = station.StationId,
-                            RouteFare = trip.BasePrice + station.ExtraFee,
-                            DepartureTime = trip.DepartureDateTime.TimeOfDay.Subtract(station.DurationToEndStation)
+                            StationId = fare.StationId,
+                            RouteFare = fare.Price,
+                            DepartureTime = trip.DepartureDateTime.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset))
                         };
                         await _context.TripRoutes.AddAsync(tripRoute);
                     }
@@ -938,6 +953,122 @@ namespace Darb.Api.Services.Implementations
             _context.BankAccounts.Remove(account);
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم حذف الحساب البنكي بنجاح.");
+        }
+
+        #endregion
+
+        #region Trip Fare Management Logic
+
+        public async Task<ResponseDto> GetAllCompanyTripFaresAsync(int companyId)
+        {
+            var fares = await _context.TripFares
+                .Include(tf => tf.FromGovernorate)
+                .Include(tf => tf.ToGovernorate)
+                .Include(tf => tf.Station)
+                    .ThenInclude(s => s.City)
+                .Where(tf => tf.CompanyId == companyId)
+                .Select(tf => new TripFareReadDto
+                {
+                    TripFareId = tf.TripFareId,
+                    FromGovId = tf.FromGovId,
+                    FromGovernorateName = tf.FromGovernorate != null ? tf.FromGovernorate.Name : "غير متوفر",
+                    ToGovId = tf.ToGovId,
+                    ToGovernorateName = tf.ToGovernorate != null ? tf.ToGovernorate.Name : "غير متوفر",
+                    StationId = tf.StationId,
+                    CityName = tf.Station != null && tf.Station.City != null ? tf.Station.City.Name : "غير متوفر",
+                    Price = tf.Price,
+                    MinutesOffset = tf.MinutesOffset,
+                    CompanyId = tf.CompanyId
+                }).ToListAsync();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({fares.Count}) تسعيرة رحلات بنجاح.", fares);
+        }
+
+        public async Task<ResponseDto> GetTripFareByIdAsync(int tripFareId, int companyId)
+        {
+            var tf = await _context.TripFares
+                .Include(t => t.FromGovernorate)
+                .Include(t => t.ToGovernorate)
+                .Include(t => t.Station)
+                    .ThenInclude(s => s.City)
+                .FirstOrDefaultAsync(t => t.TripFareId == tripFareId && t.CompanyId == companyId);
+
+            if (tf == null) return ResponseDto.FailureResponse("التسعيرة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+            var dto = new TripFareReadDto
+            {
+                TripFareId = tf.TripFareId,
+                FromGovId = tf.FromGovId,
+                FromGovernorateName = tf.FromGovernorate?.Name ?? "غير متوفر",
+                ToGovId = tf.ToGovId,
+                ToGovernorateName = tf.ToGovernorate?.Name ?? "غير متوفر",
+                StationId = tf.StationId,
+                CityName = tf.Station?.City?.Name ?? "غير متوفر",
+                Price = tf.Price,
+                MinutesOffset = tf.MinutesOffset,
+                CompanyId = tf.CompanyId
+            };
+            return ResponseDto.SuccessResponse("تم استرجاع التسعيرة بنجاح.", dto);
+        }
+
+        public async Task<ResponseDto> CreateTripFareAsync(CreateTripFareDto dto, int companyId)
+        {
+            // Verify IDs
+            if (!await _context.Governorates.AnyAsync(g => g.GovernorateId == dto.FromGovId))
+                return ResponseDto.FailureResponse("محافظة الانطلاق غير موجودة.");
+            if (!await _context.Governorates.AnyAsync(g => g.GovernorateId == dto.ToGovId))
+                return ResponseDto.FailureResponse("محافظة الوصول غير موجودة.");
+            if (!await _context.Stations.AnyAsync(s => s.StationId == dto.StationId && s.CompanyId == companyId))
+                return ResponseDto.FailureResponse("المحطة المختارة غير موجودة أو لا تتبع للشركة.");
+
+            // Check if exact same mapping already exists
+            bool exists = await _context.TripFares.AnyAsync(tf => 
+                tf.CompanyId == companyId && 
+                tf.FromGovId == dto.FromGovId && 
+                tf.ToGovId == dto.ToGovId && 
+                tf.StationId == dto.StationId);
+            
+            if (exists) return ResponseDto.FailureResponse("يوجد تسعيرة مسبقة لهذه الوجهة والمحطة.");
+
+            var tripFare = new TripFare
+            {
+                CompanyId = companyId,
+                FromGovId = dto.FromGovId,
+                ToGovId = dto.ToGovId,
+                StationId = dto.StationId,
+                Price = dto.Price,
+                MinutesOffset = dto.MinutesOffset
+            };
+
+            await _context.TripFares.AddAsync(tripFare);
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تمت إضافة تسعيرة المحطة بنجاح.");
+        }
+
+        public async Task<ResponseDto> UpdateTripFareAsync(int tripFareId, UpdateTripFareDto dto, int companyId)
+        {
+            var tf = await _context.TripFares
+                .FirstOrDefaultAsync(t => t.TripFareId == tripFareId && t.CompanyId == companyId);
+            
+            if (tf == null) return ResponseDto.FailureResponse("التسعيرة غير موجودة.");
+
+            if (dto.Price.HasValue) tf.Price = dto.Price.Value;
+            if (dto.MinutesOffset.HasValue) tf.MinutesOffset = dto.MinutesOffset.Value;
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم تحديث التسعيرة بنجاح.");
+        }
+
+        public async Task<ResponseDto> DeleteTripFareAsync(int tripFareId, int companyId)
+        {
+            var tf = await _context.TripFares
+                .FirstOrDefaultAsync(t => t.TripFareId == tripFareId && t.CompanyId == companyId);
+
+            if (tf == null) return ResponseDto.FailureResponse("التسعيرة غير موجودة.");
+
+            _context.TripFares.Remove(tf);
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم حذف التسعيرة بنجاح.");
         }
 
         #endregion

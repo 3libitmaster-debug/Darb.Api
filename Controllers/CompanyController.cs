@@ -1,6 +1,7 @@
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.TripFare;
 using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
@@ -376,6 +377,35 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Delete Bank Account", Description = "Permanently removes a bank account from the system.")]
         public async Task<IActionResult> DeleteBankAccount(int id) 
             => Ok(await _companyService.DeleteBankAccountAsync(id, User.GetCompanyId()));
+
+        #endregion
+
+        #region Trip Fare Management Endpoints
+
+        [HttpGet("trip-fares")]
+        [SwaggerOperation(Summary = "Get All Trip Fares", Description = "Retrieves a comprehensive list of all trip fares for the authenticated company.")]
+        public async Task<IActionResult> GetTripFares() 
+            => Ok(await _companyService.GetAllCompanyTripFaresAsync(User.GetCompanyId()));
+
+        [HttpGet("trip-fares/{id}")]
+        [SwaggerOperation(Summary = "Get Trip Fare by ID", Description = "Retrieves detailed information about a specific trip fare.")]
+        public async Task<IActionResult> GetTripFare(int id) 
+            => Ok(await _companyService.GetTripFareByIdAsync(id, User.GetCompanyId()));
+
+        [HttpPost("create-trip-fare")]
+        [SwaggerOperation(Summary = "Add New Trip Fare", Description = "Creates a new trip fare mapping for a specific destination and station.")]
+        public async Task<IActionResult> CreateTripFare([FromBody] CreateTripFareDto dto) 
+            => Ok(await _companyService.CreateTripFareAsync(dto, User.GetCompanyId()));
+
+        [HttpPut("trip-fares/{id}")]
+        [SwaggerOperation(Summary = "Update Trip Fare", Description = "Modifies an existing trip fare's price and time offset details.")]
+        public async Task<IActionResult> UpdateTripFare(int id, [FromBody] UpdateTripFareDto dto) 
+            => Ok(await _companyService.UpdateTripFareAsync(id, dto, User.GetCompanyId()));
+
+        [HttpDelete("trip-fares/{id}")]
+        [SwaggerOperation(Summary = "Delete Trip Fare", Description = "Permanently removes a trip fare mapping from the system.")]
+        public async Task<IActionResult> DeleteTripFare(int id) 
+            => Ok(await _companyService.DeleteTripFareAsync(id, User.GetCompanyId()));
 
         #endregion
     }

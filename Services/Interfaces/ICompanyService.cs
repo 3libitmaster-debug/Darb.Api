@@ -1,6 +1,7 @@
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.TripFare;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -76,6 +77,14 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId);
         Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId);
         Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId);
+        #endregion
+
+        #region Trip Fare Management
+        Task<ResponseDto> GetAllCompanyTripFaresAsync(int companyId);
+        Task<ResponseDto> GetTripFareByIdAsync(int tripFareId, int companyId);
+        Task<ResponseDto> CreateTripFareAsync(CreateTripFareDto dto, int companyId);
+        Task<ResponseDto> UpdateTripFareAsync(int tripFareId, UpdateTripFareDto dto, int companyId);
+        Task<ResponseDto> DeleteTripFareAsync(int tripFareId, int companyId);
         #endregion
     }
 }
