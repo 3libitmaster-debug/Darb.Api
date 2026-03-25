@@ -198,7 +198,7 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
             // Business Rule: Departure time must be in the future.
-            if (tripDto.DepartureDateTime < DateTime.Now)
+            if (tripDto.DepartureDateTime < DateHelper.GetYemenTime())
                 return ResponseDto.FailureResponse("عذراً، يجب أن يكون وقت انطلاق الرحلة في تاريخ مستقبلي.");
 
             // Validation: Ensure the bus is owned by the company making the request.
@@ -568,9 +568,6 @@ namespace Darb.Api.Services.Implementations
             {
                 StationId = s.StationId,
                 Address = s.Address ?? "غير محدد",
-                Order = s.Order,
-                DurationToEndStation = s.DurationToEndStation,
-                ExtraFee = s.ExtraFee,
                 CityId = s.CityId,
                 CityName = s.City?.Name ?? "غير محدد",
                 GovernorateId = s.GovernorateId,
@@ -595,9 +592,6 @@ namespace Darb.Api.Services.Implementations
             {
                 StationId = station.StationId,
                 Address = station.Address ?? "غير محدد",
-                Order = station.Order,
-                DurationToEndStation = station.DurationToEndStation,
-                ExtraFee = station.ExtraFee,
                 CityId = station.CityId,
                 CityName = station.City?.Name ?? "غير محدد",
                 GovernorateId = station.GovernorateId,
@@ -614,9 +608,6 @@ namespace Darb.Api.Services.Implementations
             {
 
                 Address = stationDto.Address,
-                Order = stationDto.Order,
-                DurationToEndStation = stationDto.DurationToEndStation,
-                ExtraFee = stationDto.ExtraFee,
                 CityId = stationDto.CityId,
                 GovernorateId = stationDto.GovernorateId,
                 CompanyId = companyId
@@ -638,15 +629,6 @@ namespace Darb.Api.Services.Implementations
 
             if (!string.IsNullOrEmpty(stationDto.Address))
                 station.Address = stationDto.Address;
-
-            if (stationDto.Order.HasValue)
-                station.Order = stationDto.Order.Value;
-
-            if (stationDto.DurationToEndStation.HasValue)
-                station.DurationToEndStation = stationDto.DurationToEndStation.Value;
-
-            if (stationDto.ExtraFee.HasValue)
-                station.ExtraFee = stationDto.ExtraFee.Value;
 
             if (stationDto.CityId.HasValue)
                 station.CityId = stationDto.CityId.Value;

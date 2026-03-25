@@ -8,12 +8,6 @@ namespace Darb.Api.DTOs.Station
         [StringLength(250)]
         public string? Address { get; set; }
 
-        public int? Order { get; set; }
-
-        public TimeSpan? DurationToEndStation { get; set; }
-
-        public decimal? ExtraFee { get; set; }
-
         public int? CityId { get; set; }
         public int? GovernorateId { get; set; }
     }

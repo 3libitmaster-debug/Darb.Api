@@ -204,7 +204,6 @@ namespace Darb.Api.Services.Implementations
                     .Include(tr => tr.Station)
                         .ThenInclude(s => s.City)
                     .Where(tr => tr.TripId == tripId)
-                    .OrderBy(tr => tr.Station.Order)
                     .Select(tr => new TripRouteResponseDto
                     {
                         TripRouteId = tr.TripRouteId,
@@ -214,7 +213,6 @@ namespace Darb.Api.Services.Implementations
                         RouteFare = tr.RouteFare,
                         CityName = tr.Station.City != null ? tr.Station.City.Name ?? string.Empty : string.Empty,
                         Address = tr.Station.Address ?? string.Empty,
-                        Order = tr.Station.Order
                     }).ToListAsync();
 
                 if (stations.Count == 0)
