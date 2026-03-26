@@ -32,11 +32,13 @@ namespace Darb.Api.Models
 
         [Required]
         public int PassengerId { get; set; }
+
         [ForeignKey("PassengerId")]
         public virtual Passenger? Passenger { get; set; }
 
         [Required]
         public int TripRouteId { get; set; }
+
         [ForeignKey("TripRouteId")]
         public virtual TripRoute? TripRoute { get; set; } 
 
@@ -48,8 +50,6 @@ namespace Darb.Api.Models
         public decimal TotalAmount { get; set; }
         
         public string? ReceiptImagePath { get; set; }
-
-        public bool IsOwnerPassenger { get; set; } 
 
         [Required]
         public BookingStatus Status { get; set; } 

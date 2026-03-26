@@ -13,7 +13,11 @@ namespace Darb.Api.DTOs.TripFare
         public string? CityName { get; set; }
 
         public decimal Price { get; set; }
+
         public int MinutesOffset { get; set; }
+
+        public bool IsMainStation { get; set; }
+
         public int CompanyId { get; set; }
     }
 }

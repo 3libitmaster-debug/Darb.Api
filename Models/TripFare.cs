@@ -34,5 +34,7 @@ namespace Darb.Api.Models
 
         [Required]
         public int MinutesOffset { get; set; }
+
+        public bool IsMainStation { get; set; } = false;
     }
 }

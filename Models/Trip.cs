@@ -42,7 +42,8 @@ namespace Darb.Api.Models
         [Required]
         public DateTime DepartureDateTime { get; set; }
 
-        public DateTime? ArrivalDateTime { get; set; }
+        [Required]
+        public DateTime ArrivalDateTime { get; set; }
 
         public Periods Period { get; set; }
 
@@ -55,7 +56,6 @@ namespace Darb.Api.Models
 
         
         public int BusId { get; set; }
-   
         public virtual Bus? Bus { get; set; }
 
         public virtual ICollection<TripRoute>? TripRoutes { get; set; }

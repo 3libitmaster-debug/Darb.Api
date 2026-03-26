@@ -110,7 +110,7 @@ namespace Darb.Api.Services.Implementations
                     EndGoveName = t.EndGovernate?.Name ?? "N/A",
                     Price = t.BasePrice,
                     DepartureDateTime = t.DepartureDateTime,
-                    ArrivalDateTime = t.ArrivalDateTime.GetValueOrDefault(),
+                    ArrivalDateTime = t.ArrivalDateTime,
                     Status = t.Status.ToString(),
                     AvailableSeats = t.AvailableSeats,
                     BusId = t.BusId
@@ -183,7 +183,7 @@ namespace Darb.Api.Services.Implementations
                 Status = trip.Status.ToString(),
                 AvailableSeats = trip.AvailableSeats,
                 DepartureDateTime = trip.DepartureDateTime,
-                ArrivalDateTime = trip.ArrivalDateTime.GetValueOrDefault(),
+                ArrivalDateTime = trip.ArrivalDateTime,
                 BusId = trip.BusId
             };
 
@@ -214,14 +214,8 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("عذراً، الحافلة المختارة غير متاحة للخدمة حالياً.");
             }
 
-            // Logic: Check if the bus is already committed to an active scheduled trip.
-            var isBusBusy = await _context.Trips
-                .AnyAsync(t => t.BusId == tripDto.BusId && t.Status == TripStatus.scheduled);
 
-            if (isBusBusy)
-                return ResponseDto.FailureResponse("هذه الحافلة مرتبطة حالياً برحلة أخرى مجدولة، يرجى اختيار حافلة متاحة.");
-
-            // Fetch the primary fare (MinutesOffset == 0) to set as BasePrice
+            // Fetch the primary fare (IsMainStation == true) to set as BasePrice
             var tripFares = await _context.TripFares
                 .Where(tf => tf.CompanyId == companyId && 
                              tf.FromGovId == tripDto.StartGoveId && 
@@ -231,9 +225,9 @@ namespace Darb.Api.Services.Implementations
             if (!tripFares.Any())
                 return ResponseDto.FailureResponse("لا توجد تسعيرات مسجلة لهذا المسار، يرجى إضافة تسعيرات المحطات أولاً.");
 
-            var primaryFare = tripFares.FirstOrDefault(tf => tf.MinutesOffset == 0);
+            var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation == true);
             if (primaryFare == null)
-                return ResponseDto.FailureResponse("يجب تحديد تسعيرة المحطة الرئيسية (التي يكون الوقت الإضافي لها سفراً) لتعيين سعر الرحلة الأساسي.");
+                return ResponseDto.FailureResponse("يجب تحديد محطة انطلاق الرحلة.");
 
             // Create Entity: Assign bus capacity to available seats upon creation.
             var trip = new Trip
@@ -243,7 +237,7 @@ namespace Darb.Api.Services.Implementations
                 StartGoveId = tripDto.StartGoveId,
                 EndGoveId = tripDto.EndGoveId,
                 DepartureDateTime = tripDto.DepartureDateTime,
-                ArrivalDateTime = tripDto.ArrivalDateTime,
+                ArrivalDateTime = tripDto.ArrivalDateTime.Value,
                 BasePrice = primaryFare.Price,
                 Status = TripStatus.scheduled,
                 AvailableSeats = bus.Capacity
@@ -260,7 +254,6 @@ namespace Darb.Api.Services.Implementations
                     {
                         TripId = trip.TripId,
                         StationId = fare.StationId,
-                        // RouteFare = Extra Price from TripFare directly to match frontend expectations
                         RouteFare = fare.Price,
                         // DepartureTime = Trip Departure Time + Station Extra Time (MinutesOffset)
                         DepartureTime = trip.DepartureDateTime.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset))
@@ -960,6 +953,7 @@ namespace Darb.Api.Services.Implementations
                     CityName = tf.Station != null && tf.Station.City != null ? tf.Station.City.Name : "غير متوفر",
                     Price = tf.Price,
                     MinutesOffset = tf.MinutesOffset,
+                    IsMainStation = tf.IsMainStation,
                     CompanyId = tf.CompanyId
                 }).ToListAsync();
 
@@ -988,6 +982,7 @@ namespace Darb.Api.Services.Implementations
                 CityName = tf.Station?.City?.Name ?? "غير متوفر",
                 Price = tf.Price,
                 MinutesOffset = tf.MinutesOffset,
+                IsMainStation = tf.IsMainStation,
                 CompanyId = tf.CompanyId
             };
             return ResponseDto.SuccessResponse("تم استرجاع التسعيرة بنجاح.", dto);
@@ -1019,7 +1014,9 @@ namespace Darb.Api.Services.Implementations
                 ToGovId = dto.ToGovId,
                 StationId = dto.StationId,
                 Price = dto.Price,
-                MinutesOffset = dto.MinutesOffset
+                MinutesOffset = dto.MinutesOffset,
+                IsMainStation = dto.IsMainStation,
+
             };
 
             await _context.TripFares.AddAsync(tripFare);
@@ -1036,6 +1033,8 @@ namespace Darb.Api.Services.Implementations
 
             if (dto.Price.HasValue) tf.Price = dto.Price.Value;
             if (dto.MinutesOffset.HasValue) tf.MinutesOffset = dto.MinutesOffset.Value;
+            dto.IsMainStation = tf.IsMainStation;
+
 
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم تحديث التسعيرة بنجاح.");

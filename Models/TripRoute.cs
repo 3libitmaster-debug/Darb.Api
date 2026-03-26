@@ -20,17 +20,11 @@ namespace Darb.Api.Models
         [Column(TypeName = "decimal(18, 2)")]
         public decimal RouteFare { get; set; }
 
-        
         [ForeignKey("TripId")]
         public virtual Trip ?Trip { get; set; }
 
         [ForeignKey("StationId")]
         public virtual Station ?Station { get; set; }
-
-        
-
-
-
 
     }
 }
