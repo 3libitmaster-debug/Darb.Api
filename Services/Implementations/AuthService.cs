@@ -1,26 +1,32 @@
-﻿using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.AuthDtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Helpers;
-using Darb.Api.Interfaces;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Darb.Api.Models.Enums;
+using Microsoft.Extensions.Caching.Memory;
+using Darb.Api.DTOs.auth;
 
-namespace Darb.Api.Services
+namespace Darb.Api.Services.Implementations
 {
     public class AuthService : IAuthService
     {
         private readonly ApplicationDbContext _context;
         private readonly IImageService _ImageService;
         private readonly ITokenService _TokenService;
+        private readonly IEmailService _EmailService;
+        private readonly IMemoryCache _Cache;
 
-        public AuthService(ApplicationDbContext context, IImageService ImageService, ITokenService TokenService)
+        public AuthService(ApplicationDbContext context, IImageService ImageService, ITokenService TokenService, 
+            IEmailService EmailService, IMemoryCache Cache)
         {
             _context = context;
             _ImageService = ImageService;
             _TokenService = TokenService;
+            _EmailService = EmailService;
+            _Cache = Cache;
         }
 
         #region Login Endpoint Logic
@@ -216,6 +222,34 @@ namespace Darb.Api.Services
 
         public async Task<bool> PhoneExists(string phone)
             => await _context.Passengers.AnyAsync(p => p.Phone == phone);
+
+        #region OTP Logic
+        public async Task<ResponseDto> SendOtpAsync(SendOtpDto dto)
+        {
+            var otp = await _EmailService.SendOtpEmailAsync(dto.Email);
+            if (string.IsNullOrEmpty(otp))
+                return ResponseDto.FailureResponse("فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً.");
+
+            // Store OTP in cache for 5 minutes
+            _Cache.Set($"OTP_{dto.Email}", otp, TimeSpan.FromMinutes(5));
+
+            return ResponseDto.SuccessResponse("تم إرسال رمز التحقق إلى بريدك الإلكتروني.");
+        }
+
+        public async Task<ResponseDto> VerifyOtpAsync(VerifyOtpDto dto)
+        {
+            if (_Cache.TryGetValue($"OTP_{dto.Email}", out string? storedOtp))
+            {
+                if (storedOtp == dto.OtpCode)
+                {
+                    _Cache.Remove($"OTP_{dto.Email}"); // Remove after successful verification
+                    return await Task.FromResult(ResponseDto.SuccessResponse("تم التحقق من الرمز بنجاح."));
+                }
+            }
+
+            return await Task.FromResult(ResponseDto.FailureResponse("الرمز غير صحيح أو انتهت صلاحيته."));
+        }
+        #endregion
         #endregion
     }
 }

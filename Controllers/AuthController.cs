@@ -1,9 +1,10 @@
 using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.auth;
 using Darb.Api.DTOs.Base;
-using Darb.Api.Interfaces;
 using Darb.Api.Models;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Darb.Api.Services.Interfaces;
 
 namespace Darb.Api.Controllers
 {
@@ -21,7 +22,7 @@ namespace Darb.Api.Controllers
         #region Authentication Endpoints
 
         /// <summary>
-        /// Handles user login for both Passengers and Companies.
+        /// Handles user login for both Passengers and Companies and admin.
         /// </summary>
         [HttpPost("login")]
         [SwaggerOperation(Summary = "User Login", Description = "Authenticates users (Admin/Company/Passenger) and returns a JWT token.")]
@@ -45,6 +46,40 @@ namespace Darb.Api.Controllers
             }
 
             // Return 200 OK with the token inside the result object
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Sends Registration OTP to the user's email.
+        /// </summary>
+        [HttpPost("send-registration-otp")]
+        [SwaggerOperation(Summary = "Send Registration OTP", Description = "Sends Registration OTP to the user's email.")]
+        public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("Validation failed.", ModelState));
+
+            var result = await _authService.SendOtpAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        /// <summary>
+        /// Verifies the OTP provided by the user.
+        /// </summary>
+        [HttpPost("verify-registration-otp")]
+        [SwaggerOperation(Summary = "Verify Registration OTP", Description = "Checks if the provided OTP matches the one sent to the email.")]
+        public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("Validation failed.", ModelState));
+
+            var result = await _authService.VerifyOtpAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
             return Ok(result);
         }
 

@@ -1,8 +1,9 @@
-﻿using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.auth;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Models; // Ensure this points to where ResponseDto is defined
 
-namespace Darb.Api.Interfaces
+namespace Darb.Api.Services.Interfaces
 {
     public interface IAuthService
     {
@@ -21,5 +22,11 @@ namespace Darb.Api.Interfaces
 
         /// Authenticates the user and returns a response containing the JWT token or error details.
         Task<ResponseDto> Login(LoginDto dto);
+
+        /// Sends an OTP to the specified email for verification.
+        Task<ResponseDto> SendOtpAsync(SendOtpDto dto);
+
+        /// Verifies the provided OTP for the specified email.
+        Task<ResponseDto> VerifyOtpAsync(VerifyOtpDto dto);
     }
 }

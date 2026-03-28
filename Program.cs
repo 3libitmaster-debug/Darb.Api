@@ -1,10 +1,7 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.Helpers;
-using Darb.Api.Interfaces;
 using Darb.Api.Models;
 using Darb.Api.Repositories.Implementations;
 using Darb.Api.Repository.Interfaces;
-using Darb.Api.Services;
 using Darb.Api.Services.Implementations;
 using Darb.Api.Services.Implemention;
 using Darb.Api.Services.Interfaces;
@@ -95,6 +92,8 @@ builder.Services.AddScoped<IRepository<Advertisement>, Repository<Advertisement>
 builder.Services.AddScoped<IPassengerService, PassengerService>();
 builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
 
 builder.Services.AddHostedService<DatabaseCleanupService>();
 
