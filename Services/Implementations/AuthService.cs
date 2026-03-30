@@ -226,6 +226,10 @@ namespace Darb.Api.Services.Implementations
         #region OTP Logic
         public async Task<ResponseDto> SendOtpAsync(SendOtpDto dto)
         {
+            // Check if email already exists
+            if (await EmailExists(dto.Email))
+                return ResponseDto.FailureResponse("هذا البريد الإلكتروني مسجل مسبقاً.");
+
             var otp = await _EmailService.SendOtpEmailAsync(dto.Email);
             if (string.IsNullOrEmpty(otp))
                 return ResponseDto.FailureResponse("فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً.");
