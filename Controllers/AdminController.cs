@@ -7,6 +7,7 @@ using Darb.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Darb.Api.Services.Interfaces;
 
 namespace Darb.Api.Controllers
 {
@@ -52,6 +53,10 @@ namespace Darb.Api.Controllers
         [HttpGet("cities/{id}")]
         [SwaggerOperation(Summary = "Get City by ID", Description = "Retrieves detailed information about a specific city.")]
         public async Task<IActionResult> GetCity(int id) => Ok(await _adminService.GetCityByIdAsync(id));
+
+        [HttpGet("cities/by-governorate/{governorateId}")]
+        [SwaggerOperation(Summary = "Get Cities by Governorate ID", Description = "Retrieves a list of cities belonging to a specific governorate.")]
+        public async Task<IActionResult> GetCitiesByGov(int governorateId) => Ok(await _adminService.GetCitiesByGovernorateIdAsync(governorateId));
 
         [HttpPost("create-city")]
         [SwaggerOperation(Summary = "Add New City", Description = "Creates a new city linked to a specific governorate.")]

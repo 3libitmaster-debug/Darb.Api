@@ -11,7 +11,9 @@ using darbWebApp.Data;
 using Darb.Api.Helpers;
 using Microsoft.Extensions.Options;
 
-public class AdminService : IAdminService
+namespace Darb.Api.Services.Implementations
+{
+    public class AdminService : IAdminService
 {
     private readonly IRepository<Governorate> _govRepo;
     private readonly IRepository<City> _cityRepo;
@@ -90,9 +92,24 @@ public class AdminService : IAdminService
         {
             Id = c.CityId,
             Name = c.Name,
+            GovernorateId = c.GovernorateId,
             GovernorateName = c.Governorate?.Name ?? "N/A"
         }).ToList();
         return ResponseDto.SuccessResponse($"تم العثور على ({dtos.Count}) مدينة.", dtos);
+    }
+
+    public async Task<ResponseDto> GetCitiesByGovernorateIdAsync(int governorateId)
+    {
+        // Fetching cities for a specific governorate
+        var cities = await _context.Cities.Where(c => c.GovernorateId == governorateId).Include(c => c.Governorate).ToListAsync();
+        var dtos = cities.Select(c => new CityReadDto
+        {
+            Id = c.CityId,
+            Name = c.Name,
+            GovernorateId = c.GovernorateId,
+            GovernorateName = c.Governorate?.Name ?? "N/A"
+        }).ToList();
+        return ResponseDto.SuccessResponse($"تم العثور على ({dtos.Count}) مدينة لهذه المحافظة.", dtos);
     }
 
     public async Task<ResponseDto> GetCityByIdAsync(int id)
@@ -105,6 +122,7 @@ public class AdminService : IAdminService
         {
             Id = city.CityId,
             Name = city.Name,
+            GovernorateId = city.GovernorateId,
             GovernorateName = city.Governorate?.Name ?? ""
         });
     }
@@ -372,5 +390,5 @@ public class AdminService : IAdminService
     }
 
     #endregion
-
+}
 }
