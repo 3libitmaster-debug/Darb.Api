@@ -1,4 +1,4 @@
-namespace Darb.Api.DTOs.City
+namespace Darb.Api.DTOs.adminDtos.City
 {
     public class CityReadDto
     { 

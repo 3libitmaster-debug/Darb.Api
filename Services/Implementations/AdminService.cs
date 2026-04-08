@@ -1,15 +1,17 @@
 using Microsoft.EntityFrameworkCore;
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.City;
-using Darb.Api.DTOs.Governorate;
-using Darb.Api.DTOs.Advertisement;
-using Darb.Api.DTOs.Bank;
+using Darb.Api.DTOs.adminDtos.City;
+using Darb.Api.DTOs.adminDtos.Governorate;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Darb.Api.Helpers;
 using Microsoft.Extensions.Options;
+using Darb.Api.DTOs.adminDtos.Advertisement;
+using Darb.Api.DTOs.adminDtos.Governorate;
+using Darb.Api.DTOs.adminDtos.Bank;
+using Darb.Api.DTOs.adminDtos.City;
 
 namespace Darb.Api.Services.Implementations
 {

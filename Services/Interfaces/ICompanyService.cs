@@ -24,7 +24,6 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> DeleteTripAsync(int tripId, int companyId);
         #endregion
 
-
         #region Bus Management
         // Retrieves all buses in the company's fleet, filtered by the company ID.
         Task<ResponseDto> GetAllCompanyBusesAsync(int companyId);
@@ -57,11 +56,6 @@ namespace Darb.Api.Services.Interfaces
 
         // Removes a station from the company.
         Task<ResponseDto> DeleteStationAsync(int stationId, int companyId);
-        #endregion
-
-        #region Governorate Management
-        // Retrieves all governorates in the system.
-        Task<ResponseDto> GetAllGovernoratesAsync();
         #endregion
 
         #region Booking Management

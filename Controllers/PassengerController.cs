@@ -10,7 +10,6 @@ namespace Darb.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    [SwaggerTag("Passenger Operations: Home page and Search configurations")]
     public class PassengerController : ControllerBase
     {
         private readonly IPassengerService _passengerService;
@@ -19,7 +18,7 @@ namespace Darb.Api.Controllers
             _passengerService = passengerService;
         }
 
-        #region Home & Search Endpoints
+    
 
         [HttpGet("home")]
         [SwaggerOperation(
@@ -28,16 +27,13 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetHomePage()
           => Ok(await _passengerService.GetHomePageDataAsync());
 
-        [HttpPost("search-trips")]
+        [HttpPost("trips/search")]
         [SwaggerOperation(
             Summary = "Search for Trips ",
             Description = "Filters scheduled trips based on optional criteria: From/To Governorates, Company, Period, and Travel Date. If no filters are provided, it returns all scheduled trips.")]
         public async Task<IActionResult> SearchTrips([FromBody] TripSearchQueryDto query)
             => Ok(await _passengerService.SearchTripsAsync(query));
 
-        #endregion
-
-        #region Information Endpoints
 
         [HttpGet("stations/{tripId}")]
         [SwaggerOperation(
@@ -46,14 +42,14 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetStations(int tripId)
             => Ok(await _passengerService.GetTripStationsAsync(tripId));
 
-        [HttpGet("bank-accounts/{companyId}")]
+        [HttpGet("bank/accounts/{companyId}")]
         [SwaggerOperation(
             Summary = "Get Company Bank Accounts",
             Description = "Retrieves all bank accounts for a specific company.")]
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
 
-        [HttpGet("profile")]
+        [HttpGet("passengers/profile")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
             Summary = "Get Passenger Profile",
@@ -76,11 +72,8 @@ namespace Darb.Api.Controllers
             }
         }
 
-        #endregion
 
-        #region Booking Endpoints
-
-        [HttpPost("book")]
+        [HttpPost("trip/bookings")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
             Summary = "Book a Trip (Stage 1)",
@@ -103,7 +96,7 @@ namespace Darb.Api.Controllers
             }
         }
 
-        [HttpPost("upload-receipt")]
+        [HttpPost("upload/receipt")]
         [Authorize(Roles = "Passenger")]
         [Consumes("multipart/form-data")]
         [SwaggerOperation(
@@ -127,6 +120,6 @@ namespace Darb.Api.Controllers
             }
         }
 
-        #endregion
+  
     }
 }

@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Darb.Api.DTOs.City
+namespace Darb.Api.DTOs.adminDtos.City
 {
     public class CityCreateDto 
     { 

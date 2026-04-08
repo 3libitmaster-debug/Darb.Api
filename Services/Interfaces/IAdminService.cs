@@ -1,8 +1,8 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.City;
-using Darb.Api.DTOs.Governorate;
-using Darb.Api.DTOs.Advertisement;
-using Darb.Api.DTOs.Bank;
+using Darb.Api.DTOs.adminDtos.Advertisement;
+using Darb.Api.DTOs.adminDtos.Governorate;
+using Darb.Api.DTOs.adminDtos.Bank;
+using Darb.Api.DTOs.adminDtos.City;
 
 namespace Darb.Api.Services.Interfaces
 {

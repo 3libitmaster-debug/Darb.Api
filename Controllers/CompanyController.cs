@@ -27,7 +27,7 @@ namespace Darb.Api.Controllers
 
         #region Trip Management Endpoints
 
-        [HttpGet("Get-trips")]
+        [HttpGet("trips")]
         [SwaggerOperation(
             Summary = "Get All Company Trips",
             Description = "Retrieves all scheduled, completed, and cancelled trips belonging to the authenticated company.")]
@@ -44,7 +44,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpGet("trip/{id}")]
+        [HttpGet("trips/{id}")]
         [SwaggerOperation(
             Summary = "Get Trip By ID",
             Description = "Fetches detailed information for a specific trip using its unique identifier.")]
@@ -55,7 +55,7 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : NotFound(response);
         }
 
-        [HttpPost("create-trip")]
+        [HttpPost("trips")]
         [SwaggerOperation(
             Summary = "Create New Trip",
             Description = "Allows the company to schedule a new trip by providing bus details, route, and price.")]
@@ -74,7 +74,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpPut("update-trip/{id}")]
+        [HttpPut("trips/{id}")]
         [SwaggerOperation(
             Summary = "Update Trip Details",
             Description = "Updates existing trip information such as price, timing, or bus assignment. Only non-completed trips can be updated.")]
@@ -97,7 +97,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpDelete("delete-trip/{id}")]
+        [HttpDelete("trips/{id}")]
         [SwaggerOperation(
             Summary = "Delete a Trip",
             Description = "Permanently removes a trip record from the system. Note: Completed trips cannot be deleted for audit purposes.")]
@@ -112,7 +112,7 @@ namespace Darb.Api.Controllers
 
         #region Bus Management Endpoints
 
-        [HttpGet("Get-buses")]
+        [HttpGet("buses")]
         [SwaggerOperation(
             Summary = "Get All Company Buses",
             Description = "Retrieves a comprehensive list of all buses owned by the authenticated company.")]
@@ -127,7 +127,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpGet("{id}")]
+        [HttpGet("buses/{id}")]
         [SwaggerOperation(
             Summary = "Get Bus By ID",
             Description = "Retrieves technical details and current status of a specific bus within the company's fleet.")]
@@ -144,7 +144,7 @@ namespace Darb.Api.Controllers
         }
 
 
-        [HttpPost("create-bus")]
+        [HttpPost("buses")]
         [SwaggerOperation(
             Summary = "Create New Bus",
             Description = "Adds a new vehicle to the company's fleet by providing plate number, model, and capacity.")]
@@ -163,7 +163,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpPut("update-bus/{id}")]
+        [HttpPut("buses/{id}")]
         [SwaggerOperation(
             Summary = "Update Bus Details",
             Description = "Modifies existing bus information or updates its operational status (Available / UnderMaintenance).")]
@@ -182,7 +182,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpDelete("delete-bus/{id}")]
+        [HttpDelete("buses/{id}")]
         [SwaggerOperation(
             Summary = "Delete Bus from Fleet",
             Description = "Permanently deletes a bus record. Note: Buses with existing trip history cannot be deleted.")]
@@ -202,7 +202,7 @@ namespace Darb.Api.Controllers
 
         #region Station Management Endpoints
 
-        [HttpGet("Get-stations")]
+        [HttpGet("stations")]
         [SwaggerOperation(
             Summary = "Get All Company Stations",
             Description = "Retrieves a comprehensive list of all stations owned by the authenticated company.")]
@@ -217,7 +217,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpGet("station/{id}")]
+        [HttpGet("stations/{id}")]
         [SwaggerOperation(
             Summary = "Get Station By ID",
             Description = "Retrieves details of a specific station within the company's network.")]
@@ -233,7 +233,7 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : NotFound(response);
         }
 
-        [HttpPost("create-station")]
+        [HttpPost("stations")]
         [SwaggerOperation(
             Summary = "Create New Station",
             Description = "Adds a new station to the company's network.")]
@@ -252,7 +252,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpPut("update-station/{id}")]
+        [HttpPut("stations/{id}")]
         [SwaggerOperation(
             Summary = "Update Station Details",
             Description = "Modifies existing station information.")]
@@ -271,7 +271,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpDelete("delete-station/{id}")]
+        [HttpDelete("stations/{id}")]
         [SwaggerOperation(
             Summary = "Delete Station",
             Description = "Permanently deletes a station record.")]
@@ -289,23 +289,9 @@ namespace Darb.Api.Controllers
 
         #endregion
 
-        #region Governorate Management Endpoints
-
-        [HttpGet("Get-all-governorates")]
-        [SwaggerOperation(
-            Summary = "Get All Governorates",
-            Description = "Retrieves a comprehensive list of all governorates in the system.")]
-        public async Task<IActionResult> GetGovernorates()
-        {
-            var response = await _companyService.GetAllGovernoratesAsync();
-            return Ok(response);
-        }
-
-        #endregion
-
         #region Booking Management Endpoints
 
-        [HttpGet("bookings")]
+        [HttpGet("trip/bookings")]
         [SwaggerOperation(Summary = "Get All Bookings", Description = "Retrieves a comprehensive list of all bookings for trips owned by the authenticated company.")]
         public async Task<IActionResult> GetBookings()
         {
@@ -316,7 +302,7 @@ namespace Darb.Api.Controllers
             return Ok(response);
         }
 
-        [HttpGet("bookings/{id}")]
+        [HttpGet("trip/bookings/{id}")]
         [SwaggerOperation(Summary = "Get Booking By ID", Description = "Retrieves detailed information about a specific booking and its passengers.")]
         public async Task<IActionResult> GetBooking(int id)
         {
@@ -327,7 +313,7 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : NotFound(response);
         }
 
-        [HttpPut("bookings/{id}/status")]
+        [HttpPut("trip/bookings/{id}/status")]
         [SwaggerOperation(Summary = "Update Booking Status", Description = "Modifies the status of a booking (e.g. to Confirmed). Confirming generates ETickets.")]
         public async Task<IActionResult> UpdateBookingStatus(int id, [FromBody] Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto)
         {
@@ -338,7 +324,7 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : BadRequest(response);
         }
 
-        [HttpDelete("bookings/{id}")]
+        [HttpDelete("trip/bookings/{id}")]
         [SwaggerOperation(Summary = "Delete Booking", Description = "Permanently removes a booking from the system. Confirmed bookings must be cancelled first.")]
         public async Task<IActionResult> DeleteBooking(int id)
         {
@@ -353,27 +339,27 @@ namespace Darb.Api.Controllers
 
         #region BankAccount Management Endpoints
 
-        [HttpGet("bank-accounts")]
+        [HttpGet("bank/accounts")]
         [SwaggerOperation(Summary = "Get All Bank Accounts", Description = "Retrieves a list of all bank accounts for the authenticated company.")]
         public async Task<IActionResult> GetBankAccounts() 
             => Ok(await _companyService.GetAllBankAccountsAsync(User.GetCompanyId()));
 
-        [HttpGet("bank-accounts/{id}")]
+        [HttpGet("bank/accounts/{id}")]
         [SwaggerOperation(Summary = "Get Bank Account by ID", Description = "Retrieves detailed information about a specific bank account.")]
         public async Task<IActionResult> GetBankAccount(int id) 
             => Ok(await _companyService.GetBankAccountByIdAsync(id, User.GetCompanyId()));
 
-        [HttpPost("create-bank-account")]
+        [HttpPost("bank/accounts")]
         [SwaggerOperation(Summary = "Add New Bank Account", Description = "Creates a new bank account record for the company.")]
         public async Task<IActionResult> CreateBankAccount([FromBody] BankAccountCreateDto dto) 
             => Ok(await _companyService.CreateBankAccountAsync(dto, User.GetCompanyId()));
 
-        [HttpPut("bank-accounts/{id}")]
+        [HttpPut("bank/accounts/{id}")]
         [SwaggerOperation(Summary = "Update Bank Account", Description = "Modifies an existing bank account's details.")]
         public async Task<IActionResult> UpdateBankAccount(int id, [FromBody] BankAccountUpdateDto dto) 
             => Ok(await _companyService.UpdateBankAccountAsync(id, dto, User.GetCompanyId()));
 
-        [HttpDelete("bank-accounts/{id}")]
+        [HttpDelete("bank/accounts/{id}")]
         [SwaggerOperation(Summary = "Delete Bank Account", Description = "Permanently removes a bank account from the system.")]
         public async Task<IActionResult> DeleteBankAccount(int id) 
             => Ok(await _companyService.DeleteBankAccountAsync(id, User.GetCompanyId()));
@@ -382,27 +368,27 @@ namespace Darb.Api.Controllers
 
         #region Trip Fare Management Endpoints
 
-        [HttpGet("trip-fares")]
+        [HttpGet("trip/fares")]
         [SwaggerOperation(Summary = "Get All Trip Fares", Description = "Retrieves a comprehensive list of all trip fares for the authenticated company.")]
         public async Task<IActionResult> GetTripFares() 
             => Ok(await _companyService.GetAllCompanyTripFaresAsync(User.GetCompanyId()));
 
-        [HttpGet("trip-fares/{id}")]
+        [HttpGet("trip/fares/{id}")]
         [SwaggerOperation(Summary = "Get Trip Fare by ID", Description = "Retrieves detailed information about a specific trip fare.")]
         public async Task<IActionResult> GetTripFare(int id) 
             => Ok(await _companyService.GetTripFareByIdAsync(id, User.GetCompanyId()));
 
-        [HttpPost("create-trip-fare")]
+        [HttpPost("trip/fares")]
         [SwaggerOperation(Summary = "Add New Trip Fare", Description = "Creates a new trip fare mapping for a specific destination and station.")]
         public async Task<IActionResult> CreateTripFare([FromBody] CreateTripFareDto dto) 
             => Ok(await _companyService.CreateTripFareAsync(dto, User.GetCompanyId()));
 
-        [HttpPut("trip-fares/{id}")]
+        [HttpPut("trip/fares/{id}")]
         [SwaggerOperation(Summary = "Update Trip Fare", Description = "Modifies an existing trip fare's price and time offset details.")]
         public async Task<IActionResult> UpdateTripFare(int id, [FromBody] UpdateTripFareDto dto) 
             => Ok(await _companyService.UpdateTripFareAsync(id, dto, User.GetCompanyId()));
 
-        [HttpDelete("trip-fares/{id}")]
+        [HttpDelete("trip/fares/{id}")]
         [SwaggerOperation(Summary = "Delete Trip Fare", Description = "Permanently removes a trip fare mapping from the system.")]
         public async Task<IActionResult> DeleteTripFare(int id) 
             => Ok(await _companyService.DeleteTripFareAsync(id, User.GetCompanyId()));

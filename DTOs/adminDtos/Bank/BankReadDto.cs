@@ -1,4 +1,4 @@
-namespace Darb.Api.DTOs.Bank
+namespace Darb.Api.DTOs.adminDtos.Bank
 {
     public class BankReadDto
     {

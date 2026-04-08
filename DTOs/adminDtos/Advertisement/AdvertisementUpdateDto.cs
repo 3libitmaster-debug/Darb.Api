@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Darb.Api.DTOs.Advertisement
+namespace Darb.Api.DTOs.adminDtos.Advertisement
 {
     public class AdvertisementUpdateDto
     {
