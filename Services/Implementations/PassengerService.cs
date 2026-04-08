@@ -38,7 +38,7 @@ namespace Darb.Api.Services.Implementations
             _adRepo = adRepo;
             _companyRepo = companyRepo;
             _context = context;
-            _baseUrl = apiOptions.Value.BaseUrl;
+            _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
             _imageService = imageService;
         }
 
@@ -102,7 +102,7 @@ namespace Darb.Api.Services.Implementations
 
                     return ResponseDto.SuccessResponse("Home page data retrieved successfully.", homePageData);
                 }
-                catch (Exception ex)
+                catch (Exception)
                 {
                     // Error handling for Home Page loading
                     return ResponseDto.FailureResponse("An error occurred while loading home page data.");
@@ -161,14 +161,14 @@ namespace Darb.Api.Services.Implementations
                 {
                     TripId = t.TripId,
                     CompanyId = t.CompanyId,
-                    CompanyName = t.Company != null ? t.Company.Name : "N/A",
+                    CompanyName = t.Company != null ? (t.Company.Name ?? "N/A") : "N/A",
                     // Ensure the logo path is absolute by adding the BaseUrl
                     CompanyLogo = (t.Company != null && !string.IsNullOrEmpty(t.Company.Logo))
                                   ? _baseUrl + t.Company.Logo : "",
                     StartGoveId = t.StartGoveId,
-                    StartGoveName = t.StartGovernate != null ? t.StartGovernate.Name : "N/A",
+                    StartGoveName = t.StartGovernate != null ? (t.StartGovernate.Name ?? "N/A") : "N/A",
                     EndGoveId = t.EndGoveId,
-                    EndGoveName = t.EndGovernate != null ? t.EndGovernate.Name : "N/A",
+                    EndGoveName = t.EndGovernate != null ? (t.EndGovernate.Name ?? "N/A") : "N/A",
                     Price = t.BasePrice,
                     DepartureTime = t.DepartureDateTime.ToString("hh:mm tt"), // 12-hour format
                     DepartureDate = t.DepartureDateTime.ToString("yyyy-MM-dd"),
@@ -202,7 +202,7 @@ namespace Darb.Api.Services.Implementations
             {
                 var stations = await _context.TripRoutes
                     .Include(tr => tr.Station)
-                        .ThenInclude(s => s.City)
+                        .ThenInclude(s => s!.City)
                     .Where(tr => tr.TripId == tripId)
                     .Select(tr => new TripRouteResponseDto
                     {
@@ -211,8 +211,8 @@ namespace Darb.Api.Services.Implementations
                         StationId = tr.StationId,
                         DepartureTime = tr.DepartureTime.ToString(@"hh\:mm"),
                         RouteFare = tr.RouteFare,
-                        CityName = tr.Station.City != null ? tr.Station.City.Name ?? string.Empty : string.Empty,
-                        Address = tr.Station.Address ?? string.Empty,
+                        CityName = tr.Station != null && tr.Station.City != null ? (tr.Station.City.Name ?? string.Empty) : string.Empty,
+                        Address = tr.Station != null ? (tr.Station.Address ?? string.Empty) : string.Empty,
                     }).ToListAsync();
 
                 if (stations.Count == 0)
@@ -236,10 +236,10 @@ namespace Darb.Api.Services.Implementations
                 .Select(ba => new Darb.Api.DTOs.BankAccount.BankAccountsDropDownListDto
                 {
                     BankAccountId = ba.BankAccountId,
-                    BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
+                    BankName = ba.Bank != null ? (ba.Bank.BankName ?? "غير متوفر") : "غير متوفر",
                     AccountNumber = ba.AccountNumber,
                     AccountHolderName = ba.AccountHolderName,
-                    LogoUrl = !string.IsNullOrEmpty(ba.Bank.LogoUrl) ? _baseUrl + ba.Bank.LogoUrl : string.Empty
+                    LogoUrl = !string.IsNullOrEmpty(ba.Bank!.LogoUrl) ? _baseUrl + ba.Bank.LogoUrl : string.Empty
                 })
                 .ToListAsync();
 
@@ -326,7 +326,7 @@ namespace Darb.Api.Services.Implementations
                         {
                             BookingId = booking.BookingId,
                             FullName = passengerProfile.FullName ?? "",
-                            NationalId = passengerProfile.NationalId,
+                            NationalId = passengerProfile.NationalId ?? "",
                             PhoneNumber = passengerProfile.Phone ?? "",
                             BirthDate = passengerProfile.DateOfBirth,
                             Address = passengerProfile.Address

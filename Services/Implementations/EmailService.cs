@@ -50,8 +50,8 @@ namespace Darb.Api.Services.Implementations
             try
             {
                 var email = new MimeMessage();
-                email.From.Add(MailboxAddress.Parse(_configuration["EmailSettings:SenderEmail"]));
-                email.To.Add(MailboxAddress.Parse(to));
+                email.From.Add(MailboxAddress.Parse(_configuration["EmailSettings:SenderEmail"] ?? ""));
+                email.To.Add(MailboxAddress.Parse(to ?? ""));
                 email.Subject = subject;
                 email.Body = new TextPart(TextFormat.Html) { Text = body };
 

@@ -141,7 +141,7 @@ builder.Services.AddSwaggerGen(c =>
             { "PUT", 3 },
             { "DELETE", 4 }
         };
-        return methodOrder.GetValueOrDefault(apiDesc.HttpMethod, 5).ToString();
+        return methodOrder.GetValueOrDefault(apiDesc.HttpMethod ?? string.Empty, 5).ToString();
     });
 });
 

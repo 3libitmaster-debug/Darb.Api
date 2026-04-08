@@ -57,7 +57,7 @@ namespace Darb.Api.Services.BackgroundServices
             // Find matching bookings
             var expiredBookings = await dbContext.Bookings
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
+                    .ThenInclude(tr => tr!.Trip)
                 .Where(b => b.Status == BookingStatus.PendingAttachment  ||
                             b.ReceiptImagePath == null && 
                             b.BookingAt <= timeThreshold)

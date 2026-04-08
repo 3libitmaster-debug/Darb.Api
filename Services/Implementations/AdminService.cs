@@ -130,7 +130,7 @@ namespace Darb.Api.Services.Implementations
     public async Task<ResponseDto> CreateCityAsync(CityCreateDto dto)
     {
         // Persisting a new city and linking it to a governorate via ID
-        var city = new City { Name = dto.Name, GovernorateId = dto.GovernorateId };
+        var city = new City { Name = dto.Name!, GovernorateId = dto.GovernorateId };
         await _cityRepo.AddAsync(city);
         await _context.SaveChangesAsync();
         return ResponseDto.SuccessResponse("تم إضافة المدينة بنجاح.");
@@ -142,7 +142,7 @@ namespace Darb.Api.Services.Implementations
         var city = await _cityRepo.GetByIdAsync(id);
         if (city == null) return ResponseDto.FailureResponse("المدينة غير موجودة.");
 
-        city.Name = dto.Name;
+        city.Name = dto.Name!;
         city.GovernorateId = dto.GovernorateId;
         _cityRepo.Update(city);
         await _context.SaveChangesAsync();

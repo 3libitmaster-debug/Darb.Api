@@ -67,7 +67,7 @@ namespace Darb.Api.Services.Implementations
                 */
                 if (trip.Status == TripStatus.scheduled &&
                     trip.DepartureDateTime <= currentYemenTime &&
-                    (trip.ArrivalDateTime == null || trip.ArrivalDateTime > currentYemenTime))
+                    trip.ArrivalDateTime > currentYemenTime)
                 {
                     trip.Status = TripStatus.InProgress;
                     hasChanges = true;
@@ -146,7 +146,7 @@ namespace Darb.Api.Services.Implementations
             // Transition to 'InProgress' if departure has passed but arrival hasn't.
             if (trip.Status == TripStatus.scheduled &&
                 trip.DepartureDateTime <= currentYemenTime &&
-                (trip.ArrivalDateTime == null || trip.ArrivalDateTime > currentYemenTime))
+                trip.ArrivalDateTime > currentYemenTime)
             {
                 trip.Status = TripStatus.InProgress;
                 statusUpdated = true;
@@ -237,7 +237,7 @@ namespace Darb.Api.Services.Implementations
                 StartGoveId = tripDto.StartGoveId,
                 EndGoveId = tripDto.EndGoveId,
                 DepartureDateTime = tripDto.DepartureDateTime,
-                ArrivalDateTime = tripDto.ArrivalDateTime.Value,
+                ArrivalDateTime = tripDto.ArrivalDateTime ?? tripDto.DepartureDateTime.AddHours(1),
                 BasePrice = primaryFare.Price,
                 Status = TripStatus.scheduled,
                 AvailableSeats = bus.Capacity
@@ -678,11 +678,11 @@ namespace Darb.Api.Services.Implementations
             var bookings = await _context.Bookings
                 .Include(b => b.Passenger)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
-                        .ThenInclude(t => t.StartGovernate)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
-                        .ThenInclude(t => t.EndGovernate)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
                 .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId)
                 .OrderByDescending(b => b.BookingAt)
                 .ToListAsync();
@@ -713,11 +713,11 @@ namespace Darb.Api.Services.Implementations
                 .Include(b => b.Passenger)
                 .Include(b => b.Passengers)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
-                        .ThenInclude(t => t.StartGovernate)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
-                        .ThenInclude(t => t.EndGovernate)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
 
             if (booking == null)
@@ -767,7 +767,7 @@ namespace Darb.Api.Services.Implementations
             var booking = await _context.Bookings
                 .Include(b => b.Passengers)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
+                    .ThenInclude(tr => tr!.Trip)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
 
             if (booking == null)
@@ -815,7 +815,7 @@ namespace Darb.Api.Services.Implementations
         {
             var booking = await _context.Bookings
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr.Trip)
+                    .ThenInclude(tr => tr!.Trip)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
 
             if (booking == null)
@@ -940,7 +940,7 @@ namespace Darb.Api.Services.Implementations
                 .Include(tf => tf.FromGovernorate)
                 .Include(tf => tf.ToGovernorate)
                 .Include(tf => tf.Station)
-                    .ThenInclude(s => s.City)
+                    .ThenInclude(s => s!.City)
                 .Where(tf => tf.CompanyId == companyId)
                 .Select(tf => new TripFareReadDto
                 {
@@ -966,7 +966,7 @@ namespace Darb.Api.Services.Implementations
                 .Include(t => t.FromGovernorate)
                 .Include(t => t.ToGovernorate)
                 .Include(t => t.Station)
-                    .ThenInclude(s => s.City)
+                    .ThenInclude(s => s!.City)
                 .FirstOrDefaultAsync(t => t.TripFareId == tripFareId && t.CompanyId == companyId);
 
             if (tf == null) return ResponseDto.FailureResponse("التسعيرة غير موجودة أو لا تملك صلاحية الوصول إليها.");

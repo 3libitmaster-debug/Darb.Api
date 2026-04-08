@@ -35,12 +35,12 @@ namespace Darb.Api.Services.Implementations
         /// </summary>
         public async Task<ResponseDto> Login(LoginDto dto)
         {
-            var base64Password = SecurityHelper.ConvertToBase64(dto.Password);
+            var base64Password = SecurityHelper.ConvertToBase64(dto.Password!);
 
             // Fetch user with related Passenger or Company profiles
             var user = await _context.Users
                 .Include(u => u.Passenger)
-                .Include(u => u.Company).ThenInclude(c => c.Subscription)
+                .Include(u => u.Company).ThenInclude(c => c!.Subscription)
                 .FirstOrDefaultAsync(u => u.Email == dto.Email && u.Password == base64Password);
 
             if (user == null)
@@ -94,7 +94,7 @@ namespace Darb.Api.Services.Implementations
                     var newUser = new User
                     {
                         Email = dto.Email,
-                        Password = SecurityHelper.ConvertToBase64(dto.Password),
+                        Password = SecurityHelper.ConvertToBase64(dto.Password!),
                         Role = UserRoles.Passenger,
                         IsActive = true,
                         JoinDate = DateHelper.GetYemenTime(),
@@ -146,9 +146,9 @@ namespace Darb.Api.Services.Implementations
                 try
                 {
                     // --- STEP 1: Process and optimize image uploads (Converted to WebP internally) ---
-                    var logoPath = await _ImageService.SaveImageAsync(request.Logo, "Transport company logos");
-                    var licensePath = await _ImageService.SaveImageAsync(request.License, "Transport company licenses");
-                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip, "Subscription payment receipts");
+                    var logoPath = await _ImageService.SaveImageAsync(request.Logo!, "Transport company logos");
+                    var licensePath = await _ImageService.SaveImageAsync(request.License!, "Transport company licenses");
+                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip!, "Subscription payment receipts");
 
                     // Validate that all required documents are successfully uploaded
                     if (logoPath == null || licensePath == null || paymentPath == null)
