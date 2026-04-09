@@ -9,9 +9,8 @@ using darbWebApp.Data;
 using Darb.Api.Helpers;
 using Microsoft.Extensions.Options;
 using Darb.Api.DTOs.adminDtos.Advertisement;
-using Darb.Api.DTOs.adminDtos.Governorate;
 using Darb.Api.DTOs.adminDtos.Bank;
-using Darb.Api.DTOs.adminDtos.City;
+
 
 namespace Darb.Api.Services.Implementations
 {

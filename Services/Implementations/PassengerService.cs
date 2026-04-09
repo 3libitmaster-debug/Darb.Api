@@ -152,7 +152,7 @@ namespace Darb.Api.Services.Implementations
                 if (query.Date.HasValue && query.Date.Value.Year > 2000)
                 {
                     var searchDate = query.Date.Value.Date;
-                    tripsQuery = tripsQuery.Where(t => t.DepartureDateTime.Date == searchDate);
+                    tripsQuery = tripsQuery.Where(t => t.DepartureDate.Date == searchDate);
                 }
 
                 // 3. DATA PROJECTION & MAPPING
@@ -170,8 +170,8 @@ namespace Darb.Api.Services.Implementations
                     EndGoveId = t.EndGoveId,
                     EndGoveName = t.EndGovernate != null ? (t.EndGovernate.Name ?? "N/A") : "N/A",
                     Price = t.BasePrice,
-                    DepartureTime = t.DepartureDateTime.ToString("hh:mm tt"), // 12-hour format
-                    DepartureDate = t.DepartureDateTime.ToString("yyyy-MM-dd"),
+                    DepartureTime = t.DepartureDate.ToString("hh:mm tt"), // We will just display the general date/time or leave it since it's Date now? Actually if it's Date only, DepartureTime is empty. Let's just output ""
+                    DepartureDate = t.DepartureDate.ToString("yyyy-MM-dd"),
                     AvailableSeats = t.AvailableSeats,
                     Period = t.Period.ToString()
                 }).ToListAsync();
@@ -210,7 +210,6 @@ namespace Darb.Api.Services.Implementations
                         TripId = tr.TripId,
                         StationId = tr.StationId,
                         DepartureTime = tr.DepartureTime.ToString(@"hh\:mm"),
-                        RouteFare = tr.RouteFare,
                         CityName = tr.Station != null && tr.Station.City != null ? (tr.Station.City.Name ?? string.Empty) : string.Empty,
                         Address = tr.Station != null ? (tr.Station.Address ?? string.Empty) : string.Empty,
                     }).ToListAsync();

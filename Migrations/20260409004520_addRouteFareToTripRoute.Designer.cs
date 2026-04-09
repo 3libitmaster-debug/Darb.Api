@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using darbWebApp.Data;
 
@@ -11,9 +12,11 @@ using darbWebApp.Data;
 namespace Darb.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260409004520_addRouteFareToTripRoute")]
+    partial class addRouteFareToTripRoute
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -449,6 +452,9 @@ namespace Darb.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripId"));
 
+                    b.Property<DateTime>("ArrivalDateTime")
+                        .HasColumnType("datetime2");
+
                     b.Property<int>("AvailableSeats")
                         .HasColumnType("int");
 
@@ -461,8 +467,8 @@ namespace Darb.Api.Migrations
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("DepartureDate")
-                        .HasColumnType("date");
+                    b.Property<DateTime>("DepartureDateTime")
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("EndGoveId")
                         .HasColumnType("int");

@@ -11,7 +11,7 @@ namespace Darb.Api.DTOs.Booking
         public int TripRouteId { get; set; }
         public string StartGovernorate { get; set; } = string.Empty;
         public string EndGovernorate { get; set; } = string.Empty;
-        public DateTime DepartureDateTime { get; set; }
+        public DateTime DepartureDate { get; set; }
         public int NumberOfSeats { get; set; }
         public decimal TotalAmount { get; set; }
         public string? ReceiptImagePath { get; set; }

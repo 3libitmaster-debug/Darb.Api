@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Darb.Api.Models.Enums;
 
@@ -40,10 +40,8 @@ namespace Darb.Api.Models
         public decimal BasePrice { get; set; }
 
         [Required]
-        public DateTime DepartureDateTime { get; set; }
-
-        [Required]
-        public DateTime ArrivalDateTime { get; set; }
+        [Column(TypeName = "date")]
+        public DateTime DepartureDate { get; set; }
 
         public Periods Period { get; set; }
 

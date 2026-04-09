@@ -4,9 +4,7 @@ namespace Darb.Api.Dtos
     {
      
 
-        public DateTime? DepartureDateTime { get; set; }
-
-        public DateTime? ArrivalDateTime { get; set; }
+        public DateTime? DepartureDate { get; set; }
 
         public int? BusId { get; set; }
 

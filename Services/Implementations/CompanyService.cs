@@ -60,29 +60,6 @@ namespace Darb.Api.Services.Implementations
             // STEP 3: Real-time Status Synchronization Logic
             foreach (var trip in trips)
             {
-                /* Logic A: Transition to 'InProgress'
-                   If the current time has passed the Departure time but hasn't reached the Arrival time yet.
-                   Trip is currently active on the road.
-                */
-                if (trip.Status == TripStatus.scheduled &&
-                    trip.DepartureDateTime <= currentYemenTime &&
-                    trip.ArrivalDateTime > currentYemenTime)
-                {
-                    trip.Status = TripStatus.InProgress;
-                    hasChanges = true;
-                }
-
-                /* Logic B: Transition to 'Completed'
-                   If the current time has passed the scheduled Arrival time.
-                   The trip is officially finished.
-                */
-                if ((trip.Status == TripStatus.scheduled || trip.Status == TripStatus.InProgress) &&
-                    trip.ArrivalDateTime <= currentYemenTime)
-                {
-                    trip.Status = TripStatus.completed;
-                    hasChanges = true;
-                }
-
                 /* Logic C: Capacity-based Status Update
                    If a 'Scheduled' trip is fully booked (0 available seats).
                 */
@@ -101,15 +78,14 @@ namespace Darb.Api.Services.Implementations
 
             // STEP 5: Map to DTOs for the final response.
             var tripList = trips
-                .OrderByDescending(t => t.DepartureDateTime)
+                .OrderByDescending(t => t.DepartureDate)
                 .Select(t => new TripReadDto
                 {
                     TripId = t.TripId,
                     StartGoveName = t.StartGovernate?.Name ?? "N/A",
                     EndGoveName = t.EndGovernate?.Name ?? "N/A",
                     Price = t.BasePrice,
-                    DepartureDateTime = t.DepartureDateTime,
-                    ArrivalDateTime = t.ArrivalDateTime,
+                    DepartureDate = t.DepartureDate,
                     Status = t.Status.ToString(),
                     AvailableSeats = t.AvailableSeats,
                     BusId = t.BusId
@@ -137,27 +113,8 @@ namespace Darb.Api.Services.Implementations
             if (trip == null)
                 return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على الرحلة المطلوبة أو قد لا تتوفر صلاحية الوصول إليها.");
 
-            // STEP 2: Real-time Status Synchronization
-            // Use Yemen Local Time to check if the status needs an immediate update before returning the data.
-            DateTime currentYemenTime = DateHelper.GetYemenTime();
+            // Real-time Status Synchronization Logic
             bool statusUpdated = false;
-
-            // Transition to 'InProgress' if departure has passed but arrival hasn't.
-            if (trip.Status == TripStatus.scheduled &&
-                trip.DepartureDateTime <= currentYemenTime &&
-                trip.ArrivalDateTime > currentYemenTime)
-            {
-                trip.Status = TripStatus.InProgress;
-                statusUpdated = true;
-            }
-
-            // Transition to 'Completed' if arrival time has passed.
-            if ((trip.Status == TripStatus.scheduled || trip.Status == TripStatus.InProgress) &&
-                trip.ArrivalDateTime <= currentYemenTime)
-            {
-                trip.Status = TripStatus.completed;
-                statusUpdated = true;
-            }
 
             // Check for 'Full' status if still scheduled.
             if (trip.Status == TripStatus.scheduled && trip.AvailableSeats <= 0)
@@ -181,8 +138,7 @@ namespace Darb.Api.Services.Implementations
                 Price = trip.BasePrice,
                 Status = trip.Status.ToString(),
                 AvailableSeats = trip.AvailableSeats,
-                DepartureDateTime = trip.DepartureDateTime,
-                ArrivalDateTime = trip.ArrivalDateTime,
+                DepartureDate = trip.DepartureDate,
                 BusId = trip.BusId
             };
 
@@ -197,7 +153,7 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
             // Business Rule: Departure time must be in the future.
-            if (tripDto.DepartureDateTime < DateHelper.GetYemenTime())
+            if (tripDto.DepartureDate.Date < DateHelper.GetYemenTime().Date)
                 return ResponseDto.FailureResponse("عذراً، يجب أن يكون وقت انطلاق الرحلة في تاريخ مستقبلي.");
 
             // Validation: Ensure the bus is owned by the company making the request.
@@ -213,8 +169,10 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("عذراً، الحافلة المختارة غير متاحة للخدمة حالياً.");
             }
 
+            if (tripDto.Routes == null || !tripDto.Routes.Any())
+                return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
 
-            // Fetch the primary fare (IsMainStation == true) to set as BasePrice
+            // Fetch the fares to validate stations and get system prices.
             var tripFares = await _context.TripFares
                 .Where(tf => tf.CompanyId == companyId && 
                              tf.FromGovId == tripDto.StartGoveId && 
@@ -226,59 +184,71 @@ namespace Darb.Api.Services.Implementations
 
             var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation == true);
             if (primaryFare == null)
-                return ResponseDto.FailureResponse("يجب تحديد محطة انطلاق الرحلة.");
+                return ResponseDto.FailureResponse("يجب تحديد محطة انطلاق والمسار الرئيسي للرحلة المحددة.");
 
-            // Create Entity: Assign bus capacity to available seats upon creation.
-            var trip = new Trip
+            var strategy = _context.Database.CreateExecutionStrategy();
+            return await strategy.ExecuteAsync(async () =>
             {
-                BusId = tripDto.BusId,
-                CompanyId = companyId,
-                StartGoveId = tripDto.StartGoveId,
-                EndGoveId = tripDto.EndGoveId,
-                DepartureDateTime = tripDto.DepartureDateTime,
-                ArrivalDateTime = tripDto.ArrivalDateTime ?? tripDto.DepartureDateTime.AddHours(1),
-                BasePrice = primaryFare.Price,
-                Status = TripStatus.scheduled,
-                AvailableSeats = bus.Capacity
-            };
-
-            try
-            {
-                await _context.Trips.AddAsync(trip);
-                await _context.SaveChangesAsync();
-
-                foreach (var fare in tripFares)
+                using var transaction = await _context.Database.BeginTransactionAsync();
+                try
                 {
-                    var tripRoute = new TripRoute
+                    // Create Entity: Assign bus capacity to available seats upon creation.
+                    var trip = new Trip
+                    {
+                        BusId = tripDto.BusId,
+                        CompanyId = companyId,
+                        StartGoveId = tripDto.StartGoveId,
+                        EndGoveId = tripDto.EndGoveId,
+                        DepartureDate = tripDto.DepartureDate,
+                        BasePrice = primaryFare.Price,
+                        Status = TripStatus.scheduled,
+                        AvailableSeats = bus.Capacity,
+                        Period = tripDto.Period
+                    };
+
+                    await _context.Trips.AddAsync(trip);
+                    await _context.SaveChangesAsync();
+
+                    foreach (var routeDto in tripDto.Routes)
+                    {
+                        var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
+                        if (matchingFare == null)
+                        {
+                            await transaction.RollbackAsync();
+                            return ResponseDto.FailureResponse("إحدى المحطات المختارة لا ترتبط بالمسار المعرف في النظام، يرجى التأكد.");
+                        }
+
+                        var tripRoute = new TripRoute
+                        {
+                            TripId = trip.TripId,
+                            StationId = matchingFare.StationId,
+                            DepartureTime = routeDto.ManualTime,
+                            RouteFare = matchingFare.Price
+                        };
+                        await _context.TripRoutes.AddAsync(tripRoute);
+                    }
+                    
+                    await _context.SaveChangesAsync();
+                    await transaction.CommitAsync();
+
+                    var resultDto = new TripDto
                     {
                         TripId = trip.TripId,
-                        StationId = fare.StationId,
-                        RouteFare = fare.Price,
-                        // DepartureTime = Trip Departure Time + Station Extra Time (MinutesOffset)
-                        DepartureTime = trip.DepartureDateTime.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset))
+                        BusId = trip.BusId,
+                        BasePrice = trip.BasePrice,
+                        DepartureDate = trip.DepartureDate,
+                        Status = trip.Status.ToString()
                     };
-                    await _context.TripRoutes.AddAsync(tripRoute);
+
+                    return ResponseDto.SuccessResponse("تمت إضافة الرحلة الجديدة والمسارات التابعة لها بنجاح.", resultDto);
                 }
-                await _context.SaveChangesAsync();
-                // ----------------------------------------
-
-                var resultDto = new TripDto
+                catch (Exception ex)
                 {
-                    TripId = trip.TripId,
-                    BusId = trip.BusId,
-                    BasePrice = trip.BasePrice,
-                    DepartureDateTime = trip.DepartureDateTime,
-                    ArrivalDateTime = trip.ArrivalDateTime,
-                    Status = trip.Status.ToString()
-                };
-
-                return ResponseDto.SuccessResponse("تمت إضافة الرحلة الجديدة والمسارات التابعة لها بنجاح.", resultDto);
-            }
-            catch (Exception ex)
-            {
-                var realError = ex.InnerException?.Message ?? ex.Message;
-                return ResponseDto.FailureResponse($"نعتذر، حدث خطأ تقني أثناء حفظ الرحلة: {realError}");
-            }
+                    await transaction.RollbackAsync();
+                    var realError = ex.InnerException?.Message ?? ex.Message;
+                    return ResponseDto.FailureResponse($"نعتذر، حدث خطأ تقني أثناء حفظ الرحلة: {realError}");
+                }
+            });
         }
         #endregion
 
@@ -303,15 +273,12 @@ namespace Darb.Api.Services.Implementations
 
             // Partial Mapping: Update fields only if new values are provided in the DTO.
 
-            if (updateDto.DepartureDateTime.HasValue)
+            if (updateDto.DepartureDate.HasValue)
             {
-                if (updateDto.DepartureDateTime.Value < DateTime.Now)
+                if (updateDto.DepartureDate.Value.Date < DateTime.Now.Date)
                     return ResponseDto.FailureResponse("يرجى اختيار تاريخ مستقبلي؛ لا يمكن تعديل وقت الانطلاق لوقت قد مضى.");
-                trip.DepartureDateTime = updateDto.DepartureDateTime.Value;
+                trip.DepartureDate = updateDto.DepartureDate.Value;
             }
-
-            if (updateDto.ArrivalDateTime.HasValue)
-                trip.ArrivalDateTime = updateDto.ArrivalDateTime.Value;
 
             // Bus Swap Validation: Ensure the new bus is also owned by this company.
             if (updateDto.BusId.HasValue && updateDto.BusId.Value != trip.BusId)
@@ -327,7 +294,7 @@ namespace Darb.Api.Services.Implementations
 
             try
             {
-                bool recalculateRoutes = updateDto.DepartureDateTime.HasValue;
+                bool recalculateRoutes = updateDto.DepartureDate.HasValue;
 
                 await _context.SaveChangesAsync();
 
@@ -358,8 +325,8 @@ namespace Darb.Api.Services.Implementations
                         {
                             TripId = trip.TripId,
                             StationId = fare.StationId,
-                            RouteFare = fare.Price,
-                            DepartureTime = trip.DepartureDateTime.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset))
+                            DepartureTime = trip.DepartureDate.TimeOfDay.Add(TimeSpan.FromMinutes(fare.MinutesOffset)),
+                            RouteFare = fare.Price
                         };
                         await _context.TripRoutes.AddAsync(tripRoute);
                     }
@@ -677,7 +644,7 @@ namespace Darb.Api.Services.Implementations
                 TripRouteId = b.TripRouteId,
                 StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDateTime = b.TripRoute?.Trip?.DepartureDateTime ?? DateTime.MinValue,
+                DepartureDate = b.TripRoute?.Trip?.DepartureDate ?? DateTime.MinValue,
                 NumberOfSeats = b.NumberOfSeats,
                 TotalAmount = b.TotalAmount,
                 ReceiptImagePath = b.ReceiptImagePath,
@@ -720,7 +687,7 @@ namespace Darb.Api.Services.Implementations
                 TripRouteId = booking.TripRouteId,
                 StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = booking.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDateTime = booking.TripRoute?.Trip?.DepartureDateTime ?? DateTime.MinValue,
+                DepartureDate = booking.TripRoute?.Trip?.DepartureDate ?? DateTime.MinValue,
                 NumberOfSeats = booking.NumberOfSeats,
                 TotalAmount = booking.TotalAmount,
                 ReceiptImagePath = booking.ReceiptImagePath,

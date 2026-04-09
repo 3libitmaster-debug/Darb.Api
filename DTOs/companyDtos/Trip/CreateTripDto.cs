@@ -12,13 +12,9 @@ public class CreateTripDto
     [Required(ErrorMessage = "Destination location is required.")]
     public int EndGoveId { get; set; }
 
-    [Required(ErrorMessage = "Departure date and time are required.")]
-    [DataType(DataType.DateTime)]
-    public DateTime DepartureDateTime { get; set; }
-
-    [Required(ErrorMessage = "Arrival date and time are required.")]
-    [DataType(DataType.DateTime)]
-    public DateTime? ArrivalDateTime { get; set; }
+    [Required(ErrorMessage = "Departure date is required.")]
+    [DataType(DataType.Date)]
+    public DateTime DepartureDate { get; set; }
 
     [Required(ErrorMessage = "Trip period is required.")]
     [EnumDataType(typeof(Periods), ErrorMessage = "Invalid period value.")]
@@ -26,4 +22,16 @@ public class CreateTripDto
 
     [Required(ErrorMessage = "Bus selection is required.")]
     public int BusId { get; set; }
+
+    [Required(ErrorMessage = "Routes are required.")]
+    public List<RouteRequestDto> Routes { get; set; } = new List<RouteRequestDto>();
 }
+
+    public class RouteRequestDto
+    {
+        [Required]
+        public int StationId { get; set; }
+
+        [Required]
+        public TimeSpan ManualTime { get; set; }
+    }
