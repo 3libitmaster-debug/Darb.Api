@@ -33,5 +33,5 @@ public class CreateTripDto
         public int StationId { get; set; }
 
         [Required]
-        public TimeSpan ManualTime { get; set; }
+        public string? DepartureTime { get; set; }
     }

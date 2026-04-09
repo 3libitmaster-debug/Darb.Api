@@ -1,4 +1,4 @@
-namespace Darb.Api.DTOs.BankAccount
+namespace Darb.Api.DTOs.passengerDtos.bookingDtos
 {
     public class BankAccountsDropDownListDto
     {

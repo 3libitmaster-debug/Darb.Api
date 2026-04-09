@@ -23,7 +23,7 @@ namespace darbWebApp.Data
         public DbSet<Advertisement> Advertisements { get; set; }
         public DbSet<Bank> Banks { get; set; }
         public DbSet<BankAccount> BankAccounts { get; set; }
-        public DbSet<TripRoute> TripRoutes { get; set; }
+        public DbSet<TripSchedule> TripSchedules { get; set; }
         public DbSet<Booking> Bookings { get; set; }
         public DbSet<PassengerDetails> PassengerDetails { get; set; }
         public DbSet<ETicket> ETickets { get; set; }
@@ -228,16 +228,22 @@ namespace darbWebApp.Data
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Booking>()
-                .HasOne(b => b.TripRoute)
+                .HasOne(b => b.TripSchedule)
                 .WithMany()
-                .HasForeignKey(b => b.TripRouteId)
+                .HasForeignKey(b => b.TripScheduleId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            modelBuilder.Entity<TripRoute>()
+            modelBuilder.Entity<TripSchedule>()
                 .HasOne(tr => tr.Trip)
-                .WithMany(t => t.TripRoutes)
+                .WithMany(t => t.TripSchedules)
                 .HasForeignKey(tr => tr.TripId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TripSchedule>()
+                .HasOne(tr => tr.Station)
+                .WithMany()
+                .HasForeignKey(tr => tr.StationId)
+                .OnDelete(DeleteBehavior.Restrict);
 
 
         }

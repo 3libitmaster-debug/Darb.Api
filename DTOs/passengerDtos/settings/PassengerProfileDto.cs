@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Darb.Api.DTOs.Passenger
+namespace Darb.Api.DTOs.passengerDtos.settings
 {
     public class PassengerProfileDto
     {

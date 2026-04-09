@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
-namespace Darb.Api.DTOs.Passenger
+namespace Darb.Api.DTOs.passengerDtos.bookingDtos
 {
     public class UploadReceiptDto
     {

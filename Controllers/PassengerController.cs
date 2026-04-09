@@ -1,10 +1,11 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.Passenger;
 using Darb.Api.Services.Interfaces;
 using Darb.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
+using Darb.Api.DTOs.passengerDtos.homePageDtos;
+using Darb.Api.DTOs.passengerDtos.bookingDtos;
 
 namespace Darb.Api.Controllers
 {
@@ -35,7 +36,7 @@ namespace Darb.Api.Controllers
             => Ok(await _passengerService.SearchTripsAsync(query));
 
 
-        [HttpGet("stations/{tripId}")]
+        [HttpGet("stations/dropdownMenu/{tripId}")]
         [SwaggerOperation(
             Summary = "Get Stations by Company and Governorate",
             Description = "Retrieves all stations for a specific company within a specific governorate.")]
@@ -49,7 +50,7 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
 
-        [HttpGet("passengers/profile")]
+        [HttpGet("settings/profile")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
             Summary = "Get Passenger Profile",

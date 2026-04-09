@@ -56,7 +56,7 @@ namespace Darb.Api.Services.BackgroundServices
 
             // Find matching bookings
             var expiredBookings = await dbContext.Bookings
-                .Include(b => b.TripRoute)
+                .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                 .Where(b => b.Status == BookingStatus.PendingAttachment  ||
                             b.ReceiptImagePath == null && 
@@ -69,10 +69,10 @@ namespace Darb.Api.Services.BackgroundServices
 
                 foreach (var booking in expiredBookings)
                 {
-                    if (booking.TripRoute?.Trip != null)
+                    if (booking.TripSchedule?.Trip != null)
                     {
                         // Restore trip seats
-                        booking.TripRoute.Trip.AvailableSeats += booking.NumberOfSeats;
+                        booking.TripSchedule.Trip.AvailableSeats += booking.NumberOfSeats;
                     }
                 }
 

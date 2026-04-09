@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.Passenger
+﻿namespace Darb.Api.DTOs.passengerDtos.homePageDtos
 {
     /// <summary>
     /// Represents the data displayed in the search results list for a passenger.

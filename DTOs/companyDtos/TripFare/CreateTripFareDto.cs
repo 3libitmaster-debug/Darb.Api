@@ -17,8 +17,6 @@ namespace Darb.Api.DTOs.TripFare
         public decimal Price { get; set; }
 
         [Required]
-        public int MinutesOffset { get; set; }
-
         public bool IsMainStation { get; set; }
 
     }

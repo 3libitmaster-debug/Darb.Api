@@ -1,5 +1,8 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.Passenger;
+using Darb.Api.DTOs.passengerDtos.bookingDtos;
+using Darb.Api.DTOs.passengerDtos.settings;
+
+using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.Station;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
@@ -195,23 +198,24 @@ namespace Darb.Api.Services.Implementations
         /// Retrieves all stations for a specific trip by its TripId.
         /// </summary>
         /// <param name="tripId">The ID of the trip.</param>
-        /// <returns>A ResponseDto containing a list of TripRouteResponseDto.</returns>
+        /// <returns>A ResponseDto containing a list of TripScheduleResponseDto.</returns>
         public async Task<ResponseDto> GetTripStationsAsync(int tripId)
         {
             try
             {
-                var stations = await _context.TripRoutes
+                var stations = await _context.TripSchedules
                     .Include(tr => tr.Station)
                         .ThenInclude(s => s!.City)
                     .Where(tr => tr.TripId == tripId)
-                    .Select(tr => new TripRouteResponseDto
+                    .Select(tr => new TripScheduleResponseDto
                     {
-                        TripRouteId = tr.TripRouteId,
+                        TripScheduleId = tr.TripScheduleId,
                         TripId = tr.TripId,
                         StationId = tr.StationId,
-                        DepartureTime = tr.DepartureTime.ToString(@"hh\:mm"),
+                        DepartureTime = tr.DepartureTime.ToString("hh:mm tt"),
                         CityName = tr.Station != null && tr.Station.City != null ? (tr.Station.City.Name ?? string.Empty) : string.Empty,
                         Address = tr.Station != null ? (tr.Station.Address ?? string.Empty) : string.Empty,
+                        SeatFare = tr.SeatFare
                     }).ToListAsync();
 
                 if (stations.Count == 0)
@@ -232,7 +236,7 @@ namespace Darb.Api.Services.Implementations
             var bankAccounts = await _context.BankAccounts
                 .Include(ba => ba.Bank)
                 .Where(ba => ba.CompanyId == companyId)
-                .Select(ba => new Darb.Api.DTOs.BankAccount.BankAccountsDropDownListDto
+                .Select(ba => new Darb.Api.DTOs.passengerDtos.bookingDtos.BankAccountsDropDownListDto
                 {
                     BankAccountId = ba.BankAccountId,
                     BankName = ba.Bank != null ? (ba.Bank.BankName ?? "غير متوفر") : "غير متوفر",
@@ -262,15 +266,15 @@ namespace Darb.Api.Services.Implementations
             if (passengerProfile == null)
                 return ResponseDto.FailureResponse("عذراً، لم يتم العثور على ملف تعريف المستخدم.");
 
-            // Validate the existence of the TripRoute and the associated Trip
-            var tripRoute = await _context.TripRoutes
+            // Validate the existence of the TripSchedule and the associated Trip
+            var tripSchedule = await _context.TripSchedules
                 .Include(tr => tr.Trip)
-                .FirstOrDefaultAsync(tr => tr.TripRouteId == request.TripRouteId);
+                .FirstOrDefaultAsync(tr => tr.TripScheduleId == request.TripScheduleId);
 
-            if (tripRoute == null || tripRoute.Trip == null)
+            if (tripSchedule == null || tripSchedule.Trip == null)
                 return ResponseDto.FailureResponse("مسار الرحلة المختار غير متاح حالياً.");
 
-            var trip = tripRoute.Trip;
+            var trip = tripSchedule.Trip;
 
             // Ensure the trip is still open for booking
             if (trip.Status != TripStatus.scheduled)
@@ -291,7 +295,7 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse($"عذراً، لا توجد مقاعد كافية. المقاعد المتاحة: {trip.AvailableSeats}");
 
             // Calculate total financial amount based on route fare
-            decimal totalAmount = tripRoute.RouteFare * totalSeatsRequired;
+            decimal totalAmount = tripSchedule.SeatFare * totalSeatsRequired;
 
             // --- 2. EXECUTION STRATEGY (Resiliency) ---
             var strategy = _context.Database.CreateExecutionStrategy();
@@ -305,7 +309,7 @@ namespace Darb.Api.Services.Implementations
                     var booking = new Booking
                     {
                         PassengerId = passengerProfile.PassengerId,
-                        TripRouteId = tripRoute.TripRouteId,
+                        TripScheduleId = tripSchedule.TripScheduleId,
                         NumberOfSeats = totalSeatsRequired,
                         TotalAmount = totalAmount,
                         Status = BookingStatus.PendingAttachment, // Phase 1: Waiting for receipt upload

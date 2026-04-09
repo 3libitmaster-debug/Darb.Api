@@ -56,7 +56,7 @@ namespace Darb.Api.Models
         public int BusId { get; set; }
         public virtual Bus? Bus { get; set; }
 
-        public virtual ICollection<TripRoute>? TripRoutes { get; set; }
+        public virtual ICollection<TripSchedule>? TripSchedules { get; set; }
 
 
 

@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Darb.Api.Models;
 
-namespace Darb.Api.DTOs.Passenger
+namespace Darb.Api.DTOs.passengerDtos.bookingDtos
 {
     public class PassengerDetailDto
     {

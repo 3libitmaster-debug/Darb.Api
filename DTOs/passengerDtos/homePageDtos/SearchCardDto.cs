@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.Passenger
+﻿namespace Darb.Api.DTOs.passengerDtos.homePageDtos
 {
     public class SearchCardDto
     {

@@ -1,5 +1,6 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.Passenger;
+using Darb.Api.DTOs.passengerDtos.bookingDtos;
+using Darb.Api.DTOs.passengerDtos.homePageDtos;
 
 namespace Darb.Api.Services.Interfaces
 {

@@ -2,6 +2,7 @@ using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.TripFare;
+using Darb.Api.DTOs.TripSchedule;
 using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
@@ -392,6 +393,35 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Delete Trip Fare", Description = "Permanently removes a trip fare mapping from the system.")]
         public async Task<IActionResult> DeleteTripFare(int id) 
             => Ok(await _companyService.DeleteTripFareAsync(id, User.GetCompanyId()));
+
+        #endregion
+
+        #region Trip Schedule Management Endpoints
+
+        [HttpGet("trips/{tripId}/schedules")]
+        [SwaggerOperation(Summary = "Get All Trip Schedules", Description = "Retrieves all station stops for a specific trip.")]
+        public async Task<IActionResult> GetTripSchedules(int tripId)
+            => Ok(await _companyService.GetAllTripSchedulesAsync(tripId, User.GetCompanyId()));
+
+        [HttpGet("trips/schedules/{id}")]
+        [SwaggerOperation(Summary = "Get Trip Schedule by ID", Description = "Retrieves details of a specific station stop.")]
+        public async Task<IActionResult> GetTripSchedule(int id)
+            => Ok(await _companyService.GetTripScheduleByIdAsync(id, User.GetCompanyId()));
+
+        [HttpPost("trips/schedules")]
+        [SwaggerOperation(Summary = "Add New Trip Schedule stop", Description = "Adds a new station stop to an existing trip.")]
+        public async Task<IActionResult> CreateTripSchedule([FromBody] AddTripScheduleDto dto)
+            => Ok(await _companyService.AddTripScheduleAsync(dto, User.GetCompanyId()));
+
+        [HttpPut("trips/schedules/{id}")]
+        [SwaggerOperation(Summary = "Update Trip Schedule", Description = "Modifies an existing station stop's time or fare.")]
+        public async Task<IActionResult> UpdateTripSchedule(int id, [FromBody] UpdateTripScheduleDto dto)
+            => Ok(await _companyService.UpdateTripScheduleAsync(id, dto, User.GetCompanyId()));
+
+        [HttpDelete("trips/schedules/{id}")]
+        [SwaggerOperation(Summary = "Delete Trip Schedule stop", Description = "Permanently removes a station stop from a trip.")]
+        public async Task<IActionResult> DeleteTripSchedule(int id)
+            => Ok(await _companyService.DeleteTripScheduleAsync(id, User.GetCompanyId()));
 
         #endregion
     }

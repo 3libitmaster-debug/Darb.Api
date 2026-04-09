@@ -8,7 +8,7 @@ namespace Darb.Api.DTOs.Booking
         public string PassengerName { get; set; } = string.Empty;
         public string PhoneNumber { get; set; } = string.Empty;
         public int TripId { get; set; }
-        public int TripRouteId { get; set; }
+        public int TripScheduleId { get; set; }
         public string StartGovernorate { get; set; } = string.Empty;
         public string EndGovernorate { get; set; } = string.Empty;
         public DateTime DepartureDate { get; set; }

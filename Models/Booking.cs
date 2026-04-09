@@ -9,16 +9,16 @@ namespace Darb.Api.Models
 {
     public enum BookingStatus
     {
-        // 0: ÇáÍÌÒ ãÈÏÆí (ÇáÑÇßÈ áã íÑİÚ ÕæÑÉ ÇáÓäÏ ÈÚÏ)
+        // 0: Pending (Waiting for receipt upload)
         PendingAttachment = 0,
 
-        // 1: Êã ÑİÚ ÇáÓäÏ (ÈÇäÊÙÇÑ ãÑÇÌÚÉ ÇáÔÑßÉ æÊÃßíÏ ÇáÏİÚ)
+        // 1: Awaiting Confirmation (Receipt uploaded)
         AwaitingConfirmation = 1,
 
-        // 2: Êã ÇáÊÃßíÏ (ÇáÓäÏ Óáíã æÇáãŞÚÏ ÍÌÒ äåÇÆíÇğ)
+        // 2: Confirmed (Receipt accepted)
         Confirmed = 2,
 
-        // 3: ãáÛí (ÓæÇÁ ãä ÇáÑÇßÈ Ãæ áÚÏã ÕÍÉ ÇáÓäÏ)
+        // 3: Cancelled
         Cancelled = 3
     }
 
@@ -37,10 +37,10 @@ namespace Darb.Api.Models
         public virtual Passenger? Passenger { get; set; }
 
         [Required]
-        public int TripRouteId { get; set; }
+        public int TripScheduleId { get; set; }
 
-        [ForeignKey("TripRouteId")]
-        public virtual TripRoute? TripRoute { get; set; } 
+        [ForeignKey("TripScheduleId")]
+        public virtual TripSchedule? TripSchedule { get; set; } 
 
         public virtual ICollection<PassengerDetails> Passengers { get; set; } = new List<PassengerDetails>();
 
