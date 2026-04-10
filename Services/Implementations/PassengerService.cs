@@ -241,7 +241,7 @@ namespace Darb.Api.Services.Implementations
                     BankAccountId = ba.BankAccountId,
                     BankName = ba.Bank != null ? (ba.Bank.BankName ?? "غير متوفر") : "غير متوفر",
                     AccountNumber = ba.AccountNumber,
-                    AccountHolderName = ba.AccountHolderName,
+                    AccountHolderName = ba.HolderName,
                     LogoUrl = !string.IsNullOrEmpty(ba.Bank!.LogoUrl) ? _baseUrl + ba.Bank.LogoUrl : string.Empty
                 })
                 .ToListAsync();

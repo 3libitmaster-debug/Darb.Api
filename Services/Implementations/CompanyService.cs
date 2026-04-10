@@ -224,6 +224,7 @@ namespace Darb.Api.Services.Implementations
                             TripId = trip.TripId,
                             StationId = matchingFare.StationId,
                             DepartureTime = TimeHelper.ParseTime(routeDto.DepartureTime),
+                            SeatFare = matchingFare.Price
 
                         };
                         await _context.TripSchedules.AddAsync(tripSchedule);
@@ -769,7 +770,7 @@ namespace Darb.Api.Services.Implementations
                 {
                     BankAccountId = ba.BankAccountId,
                     AccountNumber = ba.AccountNumber,
-                    AccountHolderName = ba.AccountHolderName,
+                    AccountHolderName = ba.HolderName,
                     BankId = ba.BankId,
                     BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
                     CompanyId = ba.CompanyId
@@ -789,7 +790,7 @@ namespace Darb.Api.Services.Implementations
             {
                 BankAccountId = ba.BankAccountId,
                 AccountNumber = ba.AccountNumber,
-                AccountHolderName = ba.AccountHolderName,
+                AccountHolderName = ba.HolderName,
                 BankId = ba.BankId,
                 BankName = ba.Bank?.BankName ?? "غير متوفر",
                 CompanyId = ba.CompanyId
@@ -805,7 +806,7 @@ namespace Darb.Api.Services.Implementations
             var account = new BankAccount
             {
                 AccountNumber = dto.AccountNumber,
-                AccountHolderName = dto.AccountHolderName,
+                HolderName = dto.AccountHolderName,
                 BankId = dto.BankId,
                 CompanyId = companyId
             };
@@ -821,7 +822,7 @@ namespace Darb.Api.Services.Implementations
             if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
 
             if (!string.IsNullOrEmpty(dto.AccountNumber)) account.AccountNumber = dto.AccountNumber;
-            if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.AccountHolderName = dto.AccountHolderName;
+            if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.HolderName = dto.AccountHolderName;
             if (dto.BankId.HasValue)
             {
                 var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId.Value);
@@ -1021,10 +1022,17 @@ namespace Darb.Api.Services.Implementations
             var trip = await _context.Trips
                 .FirstOrDefaultAsync(t => t.TripId == dto.TripId && t.CompanyId == companyId);
 
-            if (trip == null) return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
-
             if (!await _context.Stations.AnyAsync(s => s.StationId == dto.StationId && s.CompanyId == companyId))
                 return ResponseDto.FailureResponse("المحطة المختارة غير موجودة أو لا تتبع لشركتكم.");
+
+            var matchingFare = await _context.TripFares
+                .FirstOrDefaultAsync(tf => tf.CompanyId == companyId && 
+                                         tf.FromGovId == trip.StartGoveId && 
+                                         tf.ToGovId == trip.EndGoveId && 
+                                         tf.StationId == dto.StationId);
+
+            if (matchingFare == null)
+                return ResponseDto.FailureResponse("لا توجد تسعيرة معرفة لهذه المحطة على مسار هذه الرحلة.");
 
             try
             {
@@ -1033,7 +1041,7 @@ namespace Darb.Api.Services.Implementations
                     TripId = dto.TripId,
                     StationId = dto.StationId,
                     DepartureTime = TimeHelper.ParseTime(dto.DepartureTime),
-                    SeatFare = dto.SeatFare
+                    SeatFare = matchingFare.Price
                 };
 
                 await _context.TripSchedules.AddAsync(tripSchedule);

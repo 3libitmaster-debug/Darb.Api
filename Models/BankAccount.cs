@@ -12,7 +12,7 @@ namespace Darb.Api.Models
         public string AccountNumber { get; set; } = string.Empty;
 
         [Required, MaxLength(150)]
-        public string AccountHolderName { get; set; } = string.Empty;
+        public string HolderName { get; set; } = string.Empty;
 
         // Foreign Key for Bank
         public int BankId { get; set; }
