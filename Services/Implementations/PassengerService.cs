@@ -62,7 +62,7 @@ namespace Darb.Api.Services.Implementations
                 homePageData.AdCards = ads.Where(a => a.IsActive == true)
                     .Select(a => new AdCardDto
                     {
-                        AdvertisementID = a.AdvertisementID,
+                        adId = a.AdvertisementID,
                         Title = a.Title,
                         Description = a.Description,
                         Image = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : "",
@@ -95,7 +95,7 @@ namespace Darb.Api.Services.Implementations
                 homePageData.SearchCard.PeriodOptions = Enum.GetValues(typeof(Periods)).Cast<Periods>()
                  .Select(p => new PeriodDto
                  {
-                     Value = (int)p,
+                     PeriodId = (int)p,
                      Name = p.GetType()
                              .GetMember(p.ToString())
                              .FirstOrDefault()
@@ -103,13 +103,13 @@ namespace Darb.Api.Services.Implementations
                              ?.GetName() ?? p.ToString()
                  }).ToList();
 
-                    return ResponseDto.SuccessResponse("Home page data retrieved successfully.", homePageData);
-                }
-                catch (Exception)
-                {
-                    // Error handling for Home Page loading
-                    return ResponseDto.FailureResponse("An error occurred while loading home page data.");
-                }
+                return ResponseDto.SuccessResponse("Home page data retrieved successfully.", homePageData);
+            }
+            catch (Exception)
+            {
+                // Error handling for Home Page loading
+                return ResponseDto.FailureResponse("An error occurred while loading home page data.");
+            }
         }
         #endregion
 
@@ -148,8 +148,8 @@ namespace Darb.Api.Services.Implementations
                     tripsQuery = tripsQuery.Where(t => t.CompanyId == query.CompanyId);
 
                 // Filter by Trip Period (Morning/Evening)
-                if (query.PeriodValue.HasValue && query.PeriodValue > 0)
-                    tripsQuery = tripsQuery.Where(t => (int)t.Period == query.PeriodValue);
+                if (query.PeriodId.HasValue && query.PeriodId > 0)
+                    tripsQuery = tripsQuery.Where(t => (int)t.Period == query.PeriodId);
 
                 // Filter by Trip Date (Ignores time part for strict date matching)
                 if (query.Date.HasValue && query.Date.Value.Year > 2000)
@@ -172,8 +172,7 @@ namespace Darb.Api.Services.Implementations
                     StartGoveName = t.StartGovernate != null ? (t.StartGovernate.Name ?? "N/A") : "N/A",
                     EndGoveId = t.EndGoveId,
                     EndGoveName = t.EndGovernate != null ? (t.EndGovernate.Name ?? "N/A") : "N/A",
-                    Price = t.BasePrice,
-                    DepartureTime = t.DepartureDate.ToString("hh:mm tt"), // We will just display the general date/time or leave it since it's Date now? Actually if it's Date only, DepartureTime is empty. Let's just output ""
+                    BasePrice = t.BasePrice,
                     DepartureDate = t.DepartureDate.ToString("yyyy-MM-dd"),
                     AvailableSeats = t.AvailableSeats,
                     Period = t.Period.ToString()
@@ -257,14 +256,7 @@ namespace Darb.Api.Services.Implementations
         /// </summary>
         public async Task<ResponseDto> BookTripAsync(int passengerId, BookingRequestDto request)
         {
-            // --- 1. PRE-TRANSACTION VALIDATIONS ---
-
-            // Fetch the account owner's profile (The person making the booking)
-            var passengerProfile = await _context.Passengers
-                .FirstOrDefaultAsync(p => p.PassengerId == passengerId);
-
-            if (passengerProfile == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على ملف تعريف المستخدم.");
+            // 1. PRE-TRANSACTION VALIDATIONS ---
 
             // Validate the existence of the TripSchedule and the associated Trip
             var tripSchedule = await _context.TripSchedules
@@ -280,15 +272,11 @@ namespace Darb.Api.Services.Implementations
             if (trip.Status != TripStatus.scheduled)
                 return ResponseDto.FailureResponse("عذراً، هذه الرحلة لم تعد متاحة للحجز.");
 
-            // Calculate total seats required: (1 if Owner is traveling) + (count of additional passengers)
-            int additionalCount = request.AdditionalPassengers?.Count ?? 0;
-            int totalSeatsRequired = additionalCount + (request.IsOwnerPassenger ? 1 : 0);
+            // Calculate total seats required from the provided passengers list
+            int totalSeatsRequired = request.AdditionalPassengers?.Count ?? 0;
 
             if (totalSeatsRequired == 0)
-                return ResponseDto.FailureResponse("يجب إضافة راكب واحد على الأقل (سواء صاحب الحساب أو مرافق).");
-
-            if (totalSeatsRequired > 10)
-                return ResponseDto.FailureResponse("لا يمكن حجز أكثر من 10 مقاعد في عملية واحدة.");
+                return ResponseDto.FailureResponse("يجب إضافة راكب واحد على الأقل.");
 
             // Verify physical seat availability in the bus
             if (trip.AvailableSeats < totalSeatsRequired)
@@ -308,7 +296,7 @@ namespace Darb.Api.Services.Implementations
                     // A. Create Booking Header
                     var booking = new Booking
                     {
-                        PassengerId = passengerProfile.PassengerId,
+                        PassengerId = passengerId,
                         TripScheduleId = tripSchedule.TripScheduleId,
                         NumberOfSeats = totalSeatsRequired,
                         TotalAmount = totalAmount,
@@ -319,37 +307,20 @@ namespace Darb.Api.Services.Implementations
                     _context.Bookings.Add(booking);
                     await _context.SaveChangesAsync(); // Commit to generate BookingId for FK relations
 
-                    // B. Build Unified Passenger List (Mapping Profile & DTOs)
+                    // B. Build Unified Passenger List from DTOs
                     var allPassengersList = new List<PassengerDetails>();
 
-                    // Logic: If IsOwnerPassenger is true, "Pull" owner's profile data into PassengerDetails
-                    if (request.IsOwnerPassenger)
+                    // Map all passengers from the request
+                    foreach (var pDto in request.AdditionalPassengers)
                     {
                         allPassengersList.Add(new PassengerDetails
                         {
                             BookingId = booking.BookingId,
-                            FullName = passengerProfile.FullName ?? "",
-                            NationalId = passengerProfile.NationalId ?? "",
-                            PhoneNumber = passengerProfile.Phone ?? "",
-                            BirthDate = passengerProfile.DateOfBirth,
-                            Address = passengerProfile.Address
+                            FullName = pDto.FullName,
+                            NationalId = pDto.NationalId,
+                            PhoneNumber = pDto.PhoneNumber,
+                            BirthDate = pDto.BirthDate,
                         });
-                    }
-
-                    // Append additional companions from the request
-                    if (additionalCount > 0)
-                    {
-                        foreach (var pDto in request.AdditionalPassengers!)
-                        {
-                            allPassengersList.Add(new PassengerDetails
-                            {
-                                BookingId = booking.BookingId,
-                                FullName = pDto.FullName,
-                                NationalId = pDto.NationalId,
-                                PhoneNumber = pDto.PhoneNumber,
-                                BirthDate = pDto.BirthDate,
-                            });
-                        }
                     }
 
                     // Bulk save all passengers to optimize database performance
@@ -431,7 +402,7 @@ namespace Darb.Api.Services.Implementations
             }
         }
         #endregion
-        
+
         #region Passenger Profile Logic
         public async Task<ResponseDto> GetProfileAsync(int passengerId)
         {

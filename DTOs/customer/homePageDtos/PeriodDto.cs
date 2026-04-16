@@ -2,7 +2,7 @@
 {
     public class PeriodDto
     {
-        public int Value { get; set; }    
+        public int PeriodId { get; set; }    
         public string ?Name { get; set; }  
     }
 }

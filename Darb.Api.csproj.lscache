@@ -61,70 +61,75 @@ Controllers/
  CompanyController.cs
  PassengerController.cs
 Data/ApplicationDbContext.cs
-DTOs/Advertisement/
+DTOs/admin/Advertisement/
  AdvertisementCreateDto.cs
  AdvertisementReadDto.cs
  AdvertisementUpdateDto.cs
+DTOs/admin/Bank/
+ BankCreateDto.cs
+ BankReadDto.cs
+ BankUpdateDto.cs
+DTOs/admin/City/
+ CityCreateDto.cs
+ CityReadDto.cs
+DTOs/admin/Governorate/
+ GovernorateCreateDto.cs
+ GovernorateReadDto.cs
 DTOs/auth/
  LoginDto.cs
  RegisterCompanyDto.cs
  RegisterPassengerDto.cs
  SendOtpDto.cs
  VerifyOtpDto.cs
-DTOs/Bank/
- BankCreateDto.cs
- BankReadDto.cs
- BankUpdateDto.cs
-DTOs/BankAccount/
- BankAccountCreateDto.cs
- BankAccountReadDto.cs
- BankAccountUpdateDto.cs
 DTOs/Base/
  ApiSettings.cs
  ResponseDto.cs
-DTOs/Booking/
+DTOs/company/BankAccount/
+ BankAccountCreateDto.cs
+ BankAccountReadDto.cs
+ BankAccountUpdateDto.cs
+DTOs/company/Booking/
  CompanyBookingDetailsDto.cs
  CompanyBookingReadDto.cs
  CompanyUpdateBookingStatusDto.cs
-DTOs/Bus/
+DTOs/company/Bus/
  BusReadDto.cs
  CreateBusDto.cs
  UpdateBusDto.cs
-DTOs/City/
- CityCreateDto.cs
- CityReadDto.cs
-DTOs/Governorate/
- GovernorateCreateDto.cs
- GovernorateReadDto.cs
-DTOs/Passenger/
- AdCardDto.cs
+DTOs/company/Station/
+ CreateStationDto.cs
+ StationReadDto.cs
+ UpdateStationDto.cs
+DTOs/company/Trip/
+ CreateTripDto.cs
+ RouteRequestDto.cs
+ TripDto.cs
+ TripReadDto.cs
+ UpdateTripDto.cs
+DTOs/company/TripFare/
+ CreateTripFareDto.cs
+ TripFareReadDto.cs
+ UpdateTripFareDto.cs
+DTOs/company/TripSchedule/
+ AddTripScheduleDto.cs
+ TripScheduleReadDto.cs
+ UpdateTripScheduleDto.cs
+DTOs/customer/bookingDtos/
  BankAccountsDropDownListDto.cs
  BookingRequestDto.cs
- HomePageDto.cs
  PassengerDetailDto.cs
- PassengerProfileDto.cs
+ TripScheduleResponseDto.cs
+ UploadReceiptDto.cs
+DTOs/customer/homePageDtos/
+ AdCardDto.cs
+ HomePageDto.cs
  PeriodDto.cs
  SearchCardDto.cs
  SimpleCompanyDto.cs
  SimpleGovernorateDto.cs
- StationForSelectionDto.cs
- TripRouteResponseDto.cs
  TripSearchQueryDto.cs
  TripSearchResultDto.cs
- UploadReceiptDto.cs
-DTOs/Station/
- CreateStationDto.cs
- StationReadDto.cs
- UpdateStationDto.cs
-DTOs/Trip/
- CreateTripDto.cs
- TripDto.cs
- TripReadDto.cs
- UpdateTripDto.cs
-DTOs/TripFare/
- CreateTripFareDto.cs
- TripFareReadDto.cs
- UpdateTripFareDto.cs
+DTOs/customer/settings/PassengerProfileDto.cs
 Extensions/ClaimsPrincipalExtensions.cs
 Migrations/
  20260313035817_addTripRouteEntity.cs
@@ -145,6 +150,20 @@ Migrations/
  20260325043151_UpdateStationEntity.Designer.cs
  20260326221935_altertripfaremodel.cs
  20260326221935_altertripfaremodel.Designer.cs
+ 20260409004520_addRouteFareToTripRoute.cs
+ 20260409004520_addRouteFareToTripRoute.Designer.cs
+ 20260409011233_UpdateTripDateStructureAndRemoveArrivalDate.cs
+ 20260409011233_UpdateTripDateStructureAndRemoveArrivalDate.Designer.cs
+ 20260409014732_RenameTripRouteToTripSchedule.cs
+ 20260409014732_RenameTripRouteToTripSchedule.Designer.cs
+ 20260409034233_RenameRouteFareToSeatFare.cs
+ 20260409034233_RenameRouteFareToSeatFare.Designer.cs
+ 20260409035230_RemoveMinutesOffsetFromTripFare.cs
+ 20260409035230_RemoveMinutesOffsetFromTripFare.Designer.cs
+ 20260409040721_ChangeDepartureTimeToTimeOnly.cs
+ 20260409040721_ChangeDepartureTimeToTimeOnly.Designer.cs
+ 20260416201635_RefactorDepartureTimeToTimeOnly.cs
+ 20260416201635_RefactorDepartureTimeToTimeOnly.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  Advertisement.cs
@@ -167,7 +186,7 @@ Models/
  Subscription.cs
  Trip.cs
  TripFare.cs
- TripRoute.cs
+ TripSchedule.cs
  User.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
@@ -201,6 +220,7 @@ Services/
  Shared/
   DateHelper.cs
   SecurityHelper.cs
+  TimeHelper.cs
 
 [metadataReferences]
 <NUGET>/

@@ -2,7 +2,7 @@
 {
     public class AdCardDto
     {
-        public int AdvertisementID { get; set; }
+        public int adId { get; set; }
         public string? Title { get; set; }
         public string? Description { get; set; }
         public string? Image { get; set; }

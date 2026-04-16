@@ -5,5 +5,7 @@
         public List<AdCardDto> AdCards { get; set; } = new();
 
         public SearchCardDto SearchCard { get; set; } = new();
+
+
     }
 }

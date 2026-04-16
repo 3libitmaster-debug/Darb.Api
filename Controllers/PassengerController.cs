@@ -19,7 +19,7 @@ namespace Darb.Api.Controllers
             _passengerService = passengerService;
         }
 
-    
+
 
         [HttpGet("home")]
         [SwaggerOperation(
@@ -28,7 +28,43 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetHomePage()
           => Ok(await _passengerService.GetHomePageDataAsync());
 
-        [HttpPost("trips/search")]
+        [HttpGet("home/search/card")]
+        [SwaggerOperation(
+            Summary = "Get Search Card Data Only",
+            Description = "Retrieves only the search card data (Governorates, Companies, and Periods) for the mobile app.")]
+        public async Task<IActionResult> GetSearchCard()
+        {
+            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
+                return Ok(homePageDto.SearchCard);
+            return Ok(null);
+        }
+
+        [HttpGet("home/ads")]
+        [SwaggerOperation(
+            Summary = "Get Ads Cards Data Only",
+            Description = "Retrieves only the ads cards data for the mobile app.")]
+        public async Task<IActionResult> GetAdsCards()
+        {
+            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
+                return Ok(homePageDto.AdCards);
+            return Ok(null);
+        }
+
+        [HttpGet("home/companies/avatar")]
+        [SwaggerOperation(
+            Summary = "Get Companies Avatars",
+            Description = "Returns a list of companies with their name and logo for avatar display.")]
+        public async Task<IActionResult> GetCompaniesAvatar()
+        {
+            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
+                return Ok(homePageDto.SearchCard.Companies);
+            return Ok(null);
+        }
+
+        [HttpPost("home/search")]
         [SwaggerOperation(
             Summary = "Search for Trips ",
             Description = "Filters scheduled trips based on optional criteria: From/To Governorates, Company, Period, and Travel Date. If no filters are provided, it returns all scheduled trips.")]
@@ -85,7 +121,7 @@ namespace Darb.Api.Controllers
             {
                 int userId = User.GetPassengerId();
                 var response = await _passengerService.BookTripAsync(userId, request);
-                
+
                 if (!response.Success)
                     return BadRequest(response);
 
@@ -109,7 +145,7 @@ namespace Darb.Api.Controllers
             {
                 int userId = User.GetPassengerId();
                 var response = await _passengerService.UploadReceiptAsync(userId, request);
-                
+
                 if (!response.Success)
                     return BadRequest(response);
 
@@ -121,6 +157,6 @@ namespace Darb.Api.Controllers
             }
         }
 
-  
+
     }
 }

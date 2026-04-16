@@ -11,7 +11,7 @@ namespace Darb.Api.DTOs.TripSchedule
         public int StationId { get; set; }
 
         [Required]
-        public string DepartureTime { get; set; } = string.Empty;
+        public TimeOnly DepartureTime { get; set; }
 
         [Required]
         public decimal SeatFare { get; set; }

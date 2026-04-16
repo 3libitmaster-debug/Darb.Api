@@ -223,7 +223,7 @@ namespace Darb.Api.Services.Implementations
                         {
                             TripId = trip.TripId,
                             StationId = matchingFare.StationId,
-                            DepartureTime = TimeHelper.ParseTime(routeDto.DepartureTime),
+                            DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
                             SeatFare = matchingFare.Price
 
                         };
@@ -985,7 +985,7 @@ namespace Darb.Api.Services.Implementations
                     StationId = ts.StationId,
                     StationName = ts.Station != null ? ts.Station.Address : "غير متوفر",
                     CityName = ts.Station != null && ts.Station.City != null ? ts.Station.City.Name : "غير متوفر",
-                    DepartureTime = ts.DepartureTime.ToString("hh:mm tt"),
+                    DepartureTime = ts.DepartureTime,
                     SeatFare = ts.SeatFare
                 })
                 .ToListAsync();
@@ -1010,7 +1010,7 @@ namespace Darb.Api.Services.Implementations
                 StationId = ts.StationId,
                 StationName = ts.Station?.Address ?? "غير متوفر",
                 CityName = ts.Station?.City?.Name ?? "غير متوفر",
-                DepartureTime = ts.DepartureTime.ToString("hh:mm tt"),
+                DepartureTime = ts.DepartureTime,
                 SeatFare = ts.SeatFare
             };
 
@@ -1040,7 +1040,7 @@ namespace Darb.Api.Services.Implementations
                 {
                     TripId = dto.TripId,
                     StationId = dto.StationId,
-                    DepartureTime = TimeHelper.ParseTime(dto.DepartureTime),
+                    DepartureTime = dto.DepartureTime,
                     SeatFare = matchingFare.Price
                 };
 
@@ -1068,8 +1068,8 @@ namespace Darb.Api.Services.Implementations
 
             try
             {
-                if (!string.IsNullOrWhiteSpace(dto.DepartureTime))
-                    ts.DepartureTime = TimeHelper.ParseTime(dto.DepartureTime);
+                if (dto.DepartureTime.HasValue)
+                    ts.DepartureTime = dto.DepartureTime.Value;
 
                 if (dto.SeatFare.HasValue)
                     ts.SeatFare = dto.SeatFare.Value;

@@ -28,7 +28,6 @@ namespace Darb.Api.Models
 
         [Required(ErrorMessage = "National ID is required.")]
         [RegularExpression(@"^\d+$", ErrorMessage = "National ID must contain only digits.")]
-        [StringLength(11, ErrorMessage = "National ID cannot exceed 11 numbers.")]
         public string NationalId { get; set; } = string.Empty;
 
         [Required(ErrorMessage = "Phone Number is required.")]

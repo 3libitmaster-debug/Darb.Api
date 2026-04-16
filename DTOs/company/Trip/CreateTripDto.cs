@@ -1,3 +1,4 @@
+using Darb.Api.DTOs.companyDtos.Trip;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using System.ComponentModel.DataAnnotations;
@@ -27,11 +28,4 @@ public class CreateTripDto
     public List<RouteRequestDto> Routes { get; set; } = new List<RouteRequestDto>();
 }
 
-    public class RouteRequestDto
-    {
-        [Required]
-        public int StationId { get; set; }
-
-        [Required]
-        public string? DepartureTime { get; set; }
-    }
+   

@@ -9,22 +9,21 @@
 
         // Company Information
         public int CompanyId { get; set; }
-        public string CompanyName { get; set; } = string.Empty;
-        public string CompanyLogo { get; set; } = string.Empty;
+        public string ?CompanyName { get; set; }
+        public string ?CompanyLogo { get; set; } 
 
         // Departure Info (Unified)
         public int StartGoveId { get; set; }
-        public string StartGoveName { get; set; } = string.Empty;
+        public string ?StartGoveName { get; set; } 
 
         // Destination Info (Unified)
         public int EndGoveId { get; set; }
-        public string EndGoveName { get; set; } = string.Empty;
+        public string ?EndGoveName { get; set; }
 
         // Financial & Timing Info
-        public decimal Price { get; set; }
-        public string DepartureTime { get; set; } = string.Empty;
-        public string DepartureDate { get; set; } = string.Empty;
+        public decimal BasePrice { get; set; }
+        public string ?DepartureDate { get; set; }
         public int AvailableSeats { get; set; }
-        public string Period { get; set; } = string.Empty;
+        public string ?Period { get; set; } 
     }
 }

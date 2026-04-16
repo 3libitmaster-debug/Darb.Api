@@ -9,7 +9,7 @@ namespace Darb.Api.DTOs.TripSchedule
         public int StationId { get; set; }
         public string? StationName { get; set; }
         public string? CityName { get; set; }
-        public string? DepartureTime { get; set; }
+        public TimeOnly? DepartureTime { get; set; }
         public decimal SeatFare { get; set; }
     }
 }
