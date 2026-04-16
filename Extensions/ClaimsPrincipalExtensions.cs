@@ -18,4 +18,12 @@ public static class ClaimsPrincipalExtensions
         var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return int.TryParse(claim, out int id) ? id : 0;
     }
+
+    public static int GetPassengerId(this ClaimsPrincipal user)
+    {
+
+        var claim = user.FindFirst("PassengerId")?.Value;
+
+        return int.TryParse(claim, out int id) ? id : 0;
+    }
 }

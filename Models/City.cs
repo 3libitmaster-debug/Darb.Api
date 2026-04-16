@@ -1,4 +1,4 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Darb.Api.Models
 {
@@ -7,7 +7,7 @@ namespace Darb.Api.Models
         public int CityId { get; set; }
 
         [Required]
-        public string Name { get; set; }
+        public string Name { get; set; } = string.Empty;
 
         [Required]
         public int GovernorateId { get; set; }

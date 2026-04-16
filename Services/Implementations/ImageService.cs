@@ -17,6 +17,17 @@ namespace Darb.Api.Services.Implemention
             _environment = environment;
         }
 
+        public async Task<string?> UpdateImageAsync(IFormFile? newFile, string? oldImagePath, string folderName)
+        {
+            if (newFile == null || newFile.Length == 0) return oldImagePath;
+
+            // Delete the old image if it exists
+            DeleteImage(oldImagePath);
+
+            // Save the new image
+            return await SaveImageAsync(newFile, folderName);
+        }
+
         public async Task<string?> SaveImageAsync(IFormFile? file, string folderName)
         {
             // التحقق من وجود الملف
@@ -53,6 +64,34 @@ namespace Darb.Api.Services.Implemention
             {
                 Console.WriteLine($"[ImageService Error]: {ex.Message}");
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Physically deletes an image from the server's filesystem.
+        /// </summary>
+        /// <param name="imagePath">Relative path of the image stored in the DB.</param>
+        public void DeleteImage(string? imagePath)
+        {
+            if (string.IsNullOrEmpty(imagePath)) return;
+
+            try
+            {
+                // Convert relative path to physical path
+                string webRootPath = _environment.WebRootPath ?? Path.Combine(Directory.GetCurrentDirectory(), "wwwroot");
+                // Remove leading slash if any to avoid Path.Combine issues
+                string relativePath = imagePath.TrimStart('/');
+                string fullPath = Path.Combine(webRootPath, relativePath);
+
+                if (File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    Console.WriteLine($"[ImageService]: Deleted image at {fullPath}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"[ImageService Delete Error]: {ex.Message}");
             }
         }
     }

@@ -1,12 +1,11 @@
-﻿using Darb.Api.Helpers;
-using Darb.Api.Interfaces;
+using Darb.Api.DTOs.Base;
 using Darb.Api.Models;
 using Darb.Api.Repositories.Implementations;
 using Darb.Api.Repository.Interfaces;
-using Darb.Api.Services;
 using Darb.Api.Services.Implementations;
 using Darb.Api.Services.Implemention;
 using Darb.Api.Services.Interfaces;
+using Darb.Api.Services.BackgroundServices;
 using darbWebApp.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -75,7 +74,22 @@ builder.Services.AddAuthentication(options =>
         ValidateIssuerSigningKey = true,
         ValidIssuer = issuer,
         ValidAudience = audience,
-        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey))
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(secretKey)),
+        ClockSkew = TimeSpan.Zero
+    };
+
+    options.Events = new JwtBearerEvents
+    {
+        OnAuthenticationFailed = context =>
+        {
+            Console.WriteLine($"Token Validation Failed: {context.Exception.Message}");
+            return Task.CompletedTask;
+        },
+        OnTokenValidated = context =>
+        {
+            Console.WriteLine("Token is valid.");
+            return Task.CompletedTask;
+        }
     };
 });
 
@@ -92,9 +106,13 @@ builder.Services.AddScoped<IRepository<City>, Repository<City>>();
 builder.Services.AddScoped<IRepository<Advertisement>, Repository<Advertisement>>();
 builder.Services.AddScoped<IPassengerService, PassengerService>();
 builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
-
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
-builder.Services.AddScoped<IRepository<TripFare>, Repository<TripFare>>();
+
+builder.Services.AddScoped<IEmailService, EmailService>();
+
+builder.Services.AddHostedService<DatabaseCleanupService>();
+
+builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));
 
 
 builder.Services.AddAuthorization();
@@ -114,6 +132,9 @@ builder.Services.AddSwaggerGen(c =>
         In = ParameterLocation.Header,
         Description = "Input your JWT token directly below."
     });
+
+    
+
     c.AddSecurityRequirement(new OpenApiSecurityRequirement
     {
         {
@@ -125,6 +146,18 @@ builder.Services.AddSwaggerGen(c =>
         }
     });
     c.EnableAnnotations();
+
+    c.OrderActionsBy((apiDesc) =>
+    {
+        var methodOrder = new Dictionary<string, int>
+        {
+            { "GET", 1 },
+            { "POST", 2 },
+            { "PUT", 3 },
+            { "DELETE", 4 }
+        };
+        return methodOrder.GetValueOrDefault(apiDesc.HttpMethod ?? string.Empty, 5).ToString();
+    });
 });
 
 var app = builder.Build();
@@ -142,7 +175,10 @@ app.UseSwaggerUI(c =>
 
 // Middleware Order: StaticFiles -> Https -> Cors -> Auth
 app.UseStaticFiles();
-app.UseHttpsRedirection();
+if (!app.Environment.IsDevelopment())
+{
+    app.UseHttpsRedirection();
+}
 app.UseCors("AllowAll");
 
 app.UseAuthentication();

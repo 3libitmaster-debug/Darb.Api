@@ -1,4 +1,4 @@
-﻿using Darb.Api.Repository.Interfaces;
+using Darb.Api.Repository.Interfaces;
 using darbWebApp.Data;
 using System.Collections;
 
@@ -7,7 +7,7 @@ namespace Darb.Api.Repositories.Implementations;
 public class UnitOfWork : IUnitOfWork
 {
     private readonly ApplicationDbContext _context;
-    private Hashtable _repositories; // لتخزين المستودعات المنشأة وتقليل استهلاك الذاكرة
+    private Hashtable? _repositories; // لتخزين المستودعات المنشأة وتقليل استهلاك الذاكرة
 
     public UnitOfWork(ApplicationDbContext context)
     {

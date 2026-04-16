@@ -5,38 +5,23 @@ namespace Darb.Api.Models
 {
     public class Station
     {
-    [Key]
-    public int StationId { get; set; }
+     
+        public int StationId { get; set; }
 
-    [Required, StringLength(100)]
-    public string? Name { get; set; }
-
-    [Required,StringLength(250)]
-    public string? Address { get; set; }
-
-    [Required]
-    public int Order { get; set; }
-
-    [Required]
-    public TimeSpan DurationFromStart { get; set; }
-
-    [Required]
-    public double ExtraFee { get; set; }
-
+        [Required,StringLength(250)]
+        public string? Address { get; set; }
     
-    public int CityId { get; set; }
-    [ForeignKey("CityId")]
-    public virtual City? City { get; set; }
+        public int CityId { get; set; }
+        [ForeignKey("CityId")]
+        public virtual City? City { get; set; }
 
-    public int GovernorateId { get; set; }
-    [ForeignKey("GovernorateId")]
-    public virtual Governorate? Governorate { get; set; }
+        public int GovernorateId { get; set; }
+        [ForeignKey("GovernorateId")]
+        public virtual Governorate? Governorate { get; set; }
 
-    public int CompanyId { get; set; }
-    [ForeignKey("CompanyId")]
-    public virtual Company? Company { get; set; }
+        public int CompanyId { get; set; }
+        [ForeignKey("CompanyId")]
+        public virtual Company? Company { get; set; }
 
-    public virtual ICollection<TripFare>? TripFare { get; set; }
-
-    }
+        }
 }

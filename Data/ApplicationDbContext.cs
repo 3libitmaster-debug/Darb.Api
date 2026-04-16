@@ -20,9 +20,15 @@ namespace darbWebApp.Data
         public DbSet<Bus> Buses { get; set; }
         public DbSet<City> Cities { get; set; }
         public DbSet<Station> Stations { get; set; }
-        public DbSet<TripFare> TripFares { get; set; }
         public DbSet<Advertisement> Advertisements { get; set; }
-
+        public DbSet<Bank> Banks { get; set; }
+        public DbSet<BankAccount> BankAccounts { get; set; }
+        public DbSet<TripSchedule> TripSchedules { get; set; }
+        public DbSet<Booking> Bookings { get; set; }
+        public DbSet<PassengerDetails> PassengerDetails { get; set; }
+        public DbSet<ETicket> ETickets { get; set; }
+        public DbSet<TripFare> TripFares { get; set; }
+    
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -35,10 +41,6 @@ namespace darbWebApp.Data
             modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasConversion<string>();
-
-            //modelBuilder.Entity<Trip>()
-            //    .Property(t => t.BasePrice)
-            //    .HasColumnType("decimal(18,2)"); 
 
             // Convert Subscription PlanType Enum to String in Database
             modelBuilder.Entity<Subscription>()
@@ -106,6 +108,31 @@ namespace darbWebApp.Data
                 .HasForeignKey(t => t.EndGoveId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+            // --- TripFare & Governorate Relationships ---
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.FromGovernorate)
+                .WithMany()
+                .HasForeignKey(tf => tf.FromGovId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.ToGovernorate)
+                .WithMany()
+                .HasForeignKey(tf => tf.ToGovId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.Station)
+                .WithMany()
+                .HasForeignKey(tf => tf.StationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripFare>()
+                .HasOne(tf => tf.Company)
+                .WithMany()
+                .HasForeignKey(tf => tf.CompanyId)
+                .OnDelete(DeleteBehavior.Restrict);
+
             // --- Bus & Company Relationship (One-to-Many) ---
             // Buses belong to a specific Transport Company.
             modelBuilder.Entity<Bus>()
@@ -155,19 +182,7 @@ namespace darbWebApp.Data
                 .HasForeignKey(c => c.GovernorateId)
                 .OnDelete(DeleteBehavior.Restrict);
 
-            // --- TripFare (Pricing) Relationships ---
-            // Linking pricing records to specific trips and stops (stations).
-            modelBuilder.Entity<TripFare>()
-                .HasOne(tf => tf.Trip)
-                .WithMany(t => t.TripFare)
-                .HasForeignKey(tf => tf.TripId)
-                .OnDelete(DeleteBehavior.Cascade);
 
-            modelBuilder.Entity<TripFare>()
-                .HasOne(tf => tf.Station)
-                .WithMany(s => s.TripFare)
-                .HasForeignKey(tf => tf.StationId)
-                .OnDelete(DeleteBehavior.NoAction);
 
             // --- Advertisement & User Relationships ---
             // An advertisement is created by a user and owned by a user (Admin).
@@ -183,6 +198,54 @@ namespace darbWebApp.Data
                 .WithMany()
                 .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
+
+            // --- Bank & BankAccount Relationships ---
+            modelBuilder.Entity<BankAccount>()
+                .HasOne(ba => ba.Bank)
+                .WithMany(b => b.BankAccounts)
+                .HasForeignKey(ba => ba.BankId)
+                .OnDelete(DeleteBehavior.Restrict); 
+
+            modelBuilder.Entity<BankAccount>()
+                .HasOne(ba => ba.Company)
+                .WithMany(c => c.BankAccounts)
+                .HasForeignKey(ba => ba.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade); 
+
+            // --- PassengerDetails & ETicket Relationship (One-to-One) ---
+            modelBuilder.Entity<PassengerDetails>()
+                .HasOne(pd => pd.ETicket)
+                .WithOne(e => e.PassengerDetails)
+                .HasForeignKey<ETicket>(e => e.PassengerDetailId)
+                .IsRequired()
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // --- Booking Relationships (Prevent multiple cascade paths) ---
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.Passenger)
+                .WithMany()
+                .HasForeignKey(b => b.PassengerId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.TripSchedule)
+                .WithMany()
+                .HasForeignKey(b => b.TripScheduleId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+            modelBuilder.Entity<TripSchedule>()
+                .HasOne(tr => tr.Trip)
+                .WithMany(t => t.TripSchedules)
+                .HasForeignKey(tr => tr.TripId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<TripSchedule>()
+                .HasOne(tr => tr.Station)
+                .WithMany()
+                .HasForeignKey(tr => tr.StationId)
+                .OnDelete(DeleteBehavior.Restrict);
+
+
         }
     }
 }

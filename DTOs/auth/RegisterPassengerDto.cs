@@ -26,6 +26,9 @@ namespace Darb.Api.DTOs.AuthDtos
         [RegularExpression(@"^(77|70|73|71|78)\d{7}$", ErrorMessage = "رقم الهاتف غير صحيح")]
         public string ?Phone { get; set; }
 
+        [Required, MinLength(11)]
+        public string? NationalId { get; set; }
+
         [Required, MaxLength(255)]
         public string Address { get; set; } = string.Empty;
     }

@@ -1,29 +1,36 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.City;
-using Darb.Api.DTOs.Governorate;
-using Darb.Api.DTOs.Advertisement;
+using Darb.Api.DTOs.adminDtos.City;
+using Darb.Api.DTOs.adminDtos.Governorate;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Darb.Api.Helpers;
+using Microsoft.Extensions.Options;
+using Darb.Api.DTOs.adminDtos.Advertisement;
+using Darb.Api.DTOs.adminDtos.Bank;
 
-public class AdminService : IAdminService
+
+namespace Darb.Api.Services.Implementations
+{
+    public class AdminService : IAdminService
 {
     private readonly IRepository<Governorate> _govRepo;
     private readonly IRepository<City> _cityRepo;
     private readonly IRepository<Advertisement> _adRepo;
     private readonly IImageService _imageService;
     private readonly ApplicationDbContext _context;
+    private readonly string _baseUrl;
 
-    public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context)
+    public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context, IOptions<ApiSettings> apiOptions)
     {
         _govRepo = govRepo;
         _cityRepo = cityRepo;
         _adRepo = adRepo;
         _imageService = imageService;
         _context = context;
+        _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
     }
 
     #region Governorate Logic
@@ -86,9 +93,24 @@ public class AdminService : IAdminService
         {
             Id = c.CityId,
             Name = c.Name,
+            GovernorateId = c.GovernorateId,
             GovernorateName = c.Governorate?.Name ?? "N/A"
         }).ToList();
         return ResponseDto.SuccessResponse($"تم العثور على ({dtos.Count}) مدينة.", dtos);
+    }
+
+    public async Task<ResponseDto> GetCitiesByGovernorateIdAsync(int governorateId)
+    {
+        // Fetching cities for a specific governorate
+        var cities = await _context.Cities.Where(c => c.GovernorateId == governorateId).Include(c => c.Governorate).ToListAsync();
+        var dtos = cities.Select(c => new CityReadDto
+        {
+            Id = c.CityId,
+            Name = c.Name,
+            GovernorateId = c.GovernorateId,
+            GovernorateName = c.Governorate?.Name ?? "N/A"
+        }).ToList();
+        return ResponseDto.SuccessResponse($"تم العثور على ({dtos.Count}) مدينة لهذه المحافظة.", dtos);
     }
 
     public async Task<ResponseDto> GetCityByIdAsync(int id)
@@ -101,6 +123,7 @@ public class AdminService : IAdminService
         {
             Id = city.CityId,
             Name = city.Name,
+            GovernorateId = city.GovernorateId,
             GovernorateName = city.Governorate?.Name ?? ""
         });
     }
@@ -108,7 +131,7 @@ public class AdminService : IAdminService
     public async Task<ResponseDto> CreateCityAsync(CityCreateDto dto)
     {
         // Persisting a new city and linking it to a governorate via ID
-        var city = new City { Name = dto.Name, GovernorateId = dto.GovernorateId };
+        var city = new City { Name = dto.Name!, GovernorateId = dto.GovernorateId };
         await _cityRepo.AddAsync(city);
         await _context.SaveChangesAsync();
         return ResponseDto.SuccessResponse("تم إضافة المدينة بنجاح.");
@@ -120,7 +143,7 @@ public class AdminService : IAdminService
         var city = await _cityRepo.GetByIdAsync(id);
         if (city == null) return ResponseDto.FailureResponse("المدينة غير موجودة.");
 
-        city.Name = dto.Name;
+        city.Name = dto.Name!;
         city.GovernorateId = dto.GovernorateId;
         _cityRepo.Update(city);
         await _context.SaveChangesAsync();
@@ -166,7 +189,7 @@ public class AdminService : IAdminService
             User_Email = users.ContainsKey(a.UserId) ? users[a.UserId] : "Unknown User",
             Title = a.Title,
             Description = a.Description,
-            ImageUrl = a.Image,
+            ImageUrl = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : string.Empty,
             StartDateAds = a.StartDateAds,
             EndDateAds = a.EndDateAds,
             IsActive = a.IsActive,
@@ -195,7 +218,7 @@ public class AdminService : IAdminService
             User_Email = user?.Email ?? "Unknown User",
             Title = ad.Title,
             Description = ad.Description,
-            ImageUrl = ad.Image,
+            ImageUrl = !string.IsNullOrEmpty(ad.Image) ? _baseUrl + ad.Image : string.Empty,
             StartDateAds = ad.StartDateAds,
             EndDateAds = ad.EndDateAds,
             IsActive = ad.IsActive,
@@ -229,7 +252,7 @@ public class AdminService : IAdminService
         // Handle image upload via the dedicated ImageService
         if (dto.ImageFile != null)
         {
-            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "Advertisements");
+            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "AdvertisementsImages");
             if (!string.IsNullOrEmpty(imagePath)) ad.Image = imagePath;
         }
 
@@ -255,11 +278,11 @@ public class AdminService : IAdminService
         if (dto.EndDateAds.HasValue) ad.EndDateAds = dto.EndDateAds.Value;
         if (dto.IsActive.HasValue) ad.IsActive = dto.IsActive.Value;
 
-        // Process new image if provided, replacing the old path
+        // Process image update via the centralized ImageService method
         if (dto.ImageFile != null)
         {
-            var imagePath = await _imageService.SaveImageAsync(dto.ImageFile, "Advertisements");
-            if (!string.IsNullOrEmpty(imagePath)) ad.Image = imagePath;
+            var newImagePath = await _imageService.UpdateImageAsync(dto.ImageFile, ad.Image, "AdvertisementsImages");
+            if (!string.IsNullOrEmpty(newImagePath)) ad.Image = newImagePath;
         }
 
         // Mark entity as modified and save changes
@@ -276,6 +299,12 @@ public class AdminService : IAdminService
         var ad = await _adRepo.GetByIdAsync(id);
         if (ad == null) return ResponseDto.FailureResponse("Advertisement not found or already deleted.");
 
+        // Delete the image from disk before removing the record
+        if (!string.IsNullOrEmpty(ad.Image))
+        {
+            _imageService.DeleteImage(ad.Image);
+        }
+
         // Remove the record via repository
         _adRepo.Delete(ad);
         await _context.SaveChangesAsync();
@@ -284,5 +313,83 @@ public class AdminService : IAdminService
 
     #endregion
 
+    #region Bank Logic
 
+    public async Task<ResponseDto> GetAllBanksAsync()
+    {
+        var banks = await _context.Banks.ToListAsync();
+        var dtos = banks.Select(b => new BankReadDto 
+        { 
+            BankId = b.BankId, 
+            BankName = b.BankName, 
+            LogoUrl = !string.IsNullOrEmpty(b.LogoUrl) ? _baseUrl + b.LogoUrl : string.Empty 
+        }).ToList();
+        return ResponseDto.SuccessResponse($"تم استرجاع ({dtos.Count}) بنك بنجاح.", dtos);
+    }
+
+    public async Task<ResponseDto> GetBankByIdAsync(int bankId)
+    {
+        var bank = await _context.Banks.FindAsync(bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+        
+        var dto = new BankReadDto 
+        { 
+            BankId = bank.BankId, 
+            BankName = bank.BankName, 
+            LogoUrl = !string.IsNullOrEmpty(bank.LogoUrl) ? _baseUrl + bank.LogoUrl : string.Empty 
+        };
+        return ResponseDto.SuccessResponse("تم استرجاع البنك بنجاح.", dto);
+    }
+
+    public async Task<ResponseDto> CreateBankAsync(BankCreateDto dto)
+    {
+        var bank = new Bank { BankName = dto.BankName, LogoUrl = string.Empty };
+        
+        if (dto.LogoFile != null)
+        {
+            var logoPath = await _imageService.SaveImageAsync(dto.LogoFile, "Banks logo");
+            if (!string.IsNullOrEmpty(logoPath)) bank.LogoUrl = logoPath;
+        }
+
+        await _context.Banks.AddAsync(bank);
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم اضافة البنك بنجاح.");
+    }
+
+    public async Task<ResponseDto> UpdateBankAsync(int bankId, BankUpdateDto dto)
+    {
+        var bank = await _context.Banks.FindAsync(bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+
+        if (!string.IsNullOrEmpty(dto.BankName)) bank.BankName = dto.BankName;
+
+        if (dto.LogoFile != null)
+        {
+            var newLogoPath = await _imageService.UpdateImageAsync(dto.LogoFile, bank.LogoUrl, "Banks logo");
+            if (!string.IsNullOrEmpty(newLogoPath)) bank.LogoUrl = newLogoPath;
+        }
+
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم تحديث البنك بنجاح.");
+    }
+
+    public async Task<ResponseDto> DeleteBankAsync(int bankId)
+    {
+        var bank = await _context.Banks.Include(b => b.BankAccounts).FirstOrDefaultAsync(b => b.BankId == bankId);
+        if (bank == null) return ResponseDto.FailureResponse("البنك غير موجود.");
+        if (bank.BankAccounts != null && bank.BankAccounts.Any())
+            return ResponseDto.FailureResponse("لا يمكن حذف البنك لوجود حسابات مرتبطة به.");
+
+        if (!string.IsNullOrEmpty(bank.LogoUrl))
+        {
+            _imageService.DeleteImage(bank.LogoUrl);
+        }
+
+        _context.Banks.Remove(bank);
+        await _context.SaveChangesAsync();
+        return ResponseDto.SuccessResponse("تم حذف البنك بنجاح.");
+    }
+
+    #endregion
+}
 }

@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.SignalR;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using Microsoft.AspNetCore.Http;
@@ -35,7 +35,7 @@ namespace Darb.Api.Models
 
         public ICollection<Station>? Station { get; set; }
         
-
+        public ICollection<BankAccount>? BankAccounts { get; set; }
 
     }
 }

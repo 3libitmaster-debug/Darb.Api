@@ -1,5 +1,8 @@
-﻿using Darb.Api.Dtos;
+using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.TripFare;
+using Darb.Api.DTOs.TripSchedule;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -21,7 +24,6 @@ namespace Darb.Api.Services.Interfaces
         // Permanently deletes a trip from the database after verifying ownership and status.
         Task<ResponseDto> DeleteTripAsync(int tripId, int companyId);
         #endregion
-
 
         #region Bus Management
         // Retrieves all buses in the company's fleet, filtered by the company ID.
@@ -55,6 +57,37 @@ namespace Darb.Api.Services.Interfaces
 
         // Removes a station from the company.
         Task<ResponseDto> DeleteStationAsync(int stationId, int companyId);
+        #endregion
+
+        #region Booking Management
+        Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId);
+        Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId);
+        Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId);
+        Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId);
+        #endregion
+
+        #region BankAccount Management
+        Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
+        Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId);
+        Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId);
+        Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId);
+        Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId);
+        #endregion
+
+        #region Trip Fare Management
+        Task<ResponseDto> GetAllCompanyTripFaresAsync(int companyId);
+        Task<ResponseDto> GetTripFareByIdAsync(int tripFareId, int companyId);
+        Task<ResponseDto> CreateTripFareAsync(CreateTripFareDto dto, int companyId);
+        Task<ResponseDto> UpdateTripFareAsync(int tripFareId, UpdateTripFareDto dto, int companyId);
+        Task<ResponseDto> DeleteTripFareAsync(int tripFareId, int companyId);
+        #endregion
+
+        #region Trip Schedule Management
+        Task<ResponseDto> GetAllTripSchedulesAsync(int tripId, int companyId);
+        Task<ResponseDto> GetTripScheduleByIdAsync(int scheduleId, int companyId);
+        Task<ResponseDto> AddTripScheduleAsync(AddTripScheduleDto dto, int companyId);
+        Task<ResponseDto> UpdateTripScheduleAsync(int scheduleId, UpdateTripScheduleDto dto, int companyId);
+        Task<ResponseDto> DeleteTripScheduleAsync(int scheduleId, int companyId);
         #endregion
     }
 }

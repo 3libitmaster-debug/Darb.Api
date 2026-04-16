@@ -1,0 +1,31 @@
+using Darb.Api.DTOs.companyDtos.Trip;
+using Darb.Api.Models;
+using Darb.Api.Models.Enums;
+using System.ComponentModel.DataAnnotations;
+
+namespace Darb.Api.Dtos;
+
+public class CreateTripDto
+{
+    [Required(ErrorMessage = "Start location is required.")]
+    public int StartGoveId { get; set; }
+
+    [Required(ErrorMessage = "Destination location is required.")]
+    public int EndGoveId { get; set; }
+
+    [Required(ErrorMessage = "Departure date is required.")]
+    [DataType(DataType.Date)]
+    public DateTime DepartureDate { get; set; }
+
+    [Required(ErrorMessage = "Trip period is required.")]
+    [EnumDataType(typeof(Periods), ErrorMessage = "Invalid period value.")]
+    public Periods Period { get; set; }
+
+    [Required(ErrorMessage = "Bus selection is required.")]
+    public int BusId { get; set; }
+
+    [Required(ErrorMessage = "Routes are required.")]
+    public List<RouteRequestDto> Routes { get; set; } = new List<RouteRequestDto>();
+}
+
+   

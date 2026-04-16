@@ -1,26 +1,32 @@
-﻿using Darb.Api.DTOs.AuthDtos;
+using Darb.Api.DTOs.AuthDtos;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Helpers;
-using Darb.Api.Interfaces;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Darb.Api.Models.Enums;
+using Microsoft.Extensions.Caching.Memory;
+using Darb.Api.DTOs.auth;
 
-namespace Darb.Api.Services
+namespace Darb.Api.Services.Implementations
 {
     public class AuthService : IAuthService
     {
         private readonly ApplicationDbContext _context;
         private readonly IImageService _ImageService;
         private readonly ITokenService _TokenService;
+        private readonly IEmailService _EmailService;
+        private readonly IMemoryCache _Cache;
 
-        public AuthService(ApplicationDbContext context, IImageService ImageService, ITokenService TokenService)
+        public AuthService(ApplicationDbContext context, IImageService ImageService, ITokenService TokenService, 
+            IEmailService EmailService, IMemoryCache Cache)
         {
             _context = context;
             _ImageService = ImageService;
             _TokenService = TokenService;
+            _EmailService = EmailService;
+            _Cache = Cache;
         }
 
         #region Login Endpoint Logic
@@ -29,12 +35,12 @@ namespace Darb.Api.Services
         /// </summary>
         public async Task<ResponseDto> Login(LoginDto dto)
         {
-            var base64Password = SecurityHelper.ConvertToBase64(dto.Password);
+            var base64Password = SecurityHelper.ConvertToBase64(dto.Password!);
 
             // Fetch user with related Passenger or Company profiles
             var user = await _context.Users
                 .Include(u => u.Passenger)
-                .Include(u => u.Company).ThenInclude(c => c.Subscription)
+                .Include(u => u.Company).ThenInclude(c => c!.Subscription)
                 .FirstOrDefaultAsync(u => u.Email == dto.Email && u.Password == base64Password);
 
             if (user == null)
@@ -88,7 +94,7 @@ namespace Darb.Api.Services
                     var newUser = new User
                     {
                         Email = dto.Email,
-                        Password = SecurityHelper.ConvertToBase64(dto.Password),
+                        Password = SecurityHelper.ConvertToBase64(dto.Password!),
                         Role = UserRoles.Passenger,
                         IsActive = true,
                         JoinDate = DateHelper.GetYemenTime(),
@@ -104,6 +110,7 @@ namespace Darb.Api.Services
                         FullName = dto.FullName,
                         Phone = dto.Phone,
                         Address = dto.Address,
+                        NationalId = dto.NationalId,
                         DateOfBirth = dto.DateOfBirth
                     };
 
@@ -139,9 +146,9 @@ namespace Darb.Api.Services
                 try
                 {
                     // --- STEP 1: Process and optimize image uploads (Converted to WebP internally) ---
-                    var logoPath = await _ImageService.SaveImageAsync(request.Logo, "logos");
-                    var licensePath = await _ImageService.SaveImageAsync(request.License, "licenses");
-                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip, "Subscription payment-slips");
+                    var logoPath = await _ImageService.SaveImageAsync(request.Logo!, "Transport company logos");
+                    var licensePath = await _ImageService.SaveImageAsync(request.License!, "Transport company licenses");
+                    var paymentPath = await _ImageService.SaveImageAsync(request.PaymentSlip!, "Subscription payment receipts");
 
                     // Validate that all required documents are successfully uploaded
                     if (logoPath == null || licensePath == null || paymentPath == null)
@@ -215,6 +222,38 @@ namespace Darb.Api.Services
 
         public async Task<bool> PhoneExists(string phone)
             => await _context.Passengers.AnyAsync(p => p.Phone == phone);
+
+        #region OTP Logic
+        public async Task<ResponseDto> SendOtpAsync(SendOtpDto dto)
+        {
+            // Check if email already exists
+            if (await EmailExists(dto.Email))
+                return ResponseDto.FailureResponse("هذا البريد الإلكتروني مسجل مسبقاً.");
+
+            var otp = await _EmailService.SendOtpEmailAsync(dto.Email);
+            if (string.IsNullOrEmpty(otp))
+                return ResponseDto.FailureResponse("فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً.");
+
+            // Store OTP in cache for 5 minutes
+            _Cache.Set($"OTP_{dto.Email}", otp, TimeSpan.FromMinutes(5));
+
+            return ResponseDto.SuccessResponse("تم إرسال رمز التحقق إلى بريدك الإلكتروني.");
+        }
+
+        public async Task<ResponseDto> VerifyOtpAsync(VerifyOtpDto dto)
+        {
+            if (_Cache.TryGetValue($"OTP_{dto.Email}", out string? storedOtp))
+            {
+                if (storedOtp == dto.OtpCode)
+                {
+                    _Cache.Remove($"OTP_{dto.Email}"); // Remove after successful verification
+                    return await Task.FromResult(ResponseDto.SuccessResponse("تم التحقق من الرمز بنجاح."));
+                }
+            }
+
+            return await Task.FromResult(ResponseDto.FailureResponse("الرمز غير صحيح أو انتهت صلاحيته."));
+        }
+        #endregion
         #endregion
     }
 }
