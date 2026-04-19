@@ -114,14 +114,13 @@ DTOs/company/TripSchedule/
  AddTripScheduleDto.cs
  TripScheduleReadDto.cs
  UpdateTripScheduleDto.cs
-DTOs/customer/bookingDtos/
+DTOs/customer/Booking/
  BankAccountsDropDownListDto.cs
  BookingRequestDto.cs
- MyBookingDto.cs
  PassengerDetailDto.cs
  TripScheduleResponseDto.cs
  UploadReceiptDto.cs
-DTOs/customer/homePageDtos/
+DTOs/customer/homePage/
  AdCardDto.cs
  HomePageDto.cs
  PeriodDto.cs
@@ -130,6 +129,9 @@ DTOs/customer/homePageDtos/
  SimpleGovernorateDto.cs
  TripSearchQueryDto.cs
  TripSearchResultDto.cs
+DTOs/customer/MyBookings/
+ MyBookingDto.cs
+ MyTicketDto.cs
 DTOs/customer/settings/PassengerProfileDto.cs
 Extensions/ClaimsPrincipalExtensions.cs
 Migrations/

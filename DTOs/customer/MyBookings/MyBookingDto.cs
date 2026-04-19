@@ -5,13 +5,16 @@ namespace Darb.Api.DTOs.passengerDtos.bookingDtos
 {
     public class MyBookingDto
     {
+        // booking info
         public int BookingId { get; set; }
         public int BookingStatus { get; set; } 
         public DateTime BookingAt { get; set; }
         public decimal TotalAmount { get; set; }
         public int ReservedSeatsCount { get; set; }
 
+
         public int TripScheduleId { get; set; }
+        public string ?StationName {get;set;}
         public int TripId { get; set; }
         public string StartGovernorate { get; set; } = string.Empty;
         public string EndGovernorate { get; set; } = string.Empty;
@@ -25,12 +28,5 @@ namespace Darb.Api.DTOs.passengerDtos.bookingDtos
         public List<MyTicketDto> Tickets { get; set; } = new List<MyTicketDto>();
     }
 
-    public class MyTicketDto
-    {
-        public int ETicketId { get; set; }
-        public string? TicketCode { get; set; }
-        public int TicketStatus { get; set; } 
-        public string PassengerName { get; set; } = string.Empty;
-        public string NationalId { get; set; } = string.Empty;
-    }
+   
 }

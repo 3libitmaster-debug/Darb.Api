@@ -462,14 +462,14 @@ namespace Darb.Api.Services.Implementations
                         BookingAt = b.BookingAt,
                         TotalAmount = b.TotalAmount,
                         ReservedSeatsCount = b.ReservedSeatsCount,
-                        
+
                         TripScheduleId = b.TripScheduleId,
                         TripId = b.TripSchedule != null ? b.TripSchedule.TripId : 0,
                         StartGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.StartGovernate != null ? (b.TripSchedule.Trip.StartGovernate.Name ?? "غير متوفر") : "غير متوفر",
                         EndGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.EndGovernate != null ? (b.TripSchedule.Trip.EndGovernate.Name ?? "غير متوفر") : "غير متوفر",
                         DepartureDate = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.DepartureDate.ToString("yyyy-MM-dd") : string.Empty,
                         DepartureTime = b.TripSchedule != null ? b.TripSchedule.DepartureTime.ToString("hh:mm tt") : string.Empty,
-                        
+
                         CompanyId = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.CompanyId : 0,
                         CompanyName = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null ? (b.TripSchedule.Trip.Company.Name ?? "غير متوفر") : "غير متوفر",
                         CompanyLogo = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null && !string.IsNullOrEmpty(b.TripSchedule.Trip.Company.Logo) ? _baseUrl + b.TripSchedule.Trip.Company.Logo : string.Empty,
@@ -480,7 +480,7 @@ namespace Darb.Api.Services.Implementations
                             TicketCode = p.ETicket != null ? p.ETicket.TicketCode : null,
                             TicketStatus = p.ETicket != null ? (int)p.ETicket.Status : 0,
                             PassengerName = p.FullName,
-                            NationalId = p.NationalId
+                           
                         }).ToList()
                     })
                     .ToListAsync();
