@@ -10,6 +10,7 @@ using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -707,14 +708,14 @@ namespace Darb.Api.Services.Implementations
                         {
                             PassengerDetailId = passenger.PassengerDetailsId,
                             TicketCode = qrBase64,
-                            Status = Darb.Api.Models.Enums.ETicketStatus.Active
+                            Status = Darb.Api.Models.Enums.ETicketStatus.Valid
                         };
                         await _context.ETickets.AddAsync(ticket);
                     }
                     else
                     {
                         existingTicket.TicketCode = qrBase64;
-                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Active;
+                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.UnValid;
                     }
                 }
             }
@@ -724,12 +725,12 @@ namespace Darb.Api.Services.Implementations
                 var eTickets = await _context.ETickets.Where(e => passengerDetailIds.Contains(e.PassengerDetailId)).ToListAsync();
                 foreach (var ticket in eTickets)
                 {
-                    ticket.Status = Darb.Api.Models.Enums.ETicketStatus.Cancelled;
+                    ticket.Status = ETicketStatus.UnValid;
                 }
             }
 
             await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse($"تم تحديث حالة الحجز إلى {dto.Status} بنجاح.");
+            return ResponseDto.SuccessResponse("تم تأكيد تحديث حالة الحجز بنجاح.");
         }
 
         public async Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId)
@@ -775,17 +776,19 @@ namespace Darb.Api.Services.Implementations
             if (booking == null)
                 return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
 
-            if (booking.Status == Darb.Api.Models.BookingStatus.Confirmed)
+            if (booking.Status == BookingStatus.Confirmed)
                 return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
 
-            booking.Status = Darb.Api.Models.BookingStatus.Confirmed;
+            booking.Status = BookingStatus.Confirmed;
 
             foreach (var passenger in booking.Passengers)
             {
                 var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
                 int eticketId = existingTicket?.Id ?? 0; // 0 if not created yet
                 int tripScheduleId = booking.TripScheduleId;
+
                 // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
+
                 string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
                 string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
 
@@ -795,19 +798,19 @@ namespace Darb.Api.Services.Implementations
                     {
                         PassengerDetailId = passenger.PassengerDetailsId,
                         TicketCode = qrBase64,
-                        Status = Darb.Api.Models.Enums.ETicketStatus.Active
+                        Status = ETicketStatus.Valid
                     };
                     await _context.ETickets.AddAsync(ticket);
                 }
                 else
                 {
                     existingTicket.TicketCode = qrBase64;
-                    existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Active;
+                    existingTicket.Status = ETicketStatus.Valid;
                 }
             }
 
             await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح وتوليد تذاكر (QR Codes) للمسافرين.");
+            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
         }
         #endregion
 
