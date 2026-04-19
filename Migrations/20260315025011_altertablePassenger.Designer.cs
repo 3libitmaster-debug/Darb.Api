@@ -137,7 +137,7 @@ namespace Darb.Api.Migrations
                     b.Property<bool>("IsOwnerPassenger")
                         .HasColumnType("bit");
 
-                    b.Property<int>("NumberOfSeats")
+                    b.Property<int>("ReservedSeatsCount")
                         .HasColumnType("int");
 
                     b.Property<int>("PassengerId")

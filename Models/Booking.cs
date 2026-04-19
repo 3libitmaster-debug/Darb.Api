@@ -46,8 +46,7 @@ namespace Darb.Api.Models
 
         public virtual ICollection<PassengerDetails> Passengers { get; set; } = new List<PassengerDetails>();
 
-        [Range(1, 10, ErrorMessage = "You can book between 1 to 10 seats.")]
-        public int NumberOfSeats { get; set; } 
+        public int ReservedSeatsCount { get; set; } 
 
         public decimal TotalAmount { get; set; }
         

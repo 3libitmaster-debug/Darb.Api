@@ -298,7 +298,7 @@ namespace Darb.Api.Services.Implementations
                     {
                         PassengerId = passengerId,
                         TripScheduleId = tripSchedule.TripScheduleId,
-                        NumberOfSeats = totalSeatsRequired,
+                        ReservedSeatsCount = totalSeatsRequired,
                         TotalAmount = totalAmount,
                         Status = BookingStatus.PendingAttachment, // Phase 1: Waiting for receipt upload
                         BookingAt = DateHelper.GetYemenTime()
@@ -461,7 +461,7 @@ namespace Darb.Api.Services.Implementations
                         BookingStatus = (int)b.Status,
                         BookingAt = b.BookingAt,
                         TotalAmount = b.TotalAmount,
-                        NumberOfSeats = b.NumberOfSeats,
+                        ReservedSeatsCount = b.ReservedSeatsCount,
                         
                         TripScheduleId = b.TripScheduleId,
                         TripId = b.TripSchedule != null ? b.TripSchedule.TripId : 0,

@@ -339,7 +339,7 @@ namespace Darb.Api.Migrations
                     PassengerId = table.Column<int>(type: "int", nullable: false),
                     TripRouteId = table.Column<int>(type: "int", nullable: false),
                     BankAccountId = table.Column<int>(type: "int", nullable: false),
-                    NumberOfSeats = table.Column<int>(type: "int", nullable: false),
+                    ReservedSeatsCount = table.Column<int>(type: "int", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     ReceiptImagePath = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Status = table.Column<int>(type: "int", nullable: false),

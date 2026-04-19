@@ -128,14 +128,14 @@ namespace Darb.Api.Migrations
                     b.Property<DateTime>("BookingAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("NumberOfSeats")
-                        .HasColumnType("int");
-
                     b.Property<int>("PassengerId")
                         .HasColumnType("int");
 
                     b.Property<string>("ReceiptImagePath")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ReservedSeatsCount")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");

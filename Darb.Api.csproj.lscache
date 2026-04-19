@@ -167,6 +167,8 @@ Migrations/
  20260416201635_RefactorDepartureTimeToTimeOnly.Designer.cs
  20260417000228_RemoveIsConfirmedFromETicket.cs
  20260417000228_RemoveIsConfirmedFromETicket.Designer.cs
+ 20260419062631_changeNumberOfSeatsToReseverdSeatsCount.cs
+ 20260419062631_changeNumberOfSeatsToReseverdSeatsCount.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  Advertisement.cs

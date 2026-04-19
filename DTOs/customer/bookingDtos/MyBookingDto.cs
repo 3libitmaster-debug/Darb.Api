@@ -9,7 +9,7 @@ namespace Darb.Api.DTOs.passengerDtos.bookingDtos
         public int BookingStatus { get; set; } 
         public DateTime BookingAt { get; set; }
         public decimal TotalAmount { get; set; }
-        public int NumberOfSeats { get; set; }
+        public int ReservedSeatsCount { get; set; }
 
         public int TripScheduleId { get; set; }
         public int TripId { get; set; }

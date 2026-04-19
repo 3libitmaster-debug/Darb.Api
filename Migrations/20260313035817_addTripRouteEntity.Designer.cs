@@ -134,7 +134,7 @@ namespace Darb.Api.Migrations
                     b.Property<DateTime>("BookingAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("NumberOfSeats")
+                    b.Property<int>("ReservedSeatsCount")
                         .HasColumnType("int");
 
                     b.Property<int>("PassengerId")
