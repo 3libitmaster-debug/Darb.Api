@@ -20,7 +20,7 @@ namespace Darb.Api.Services.Implementations
         private readonly IRepository<Station> _stationRepository;
         private readonly ApplicationDbContext _context;
         private readonly IQrCodeService _qrCodeService;
-
+   
         public CompanyService(
             IRepository<Trip> tripRepository,
             IRepository<Bus> busRepository,
@@ -783,7 +783,7 @@ namespace Darb.Api.Services.Implementations
             foreach (var passenger in booking.Passengers)
             {
                 var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                int eticketId = existingTicket?.ETicketId ?? 0; // 0 if not created yet
+                int eticketId = existingTicket?.Id ?? 0; // 0 if not created yet
                 int tripScheduleId = booking.TripScheduleId;
                 // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
                 string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
