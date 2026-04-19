@@ -15,5 +15,6 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetProfileAsync(int passengerId);
         Task<ResponseDto> BookTripAsync(int userId, BookingRequestDto request);
         Task<ResponseDto> UploadReceiptAsync(int userId, UploadReceiptDto request);
+        Task<ResponseDto> GetMyBookingsAsync(int passengerId);
     }
 }

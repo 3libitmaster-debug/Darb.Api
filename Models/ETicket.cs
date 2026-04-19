@@ -16,7 +16,5 @@ namespace Darb.Api.Models
         public string? TicketCode { get; set; }
 
         public ETicketStatus Status { get; set; } = ETicketStatus.Active;
-
-        public bool IsConfirmed { get; set; } = false;
     }
 }

@@ -19,7 +19,9 @@ namespace Darb.Api.Models
         Confirmed = 2,
 
         // 3: Cancelled
-        Cancelled = 3
+        Cancelled = 3,
+
+        Completed = 4
     }
 
     public class Booking

@@ -19,19 +19,20 @@ namespace Darb.Api.Services.Implementations
         private readonly IRepository<Bus> _busRepository;
         private readonly IRepository<Station> _stationRepository;
         private readonly ApplicationDbContext _context;
-
+        private readonly IQrCodeService _qrCodeService;
 
         public CompanyService(
-
             IRepository<Trip> tripRepository,
             IRepository<Bus> busRepository,
             IRepository<Station> stationRepository,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            IQrCodeService qrCodeService)
         {
             _tripRepository = tripRepository;
             _busRepository = busRepository;
             _stationRepository = stationRepository;
             _context = context;
+            _qrCodeService = qrCodeService;
         }
 
 
@@ -668,8 +669,7 @@ namespace Darb.Api.Services.Implementations
                         PassengerDetailId = p.PassengerDetailsId,
                         FullName = p.FullName,
                         NationalId = p.NationalId ?? "غير متوفر",
-                        TicketCode = ticket?.TicketCode,
-                        IsConfirmed = ticket?.IsConfirmed ?? false
+                        TicketCode = ticket?.TicketCode
                     };
                 }).ToList()
             };
@@ -697,17 +697,24 @@ namespace Darb.Api.Services.Implementations
             {
                 foreach (var passenger in booking.Passengers)
                 {
-                    var ticketExists = await _context.ETickets.AnyAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                    if (!ticketExists)
+                    var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
+                    string payload = $"BookingId:{booking.BookingId}|PassengerId:{passenger.PassengerDetailsId}";
+                    string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+                    if (existingTicket == null)
                     {
                         var ticket = new ETicket
                         {
                             PassengerDetailId = passenger.PassengerDetailsId,
-                            TicketCode = Guid.NewGuid().ToString(),
-                            IsConfirmed = true,
+                            TicketCode = qrBase64,
                             Status = Darb.Api.Models.Enums.ETicketStatus.Active
                         };
                         await _context.ETickets.AddAsync(ticket);
+                    }
+                    else
+                    {
+                        existingTicket.TicketCode = qrBase64;
+                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Active;
                     }
                 }
             }
@@ -718,7 +725,6 @@ namespace Darb.Api.Services.Implementations
                 foreach (var ticket in eTickets)
                 {
                     ticket.Status = Darb.Api.Models.Enums.ETicketStatus.Cancelled;
-                    ticket.IsConfirmed = false;
                 }
             }
 
@@ -756,6 +762,52 @@ namespace Darb.Api.Services.Implementations
             await _context.SaveChangesAsync();
 
             return ResponseDto.SuccessResponse("تم حذف الحجز نهائياً من النظام.");
+        }
+
+        public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Passengers)
+                .Include(b => b.TripSchedule)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
+
+            if (booking.Status == Darb.Api.Models.BookingStatus.Confirmed)
+                return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
+
+            booking.Status = Darb.Api.Models.BookingStatus.Confirmed;
+
+            foreach (var passenger in booking.Passengers)
+            {
+                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
+                int eticketId = existingTicket?.ETicketId ?? 0; // 0 if not created yet
+                int tripScheduleId = booking.TripScheduleId;
+                // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
+                string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
+                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+                if (existingTicket == null)
+                {
+                    var ticket = new ETicket
+                    {
+                        PassengerDetailId = passenger.PassengerDetailsId,
+                        TicketCode = qrBase64,
+                        Status = Darb.Api.Models.Enums.ETicketStatus.Active
+                    };
+                    await _context.ETickets.AddAsync(ticket);
+                }
+                else
+                {
+                    existingTicket.TicketCode = qrBase64;
+                    existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Active;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح وتوليد تذاكر (QR Codes) للمسافرين.");
         }
         #endregion
 

@@ -325,6 +325,17 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : BadRequest(response);
         }
 
+        [HttpPost("trip/bookings/{id}/click")]
+        [SwaggerOperation(Summary = "Confirm a Booking (Click)", Description = "Confirms a specific booking by its ID and generates QR code tickets.")]
+        public async Task<IActionResult> ConfirmBookingClick(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.ConfirmCompanyBookingClickAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
         [HttpDelete("trip/bookings/{id}")]
         [SwaggerOperation(Summary = "Delete Booking", Description = "Permanently removes a booking from the system. Confirmed bookings must be cancelled first.")]
         public async Task<IActionResult> DeleteBooking(int id)
