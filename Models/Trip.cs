@@ -40,7 +40,7 @@ namespace Darb.Api.Models
         public decimal BasePrice { get; set; }
 
         [Required]
-        [Column(TypeName = "date")]
+        
         public DateTime DepartureDate { get; set; }
 
         public Periods Period { get; set; }

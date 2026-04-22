@@ -155,39 +155,56 @@ namespace Darb.Api.Services.Implementations
         /// </summary>
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
-            // Business Rule: Departure time must be in the future.
-            if (tripDto.DepartureDate.Date < DateHelper.GetYemenTime().Date)
-                return ResponseDto.FailureResponse("عذراً، يجب أن يكون وقت انطلاق الرحلة في تاريخ مستقبلي.");
+            // 1. التحقق من أن البيانات لم تصل فارغة (لتجنب أخطاء التاريخ الافتراضي)
+            if (tripDto == null || tripDto.StartGoveId == 0)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح. تأكد من إرسال البيانات بدون غلاف 'tripDto' خارجي.");
+            }
 
-            // Validation: Ensure the bus is owned by the company making the request.
+            var nowYemen = DateHelper.GetYemenTime();
+
+            // 2. التحقق من منطقية التاريخ (مع كشف التاريخ المستلم في رسالة الخطأ للتصحيح)
+            if (tripDto.DepartureDate.Date < nowYemen.Date)
+            {
+                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي. تاريخ اليوم: ({nowYemen:yyyy-MM-dd})");
+            }
+
+            // 3. التحقق من الوقت إذا كانت الرحلة اليوم
+            if (tripDto.DepartureDate.Date == nowYemen.Date)
+            {
+                var currentTime = TimeOnly.FromDateTime(nowYemen);
+                if (tripDto.Routes.Any(r => r.DepartureTime <= currentTime))
+                {
+                    return ResponseDto.FailureResponse("لا يمكن جدولة رحلة لوقت قد مضى اليوم.");
+                }
+            }
+
+            // 4. التحقق من الحافلة وملكية الشركة لها
             var bus = await _context.Buses
                 .FirstOrDefaultAsync(b => b.BusId == tripDto.BusId && b.CompanyId == companyId);
 
             if (bus == null)
-                return ResponseDto.FailureResponse("الحافلة المختارة غير مسجلة ضمن أسطول شركتكم، يرجى التحقق من تفاصيل الحافلة.");
+                return ResponseDto.FailureResponse("الحافلة المختارة غير موجودة أو غير مسجلة لشركتكم.");
 
-            // Validation: Ensure the bus status is Available.
             if (bus.Status != BusStatus.Available)
-            {
-                return ResponseDto.FailureResponse("عذراً، الحافلة المختارة غير متاحة للخدمة حالياً.");
-            }
+                return ResponseDto.FailureResponse("الحافلة المختارة غير متاحة حالياً.");
 
             if (tripDto.Routes == null || !tripDto.Routes.Any())
                 return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
 
-            // Fetch the fares to validate stations and get system prices.
+            // 5. جلب التسعيرات والتحقق من المسار
             var tripFares = await _context.TripFares
-                .Where(tf => tf.CompanyId == companyId && 
-                             tf.FromGovId == tripDto.StartGoveId && 
+                .Where(tf => tf.CompanyId == companyId &&
+                             tf.FromGovId == tripDto.StartGoveId &&
                              tf.ToGovId == tripDto.EndGoveId)
                 .ToListAsync();
 
             if (!tripFares.Any())
-                return ResponseDto.FailureResponse("لا توجد تسعيرات مسجلة لهذا المسار، يرجى إضافة تسعيرات المحطات أولاً.");
+                return ResponseDto.FailureResponse("لا توجد تسعيرات معرفة لهذا المسار في النظام.");
 
-            var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation == true);
+            var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation);
             if (primaryFare == null)
-                return ResponseDto.FailureResponse("يجب تحديد محطة انطلاق والمسار الرئيسي للرحلة المحددة.");
+                return ResponseDto.FailureResponse("يجب تحديد السعر الرئيسي للمسار (Main Station) في الإعدادات.");
 
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
@@ -195,7 +212,7 @@ namespace Darb.Api.Services.Implementations
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Create Entity: Assign bus capacity to available seats upon creation.
+                    // 6. إنشاء الكائن الرئيسي للرحلة
                     var trip = new Trip
                     {
                         BusId = tripDto.BusId,
@@ -212,47 +229,39 @@ namespace Darb.Api.Services.Implementations
                     await _context.Trips.AddAsync(trip);
                     await _context.SaveChangesAsync();
 
+                    // 7. إضافة جدول المحطات (Schedules) بشكل جماعي لزيادة الأداء
+                    var schedules = new List<TripSchedule>();
                     foreach (var routeDto in tripDto.Routes)
                     {
                         var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
                         if (matchingFare == null)
                         {
                             await transaction.RollbackAsync();
-                            return ResponseDto.FailureResponse("إحدى المحطات المختارة لا ترتبط بالمسار المعرف في النظام، يرجى التأكد.");
+                            return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
                         }
 
-                        var tripSchedule = new TripSchedule
+                        schedules.Add(new TripSchedule
                         {
                             TripId = trip.TripId,
-                            StationId = matchingFare.StationId,
+                            StationId = routeDto.StationId,
                             DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
                             SeatFare = matchingFare.Price
-
-                        };
-                        await _context.TripSchedules.AddAsync(tripSchedule);
+                        });
                     }
-                    
+
+                    await _context.TripSchedules.AddRangeAsync(schedules);
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    var resultDto = new TripDto
-                    {
-                        TripId = trip.TripId,
-                        BusId = trip.BusId,
-                        BasePrice = trip.BasePrice,
-                        DepartureDate = trip.DepartureDate,
-                        Status = trip.Status.ToString()
-                    };
-
-                    return ResponseDto.SuccessResponse("تم جدولة الرحلة بنجاح.", resultDto);
+                    return ResponseDto.SuccessResponse("تم إنشاء وجدولة الرحلة بنجاح.", new { tripId = trip.TripId });
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    var realError = ex.InnerException?.Message ?? ex.Message;
-                    return ResponseDto.FailureResponse($"نعتذر، حدث خطأ تقني أثناء حفظ الرحلة: {realError}");
+                    return ResponseDto.FailureResponse($"خطأ تقني: {ex.InnerException?.Message ?? ex.Message}");
                 }
             });
+        
         }
         #endregion
 

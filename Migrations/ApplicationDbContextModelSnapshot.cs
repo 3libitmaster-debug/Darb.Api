@@ -458,7 +458,7 @@ namespace Darb.Api.Migrations
                         .HasColumnType("int");
 
                     b.Property<DateTime>("DepartureDate")
-                        .HasColumnType("date");
+                        .HasColumnType("datetime2");
 
                     b.Property<int>("EndGoveId")
                         .HasColumnType("int");

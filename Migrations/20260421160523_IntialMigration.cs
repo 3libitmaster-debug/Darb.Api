@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Darb.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class addTripRouteEntity : Migration
+    public partial class IntialMigration : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -134,6 +134,7 @@ namespace Darb.Api.Migrations
                     DateOfBirth = table.Column<DateTime>(type: "date", nullable: false),
                     Phone = table.Column<string>(type: "nvarchar(450)", nullable: false),
                     Address = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
+                    NationalId = table.Column<string>(type: "nvarchar(11)", maxLength: 11, nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -154,7 +155,7 @@ namespace Darb.Api.Migrations
                     BankAccountId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     AccountNumber = table.Column<string>(type: "nvarchar(50)", maxLength: 50, nullable: false),
-                    AccountHolderName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    HolderName = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
                     BankId = table.Column<int>(type: "int", nullable: false),
                     CompanyId = table.Column<int>(type: "int", nullable: false)
                 },
@@ -205,9 +206,6 @@ namespace Darb.Api.Migrations
                     StationId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     Address = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: false),
-                    Order = table.Column<int>(type: "int", nullable: false),
-                    DurationToEndStation = table.Column<TimeSpan>(type: "time", nullable: false),
-                    ExtraFee = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     CityId = table.Column<int>(type: "int", nullable: false),
                     GovernorateId = table.Column<int>(type: "int", nullable: false),
                     CompanyId = table.Column<int>(type: "int", nullable: false)
@@ -268,8 +266,7 @@ namespace Darb.Api.Migrations
                     EndGoveId = table.Column<int>(type: "int", nullable: false),
                     AvailableSeats = table.Column<int>(type: "int", nullable: false),
                     BasePrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    DepartureDateTime = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ArrivalDateTime = table.Column<DateTime>(type: "datetime2", nullable: true),
+                    DepartureDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Period = table.Column<int>(type: "int", nullable: false),
                     Status = table.Column<int>(type: "int", nullable: false),
                     CompanyId = table.Column<int>(type: "int", nullable: false),
@@ -304,27 +301,69 @@ namespace Darb.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TripRoutes",
+                name: "TripFares",
                 columns: table => new
                 {
-                    TripRouteId = table.Column<int>(type: "int", nullable: false)
+                    TripFareId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    TripId = table.Column<int>(type: "int", nullable: false),
+                    CompanyId = table.Column<int>(type: "int", nullable: false),
+                    FromGovId = table.Column<int>(type: "int", nullable: false),
+                    ToGovId = table.Column<int>(type: "int", nullable: false),
                     StationId = table.Column<int>(type: "int", nullable: false),
-                    DepartureTime = table.Column<TimeSpan>(type: "time", nullable: false),
-                    RouteFare = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    IsMainStation = table.Column<bool>(type: "bit", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TripRoutes", x => x.TripRouteId);
+                    table.PrimaryKey("PK_TripFares", x => x.TripFareId);
                     table.ForeignKey(
-                        name: "FK_TripRoutes_Stations_StationId",
+                        name: "FK_TripFares_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "CompanyId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TripFares_Governorates_FromGovId",
+                        column: x => x.FromGovId,
+                        principalTable: "Governorates",
+                        principalColumn: "GovernorateId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TripFares_Governorates_ToGovId",
+                        column: x => x.ToGovId,
+                        principalTable: "Governorates",
+                        principalColumn: "GovernorateId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TripFares_Stations_StationId",
                         column: x => x.StationId,
                         principalTable: "Stations",
                         principalColumn: "StationId",
-                        onDelete: ReferentialAction.Cascade);
+                        onDelete: ReferentialAction.Restrict);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "TripSchedules",
+                columns: table => new
+                {
+                    TripScheduleId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    TripId = table.Column<int>(type: "int", nullable: false),
+                    StationId = table.Column<int>(type: "int", nullable: false),
+                    DepartureTime = table.Column<TimeOnly>(type: "time", nullable: false),
+                    SeatFare = table.Column<decimal>(type: "decimal(18,2)", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_TripSchedules", x => x.TripScheduleId);
                     table.ForeignKey(
-                        name: "FK_TripRoutes_Trips_TripId",
+                        name: "FK_TripSchedules_Stations_StationId",
+                        column: x => x.StationId,
+                        principalTable: "Stations",
+                        principalColumn: "StationId",
+                        onDelete: ReferentialAction.Restrict);
+                    table.ForeignKey(
+                        name: "FK_TripSchedules_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
                         principalColumn: "TripId");
@@ -337,8 +376,7 @@ namespace Darb.Api.Migrations
                     BookingId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PassengerId = table.Column<int>(type: "int", nullable: false),
-                    TripRouteId = table.Column<int>(type: "int", nullable: false),
-                    BankAccountId = table.Column<int>(type: "int", nullable: false),
+                    TripScheduleId = table.Column<int>(type: "int", nullable: false),
                     ReservedSeatsCount = table.Column<int>(type: "int", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     ReceiptImagePath = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -349,21 +387,15 @@ namespace Darb.Api.Migrations
                 {
                     table.PrimaryKey("PK_Bookings", x => x.BookingId);
                     table.ForeignKey(
-                        name: "FK_Bookings_BankAccounts_BankAccountId",
-                        column: x => x.BankAccountId,
-                        principalTable: "BankAccounts",
-                        principalColumn: "BankAccountId",
-                        onDelete: ReferentialAction.Restrict);
-                    table.ForeignKey(
                         name: "FK_Bookings_Passengers_PassengerId",
                         column: x => x.PassengerId,
                         principalTable: "Passengers",
                         principalColumn: "PassengerId");
                     table.ForeignKey(
-                        name: "FK_Bookings_TripRoutes_TripRouteId",
-                        column: x => x.TripRouteId,
-                        principalTable: "TripRoutes",
-                        principalColumn: "TripRouteId",
+                        name: "FK_Bookings_TripSchedules_TripScheduleId",
+                        column: x => x.TripScheduleId,
+                        principalTable: "TripSchedules",
+                        principalColumn: "TripScheduleId",
                         onDelete: ReferentialAction.Restrict);
                 });
 
@@ -376,8 +408,7 @@ namespace Darb.Api.Migrations
                     BookingId = table.Column<int>(type: "int", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
                     BirthDate = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    Gender = table.Column<int>(type: "int", nullable: false),
-                    NationalId = table.Column<string>(type: "nvarchar(11)", maxLength: 11, nullable: false),
+                    NationalId = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     PhoneNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     Address = table.Column<string>(type: "nvarchar(250)", maxLength: 250, nullable: true)
                 },
@@ -400,8 +431,7 @@ namespace Darb.Api.Migrations
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PassengerDetailId = table.Column<int>(type: "int", nullable: false),
                     TicketCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false),
-                    IsConfirmed = table.Column<bool>(type: "bit", nullable: false)
+                    Status = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -430,19 +460,14 @@ namespace Darb.Api.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_BankAccountId",
-                table: "Bookings",
-                column: "BankAccountId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Bookings_PassengerId",
                 table: "Bookings",
                 column: "PassengerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_TripRouteId",
+                name: "IX_Bookings_TripScheduleId",
                 table: "Bookings",
-                column: "TripRouteId");
+                column: "TripScheduleId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Buses_CompanyId",
@@ -510,14 +535,24 @@ namespace Darb.Api.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TripRoutes_StationId",
-                table: "TripRoutes",
+                name: "IX_TripFares_CompanyId",
+                table: "TripFares",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TripFares_FromGovId",
+                table: "TripFares",
+                column: "FromGovId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TripFares_StationId",
+                table: "TripFares",
                 column: "StationId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TripRoutes_TripId",
-                table: "TripRoutes",
-                column: "TripId");
+                name: "IX_TripFares_ToGovId",
+                table: "TripFares",
+                column: "ToGovId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Trips_BusId",
@@ -540,6 +575,16 @@ namespace Darb.Api.Migrations
                 column: "StartGoveId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TripSchedules_StationId",
+                table: "TripSchedules",
+                column: "StationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TripSchedules_TripId",
+                table: "TripSchedules",
+                column: "TripId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
@@ -554,10 +599,19 @@ namespace Darb.Api.Migrations
                 name: "Advertisements");
 
             migrationBuilder.DropTable(
+                name: "BankAccounts");
+
+            migrationBuilder.DropTable(
                 name: "ETickets");
 
             migrationBuilder.DropTable(
                 name: "Subscriptions");
+
+            migrationBuilder.DropTable(
+                name: "TripFares");
+
+            migrationBuilder.DropTable(
+                name: "Banks");
 
             migrationBuilder.DropTable(
                 name: "PassengerDetails");
@@ -566,16 +620,10 @@ namespace Darb.Api.Migrations
                 name: "Bookings");
 
             migrationBuilder.DropTable(
-                name: "BankAccounts");
-
-            migrationBuilder.DropTable(
                 name: "Passengers");
 
             migrationBuilder.DropTable(
-                name: "TripRoutes");
-
-            migrationBuilder.DropTable(
-                name: "Banks");
+                name: "TripSchedules");
 
             migrationBuilder.DropTable(
                 name: "Stations");
