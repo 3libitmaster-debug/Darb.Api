@@ -88,7 +88,7 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> CreateAd([FromForm] AdvertisementCreateDto dto)
         {
             
-            int adminId = User.GetUserId();
+            int adminId = User.GetAccountId();
 
             if (adminId == 0)
                 return Unauthorized(ResponseDto.FailureResponse("غير مصرح لك، لم يتم العثور على معرف المسؤول في التوكن."));

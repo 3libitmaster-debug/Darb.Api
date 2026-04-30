@@ -37,15 +37,15 @@ namespace Darb.Api.Models
         public int AvailableSeats { get; set; } 
 
         [Required]
-        public decimal BasePrice { get; set; }
+        public decimal Price { get; set; }
 
         [Required]
         
-        public DateTime DepartureDate { get; set; }
+        public DateTime DepDate { get; set; }
 
         public Periods Period { get; set; }
 
-        public TripStatus Status { get; set; } = TripStatus.scheduled;
+        public TripStatus TripStatus { get; set; } = TripStatus.scheduled;
 
         
         public int CompanyId { get; set; }

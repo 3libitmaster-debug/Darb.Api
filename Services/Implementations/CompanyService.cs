@@ -66,9 +66,9 @@ namespace Darb.Api.Services.Implementations
                 /* Logic C: Capacity-based Status Update
                    If a 'Scheduled' trip is fully booked (0 available seats).
                 */
-                if (trip.Status == TripStatus.scheduled && trip.AvailableSeats <= 0)
+                if (trip.TripStatus == TripStatus.scheduled && trip.AvailableSeats <= 0)
                 {
-                    trip.Status = TripStatus.Fulled;
+                    trip.TripStatus = TripStatus.Fulled;
                     hasChanges = true;
                 }
             }
@@ -81,15 +81,15 @@ namespace Darb.Api.Services.Implementations
 
             // STEP 5: Map to DTOs for the final response.
             var tripList = trips
-                .OrderByDescending(t => t.DepartureDate)
+                .OrderByDescending(t => t.DepDate)
                 .Select(t => new TripReadDto
                 {
                     TripId = t.TripId,
                     StartGoveName = t.StartGovernate?.Name ?? "N/A",
                     EndGoveName = t.EndGovernate?.Name ?? "N/A",
-                    Price = t.BasePrice,
-                    DepartureDate = t.DepartureDate,
-                    Status = t.Status.ToString(),
+                    Price = t.Price,
+                    DepartureDate = t.DepDate,
+                    Status = t.TripStatus.ToString(),
                     AvailableSeats = t.AvailableSeats,
                     BusId = t.BusId
                 }).ToList();
@@ -120,9 +120,9 @@ namespace Darb.Api.Services.Implementations
             bool statusUpdated = false;
 
             // Check for 'Full' status if still scheduled.
-            if (trip.Status == TripStatus.scheduled && trip.AvailableSeats <= 0)
+            if (trip.TripStatus == TripStatus.scheduled && trip.AvailableSeats <= 0)
             {
-                trip.Status = TripStatus.Fulled;
+                trip.TripStatus = TripStatus.Fulled;
                 statusUpdated = true;
             }
 
@@ -138,10 +138,10 @@ namespace Darb.Api.Services.Implementations
                 TripId = trip.TripId,
                 StartGoveName = trip.StartGovernate?.Name ?? "N/A",
                 EndGoveName = trip.EndGovernate?.Name ?? "N/A",
-                Price = trip.BasePrice,
-                Status = trip.Status.ToString(),
+                Price = trip.Price,
+                Status = trip.TripStatus.ToString(),
                 AvailableSeats = trip.AvailableSeats,
-                DepartureDate = trip.DepartureDate,
+                DepartureDate = trip.DepDate,
                 BusId = trip.BusId
             };
 
@@ -186,7 +186,7 @@ namespace Darb.Api.Services.Implementations
             if (bus == null)
                 return ResponseDto.FailureResponse("الحافلة المختارة غير موجودة أو غير مسجلة لشركتكم.");
 
-            if (bus.Status != BusStatus.Available)
+            if (bus.BusStatus != BusStatus.Available)
                 return ResponseDto.FailureResponse("الحافلة المختارة غير متاحة حالياً.");
 
             if (tripDto.Routes == null || !tripDto.Routes.Any())
@@ -219,10 +219,10 @@ namespace Darb.Api.Services.Implementations
                         CompanyId = companyId,
                         StartGoveId = tripDto.StartGoveId,
                         EndGoveId = tripDto.EndGoveId,
-                        DepartureDate = tripDto.DepartureDate,
-                        BasePrice = primaryFare.Price,
-                        Status = TripStatus.scheduled,
-                        AvailableSeats = bus.Capacity,
+                        DepDate = tripDto.DepartureDate,
+                        Price = primaryFare.Price,
+                        TripStatus = TripStatus.scheduled,
+                        AvailableSeats = bus.BusCapacity,
                         Period = tripDto.Period
                     };
 
@@ -279,7 +279,7 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("نأسف، الرحلة غير موجودة أو لا تملك الصلاحية اللازمة لتعديلها.");
 
             // Logic: Prevent modification if the trip is completed.
-            if (trip.Status == TripStatus.completed)
+            if (trip.TripStatus == TripStatus.completed)
             {
                 return ResponseDto.FailureResponse("لا يمكن تعديل بيانات هذه الرحلة نظراً لكونها مكتملة ومؤرشفة في السجلات المالية.");
             }
@@ -290,7 +290,7 @@ namespace Darb.Api.Services.Implementations
             {
                 if (updateDto.DepartureDate.Value.Date < DateTime.Now.Date)
                     return ResponseDto.FailureResponse("يرجى اختيار تاريخ مستقبلي؛ لا يمكن تعديل وقت الانطلاق لوقت قد مضى.");
-                trip.DepartureDate = updateDto.DepartureDate.Value;
+                trip.DepDate = updateDto.DepartureDate.Value;
             }
 
             // Bus Swap Validation: Ensure the new bus is also owned by this company.
@@ -311,7 +311,7 @@ namespace Darb.Api.Services.Implementations
                 await _context.SaveChangesAsync();
 
 
-                var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.BasePrice, Status = trip.Status.ToString() };
+                var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.Price, Status = trip.TripStatus.ToString() };
                 return ResponseDto.SuccessResponse("تم تحديث بيانات الرحلة والمسارات التابعة لها بنجاح وفق التعديلات الجديدة.", resultDto);
             }
             catch (Exception ex)
@@ -335,7 +335,7 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على الرحلة المراد حذفها.");
 
             // Safety Rule: Completed trips should remain in history and cannot be deleted.
-            if (trip.Status == TripStatus.completed)
+            if (trip.TripStatus == TripStatus.completed)
                 return ResponseDto.FailureResponse("حفاظاً على سلامة السجلات المالية والإحصائية، لا يمكن حذف الرحلات المكتملة.");
 
             // --- NEW: Booking Check ---
@@ -377,8 +377,8 @@ namespace Darb.Api.Services.Implementations
                 BusId = b.BusId,
                 PlateNumber = b.PlateNumber ?? "غير محدد",
                 Model = b.Model ?? "غير محدد",
-                Capacity = b.Capacity,
-                Status = b.Status.ToString() // Converts Enum to String for the client
+                Capacity = b.BusCapacity,
+                Status = b.BusStatus.ToString() // Converts Enum to String for the client
             }).ToList();
 
             return ResponseDto.SuccessResponse($"تم استعادة بيانات الأسطول بنجاح، إجمالي الحافلات: {busList.Count}", busList);
@@ -400,8 +400,8 @@ namespace Darb.Api.Services.Implementations
                 BusId = bus.BusId,
                 PlateNumber = bus.PlateNumber ?? "غير محدد",
                 Model = bus.Model ?? "غير محدد",
-                Capacity = bus.Capacity,
-                Status = bus.Status.ToString()
+                Capacity = bus.BusCapacity,
+                Status = bus.BusStatus.ToString()
             };
 
             return ResponseDto.SuccessResponse("تم استرجاع بيانات الحافلة بنجاح.", busDto);
@@ -421,8 +421,8 @@ namespace Darb.Api.Services.Implementations
             {
                 PlateNumber = busDto.PlateNumber,
                 Model = busDto.Model,
-                Capacity = busDto.Capacity,
-                Status = BusStatus.Available, // New buses are available by default
+                BusCapacity = busDto.Capacity,
+                BusStatus = BusStatus.Available, // New buses are available by default
                 CompanyId = companyId
             };
 
@@ -450,11 +450,10 @@ namespace Darb.Api.Services.Implementations
                 bus.Model = busDto.Model;
 
             if (busDto.Capacity.HasValue && busDto.Capacity.Value > 0)
-                bus.Capacity = busDto.Capacity.Value;
+                bus.BusCapacity = busDto.Capacity.Value;
 
             if (busDto.Status.HasValue)
-                bus.Status = busDto.Status.Value;
-
+                bus.BusStatus = busDto.Status.Value;
 
             // Persisting changes via Generic Repository update pattern
             _busRepository.Update(bus);
@@ -622,7 +621,7 @@ namespace Darb.Api.Services.Implementations
                 TripScheduleId = b.TripScheduleId,
                 StartGovernorate = b.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = b.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = b.TripSchedule?.Trip?.DepartureDate ?? DateTime.MinValue,
+                DepartureDate = b.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
                 ReservedSeatsCount = b.ReservedSeatsCount,
                 TotalAmount = b.TotalAmount,
                 ReceiptImagePath = b.ReceiptImagePath,
@@ -665,7 +664,7 @@ namespace Darb.Api.Services.Implementations
                 TripScheduleId = booking.TripScheduleId,
                 StartGovernorate = booking.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = booking.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = booking.TripSchedule?.Trip?.DepartureDate ?? DateTime.MinValue,
+                DepartureDate = booking.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
                 ReservedSeatsCount = booking.ReservedSeatsCount,
                 TotalAmount = booking.TotalAmount,
                 ReceiptImagePath = booking.ReceiptImagePath,

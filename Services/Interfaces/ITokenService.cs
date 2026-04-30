@@ -4,6 +4,6 @@ namespace Darb.Api.Services.Interfaces
 {
     public interface ITokenService
     {
-        string GenerateJwtToken(User user);
+        string GenerateJwtToken(Account Account);
     }
 }

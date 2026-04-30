@@ -165,35 +165,35 @@ namespace Darb.Api.Services.Implementations
     #region Advertisement Logic
 
     /// <summary>
-    /// Retrieves all advertisements with related user information.
+    /// Retrieves all advertisements with related Account information.
     /// </summary>
     public async Task<ResponseDto> GetAllAdvertisementsAsync()
     {
         // Fetch all advertisement records from the database using the repository
         var ads = await _adRepo.GetAllAsync();
 
-        // Extract unique UserIDs to fetch their emails in a single batch for better performance (Optimization)
-        var userIds = ads.Select(a => a.UserId).Distinct().ToList();
+        // Extract unique AccountIDs to fetch their emails in a single batch for better performance (Optimization)
+        var AccountIds = ads.Select(a => a.AccountId).Distinct().ToList();
 
-        // Fetch user emails and store them in a dictionary for fast lookup
-        var users = await _context.Users
-            .Where(u => userIds.Contains(u.UserId))
-            .ToDictionaryAsync(u => u.UserId, u => u.Email);
+        // Fetch Account emails and store them in a dictionary for fast lookup
+        var Accounts = await _context.Accounts
+            .Where(u => AccountIds.Contains(u.AccountId))
+            .ToDictionaryAsync(u => u.AccountId, u => u.Email);
 
         // Map the database entities to Read-Only DTOs for the client side
         var dtos = ads.Select(a => new AdvertisementReadDto
         {
             AdvertisementID = a.AdvertisementID,
-            UserID = a.UserId,
-            // Safely handle cases where a user might not exist in the dictionary
-            User_Email = users.ContainsKey(a.UserId) ? users[a.UserId] : "Unknown User",
-            Title = a.Title,
+            AccountID = a.AccountId,
+            // Safely handle cases where a Account might not exist in the dictionary
+            Account_Email = Accounts.ContainsKey(a.AccountId) ? Accounts[a.AccountId] : "Unknown Account",
+            Title = a.AdsTitle,
             Description = a.Description,
             ImageUrl = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : string.Empty,
             StartDateAds = a.StartDateAds,
             EndDateAds = a.EndDateAds,
-            IsActive = a.IsActive,
-            CreatedAt = a.CreatedAt
+            AdsStatus = a.AdsStatus,
+            CreatedAt = a.AdsCreatedAt
         }).ToList();
 
         return ResponseDto.SuccessResponse($"Found ({dtos.Count}) advertisements successfully.", dtos);
@@ -209,20 +209,20 @@ namespace Darb.Api.Services.Implementations
         if (ad == null) return ResponseDto.FailureResponse("Advertisement not found.");
 
         // Fetch the owner/creator information
-        var user = await _context.Users.FindAsync(ad.UserId);
+        var Account = await _context.Accounts.FindAsync(ad.AccountId);
 
         var dto = new AdvertisementReadDto
         {
             AdvertisementID = ad.AdvertisementID,
-            UserID = ad.UserId,
-            User_Email = user?.Email ?? "Unknown User",
-            Title = ad.Title,
+            AccountID = ad.AccountId,
+            Account_Email = Account?.Email ?? "Unknown Account",
+            Title = ad.AdsTitle,
             Description = ad.Description,
             ImageUrl = !string.IsNullOrEmpty(ad.Image) ? _baseUrl + ad.Image : string.Empty,
             StartDateAds = ad.StartDateAds,
             EndDateAds = ad.EndDateAds,
-            IsActive = ad.IsActive,
-            CreatedAt = ad.CreatedAt
+            AdsStatus = ad.AdsStatus,
+            CreatedAt = ad.AdsCreatedAt
         };
 
         return ResponseDto.SuccessResponse("Advertisement details retrieved successfully.", dto);
@@ -234,19 +234,19 @@ namespace Darb.Api.Services.Implementations
     public async Task<ResponseDto> CreateAdvertisementAsync(int adminId, AdvertisementCreateDto dto)
     {
         // Verify if the Admin ID from the token exists in the database to prevent Foreign Key constraints violation
-        var adminExists = await _context.Users.AnyAsync(u => u.UserId == adminId);
-        if (!adminExists) return ResponseDto.FailureResponse("Unauthorized: Admin user not found.");
+        var adminExists = await _context.Accounts.AnyAsync(u => u.AccountId == adminId);
+        if (!adminExists) return ResponseDto.FailureResponse("Unauthorized: Admin Account not found.");
 
         // Initialize the Advertisement entity with data from DTO and the Token
         var ad = new Advertisement
         {
-            UserId = adminId,  // Automatic binding to the logged-in admin
-            Title = dto.Title,
+            AccountId = adminId,  // Automatic binding to the logged-in admin
+            AdsTitle = dto.Title,
             Description = dto.Description,
             StartDateAds = dto.StartDateAds,
             EndDateAds = dto.EndDateAds,
-            IsActive = dto.IsActive = true, // Default to active if status is null
-            CreatedAt = DateHelper.GetYemenTime() // Log the creation time in local timezone
+            AdsStatus = dto.AdsStatus = AdsStatus.Active, // Default to active if status is null
+            AdsCreatedAt = DateHelper.GetYemenTime() // Log the creation time in local timezone
         };
 
         // Handle image upload via the dedicated ImageService
@@ -272,11 +272,11 @@ namespace Darb.Api.Services.Implementations
         if (ad == null) return ResponseDto.FailureResponse("Advertisement not found for update.");
 
         // Patch-style updates: only update fields that have provided values
-        if (!string.IsNullOrEmpty(dto.Title)) ad.Title = dto.Title;
+        if (!string.IsNullOrEmpty(dto.Title)) ad.AdsTitle = dto.Title;
         if (!string.IsNullOrEmpty(dto.Description)) ad.Description = dto.Description;
         if (dto.StartDateAds.HasValue) ad.StartDateAds = dto.StartDateAds.Value;
         if (dto.EndDateAds.HasValue) ad.EndDateAds = dto.EndDateAds.Value;
-        if (dto.IsActive.HasValue) ad.IsActive = dto.IsActive.Value;
+        if (dto.AdsStatus.HasValue) ad.AdsStatus = dto.AdsStatus.Value;
 
         // Process image update via the centralized ImageService method
         if (dto.ImageFile != null)

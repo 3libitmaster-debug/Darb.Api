@@ -1,4 +1,6 @@
-﻿namespace Darb.Api.DTOs.passengerDtos.homePageDtos
+﻿using Darb.Api.Models;
+
+namespace Darb.Api.DTOs.passengerDtos.homePageDtos
 {
     public class AdCardDto
     {
@@ -8,7 +10,7 @@
         public string? Image { get; set; }
         public DateTime? StartDate { get; set; }
         public DateTime? EndDate { get; set; }
-        public bool IsActive { get; set; }
+        public AdsStatus Status { get; set; }
         public DateTime CreatedAt { get; set; }
     }
 }

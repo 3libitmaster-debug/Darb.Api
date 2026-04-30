@@ -23,11 +23,11 @@ namespace Darb.Api.Models
         [Required, MaxLength(11)]
         public string ?NationalId { get; set; } 
 
-        [ForeignKey("UserId")]
-        public int UserId { get; set; }
+        [ForeignKey("AccountId")]
+        public int AccountId { get; set; }
 
         [Required]
-        public User ?User { get; set; }
+        public Account ?Account { get; set; }
 
 
     }

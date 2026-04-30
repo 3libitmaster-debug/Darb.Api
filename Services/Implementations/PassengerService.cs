@@ -59,17 +59,17 @@ namespace Darb.Api.Services.Implementations
                 // 1. FETCH ACTIVE ADVERTISEMENTS
                 // Maps advertisements to AdCardDto and appends the Base Server URL to images.
                 var ads = await _adRepo.GetAllAsync();
-                homePageData.AdCards = ads.Where(a => a.IsActive == true)
+                homePageData.AdCards = ads.Where(a => a.AdsStatus == AdsStatus.Active)
                     .Select(a => new AdCardDto
                     {
                         adId = a.AdvertisementID,
-                        Title = a.Title,
+                        Title = a.AdsTitle,
                         Description = a.Description,
                         Image = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : "",
                         StartDate = a.StartDateAds,
                         EndDate = a.EndDateAds,
-                        IsActive = a.IsActive,
-                        CreatedAt = a.CreatedAt
+                        Status = a.AdsStatus,
+                        CreatedAt = a.AdsCreatedAt
 
                     }).ToList();
 
@@ -115,7 +115,7 @@ namespace Darb.Api.Services.Implementations
 
         #region Trip Search Logic
         /// <summary>
-        /// Searches for scheduled trips based on dynamic user filters.
+        /// Searches for scheduled trips based on dynamic Account filters.
         /// </summary>
         /// <param name="query">DTO containing filter parameters like Date, Period, and Governorates.</param>
         /// <returns>A list of matching trips wrapped in a ResponseDto.</returns>
@@ -129,11 +129,11 @@ namespace Darb.Api.Services.Implementations
                     .Include(t => t.Company)
                     .Include(t => t.StartGovernate)
                     .Include(t => t.EndGovernate)
-                    .Where(t => t.Status == TripStatus.scheduled)
+                    .Where(t => t.TripStatus == TripStatus.scheduled)
                     .AsQueryable();
 
                 // 2. DYNAMIC FILTERING LOGIC
-                // Filters are only applied if the user provides a value (> 0).
+                // Filters are only applied if the Account provides a value (> 0).
 
                 // Filter by Departure Governorate
                 if (query.FromGovernorateId.HasValue && query.FromGovernorateId > 0)
@@ -155,7 +155,7 @@ namespace Darb.Api.Services.Implementations
                 if (query.Date.HasValue && query.Date.Value.Year > 2000)
                 {
                     var searchDate = query.Date.Value.Date;
-                    tripsQuery = tripsQuery.Where(t => t.DepartureDate.Date == searchDate);
+                    tripsQuery = tripsQuery.Where(t => t.DepDate.Date == searchDate);
                 }
 
                 // 3. DATA PROJECTION & MAPPING
@@ -172,8 +172,8 @@ namespace Darb.Api.Services.Implementations
                     StartGoveName = t.StartGovernate != null ? (t.StartGovernate.Name ?? "N/A") : "N/A",
                     EndGoveId = t.EndGoveId,
                     EndGoveName = t.EndGovernate != null ? (t.EndGovernate.Name ?? "N/A") : "N/A",
-                    BasePrice = t.BasePrice,
-                    DepartureDate = t.DepartureDate.ToString("yyyy-MM-dd"),
+                    BasePrice = t.Price,
+                    DepartureDate = t.DepDate.ToString("yyyy-MM-dd"),
                     AvailableSeats = t.AvailableSeats,
                     Period = t.Period.ToString()
                 }).ToListAsync();
@@ -269,7 +269,7 @@ namespace Darb.Api.Services.Implementations
             var trip = tripSchedule.Trip;
 
             // Ensure the trip is still open for booking
-            if (trip.Status != TripStatus.scheduled)
+            if (trip.TripStatus != TripStatus.scheduled)
                 return ResponseDto.FailureResponse("عذراً، هذه الرحلة لم تعد متاحة للحجز.");
 
             // Calculate total seats required from the provided passengers list
@@ -341,7 +341,7 @@ namespace Darb.Api.Services.Implementations
                     // D. Inventory Management: Deduct seats and update trip status if full
                     trip.AvailableSeats -= totalSeatsRequired;
                     if (trip.AvailableSeats == 0)
-                        trip.Status = TripStatus.Fulled;
+                        trip.TripStatus = TripStatus.Fulled;
 
                     _context.Trips.Update(trip);
                     await _context.SaveChangesAsync();
@@ -408,7 +408,7 @@ namespace Darb.Api.Services.Implementations
             try
             {
                 var profile = await _context.Passengers
-                    .Include(p => p.User)
+                    .Include(p => p.Account)
                     .Where(p => p.PassengerId == passengerId)
                     .Select(p => new PassengerProfileDto
                     {
@@ -418,9 +418,9 @@ namespace Darb.Api.Services.Implementations
                         PhoneNumber = p.Phone ?? "",
                         Address = p.Address ?? "",
                         NationalId = p.NationalId ?? "",
-                        Email = p.User != null ? p.User.Email ?? "" : "",
-                        Password = p.User != null ? p.User.Password ?? "" : "",
-                        CreatedAt = p.User != null ? p.User.JoinDate : DateTime.MinValue
+                        Email = p.Account != null ? p.Account.Email ?? "" : "",
+                        Password = p.Account != null ? p.Account.Password ?? "" : "",
+                        CreatedAt = p.Account != null ? p.Account.JoinDate : DateTime.MinValue
                     })
                     .FirstOrDefaultAsync();
 
@@ -467,7 +467,7 @@ namespace Darb.Api.Services.Implementations
                         TripId = b.TripSchedule != null ? b.TripSchedule.TripId : 0,
                         StartGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.StartGovernate != null ? (b.TripSchedule.Trip.StartGovernate.Name ?? "غير متوفر") : "غير متوفر",
                         EndGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.EndGovernate != null ? (b.TripSchedule.Trip.EndGovernate.Name ?? "غير متوفر") : "غير متوفر",
-                        DepartureDate = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.DepartureDate.ToString("yyyy-MM-dd") : string.Empty,
+                        DepartureDate = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.DepDate.ToString("yyyy-MM-dd") : string.Empty,
                         DepartureTime = b.TripSchedule != null ? b.TripSchedule.DepartureTime.ToString("hh:mm tt") : string.Empty,
 
                         CompanyId = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.CompanyId : 0,

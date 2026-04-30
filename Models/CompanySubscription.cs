@@ -6,10 +6,10 @@ using Darb.Api.Models.Enums;
 namespace Darb.Api.Models
 {
    
-    public class Subscription
+    public class CompanySubscription
     {
 
-        public int SubscriptionId { get; set; }
+        public int CompanySubscriptionId { get; set; }
 
         [Required]
         public SubscriptionPlans PlanType { get; set; }

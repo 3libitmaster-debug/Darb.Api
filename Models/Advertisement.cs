@@ -3,19 +3,25 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Darb.Api.Models
 {
+    public enum AdsStatus
+    {
+        Active,
+        Inactive,
+        Expired
+    }
     public class Advertisement
     {
         [Key]
         public int AdvertisementID { get; set; }
 
         [Required]
-        public int UserId { get; set; }
+        public int AccountId { get; set; }
 
-        [ForeignKey("UserId")]
-        public User? User { get; set; }
+        [ForeignKey("AccountId")]
+        public Account? Account { get; set; }
 
         [MaxLength(100)]
-        public string? Title { get; set; }
+        public string? AdsTitle { get; set; }
 
         public string? Description { get; set; }
 
@@ -26,11 +32,11 @@ namespace Darb.Api.Models
         public DateTime? EndDateAds { get; set; }
 
         [Required]
-        public bool IsActive { get; set; }
+        public AdsStatus AdsStatus { get; set; }
 
   
 
         [Required]
-        public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
+        public DateTime AdsCreatedAt { get; set; } = DateTime.UtcNow;
     }
 }

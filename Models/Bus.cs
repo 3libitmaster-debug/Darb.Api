@@ -15,13 +15,13 @@ namespace Darb.Api.Models
         public string ?PlateNumber { get; set; }
 
         [Required]
-        public BusStatus Status { get; set; }
+        public BusStatus BusStatus { get; set; }
 
         [Required]
         public string? Model { get; set; }
 
         [Required]
-        public int Capacity { get; set; }
+        public int BusCapacity { get; set; }
 
         public  int CompanyId { get; set; }
 
