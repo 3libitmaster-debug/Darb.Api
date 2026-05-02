@@ -70,7 +70,7 @@ namespace Darb.Api.Controllers
         }
 
      
-        [HttpPost("register/customer")]
+        [HttpPost("register/passengers")]
         [SwaggerOperation(
             Summary = "Register New Passenger",
             Description = "Creates a new passenger account. Checks for duplicate email and phone before saving."
