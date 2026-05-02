@@ -72,7 +72,7 @@ namespace Darb.Api.Services.BackgroundServices
                     if (booking.TripSchedule?.Trip != null)
                     {
                         // Restore trip seats
-                        booking.TripSchedule.Trip.AvailableSeats += booking.NumberOfSeats;
+                        booking.TripSchedule.Trip.AvailableSeats += booking.ReservedSeatsCount;
                     }
                 }
 

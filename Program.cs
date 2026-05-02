@@ -101,6 +101,7 @@ builder.Services.AddScoped<ITokenService, TokenService>();
 builder.Services.AddScoped<IImageService, ImageService>();
 builder.Services.AddScoped<ICompanyService, CompanyService>();
 builder.Services.AddScoped<IAdminService, AdminService>();
+builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IRepository<Governorate>, Repository<Governorate>>();
 builder.Services.AddScoped<IRepository<City>, Repository<City>>();
 builder.Services.AddScoped<IRepository<Advertisement>, Repository<Advertisement>>();
@@ -147,17 +148,17 @@ builder.Services.AddSwaggerGen(c =>
     });
     c.EnableAnnotations();
 
-    c.OrderActionsBy((apiDesc) =>
-    {
-        var methodOrder = new Dictionary<string, int>
-        {
-            { "GET", 1 },
-            { "POST", 2 },
-            { "PUT", 3 },
-            { "DELETE", 4 }
-        };
-        return methodOrder.GetValueOrDefault(apiDesc.HttpMethod ?? string.Empty, 5).ToString();
-    });
+    //c.OrderActionsBy((apiDesc) =>
+    //{
+    //    var methodOrder = new Dictionary<string, int>
+    //    {
+    //        { "GET", 1 },
+    //        { "POST", 2 },
+    //        { "PUT", 3 },
+    //        { "DELETE", 4 }
+    //    };
+    //    return methodOrder.GetValueOrDefault(apiDesc.HttpMethod ?? string.Empty, 5).ToString();
+    //});
 });
 
 var app = builder.Build();

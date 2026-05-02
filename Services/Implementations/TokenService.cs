@@ -18,21 +18,21 @@ namespace Darb.Api.Services.Implemention
             _configuration = configuration;
         }
 
-        public string GenerateJwtToken(User user)
+        public string GenerateJwtToken(Account Account)
         {
             // 1. Setup Claims
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, user.UserId.ToString()),
-                new Claim(ClaimTypes.Email, user.Email ?? string.Empty),
-                new Claim(ClaimTypes.Role, user.Role.ToString())
+                new Claim(ClaimTypes.NameIdentifier, Account.AccountId.ToString()),
+                new Claim(ClaimTypes.Email, Account.Email ?? string.Empty),
+                new Claim(ClaimTypes.Role, Account.Role.ToString())
             };
 
             // Add profile-specific IDs
-            if (user.Role == UserRoles.Passenger && user.Passenger != null)
-                claims.Add(new Claim("PassengerId", user.Passenger.PassengerId.ToString()));
-            else if (user.Role == UserRoles.Company && user.Company != null)
-                claims.Add(new Claim("CompanyId", user.Company.CompanyId.ToString()));
+            if (Account.Role == AccountRoles.Passenger && Account.Passenger != null)
+                claims.Add(new Claim("PassengerId", Account.Passenger.PassengerId.ToString()));
+            else if (Account.Role == AccountRoles.Company && Account.Company != null)
+                claims.Add(new Claim("CompanyId", Account.Company.CompanyId.ToString()));
 
             // 2. Fetch the Key from appsettings.json using the exact path
             // Note: We use "JwtSettings:Key" to match your appsettings structure

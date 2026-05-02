@@ -14,7 +14,6 @@ public class CreateTripDto
     public int EndGoveId { get; set; }
 
     [Required(ErrorMessage = "Departure date is required.")]
-    [DataType(DataType.Date)]
     public DateTime DepartureDate { get; set; }
 
     [Required(ErrorMessage = "Trip period is required.")]

@@ -31,33 +31,33 @@ namespace Darb.Api.Services.Implementations
 
         #region Login Endpoint Logic
         /// <summary>
-        /// Authenticates users and checks company subscription validity.
+        /// Authenticates Accounts and checks company subscription validity.
         /// </summary>
         public async Task<ResponseDto> Login(LoginDto dto)
         {
             var base64Password = SecurityHelper.ConvertToBase64(dto.Password!);
 
-            // Fetch user with related Passenger or Company profiles
-            var user = await _context.Users
+            // Fetch Account with related Passenger or Company profiles
+            var Account = await _context.Accounts
                 .Include(u => u.Passenger)
-                .Include(u => u.Company).ThenInclude(c => c!.Subscription)
+                .Include(u => u.Company).ThenInclude(c => c!.CompanySubscription)
                 .FirstOrDefaultAsync(u => u.Email == dto.Email && u.Password == base64Password);
 
-            if (user == null)
+            if (Account == null)
                 return ResponseDto.FailureResponse("البريد الإلكتروني أو كلمة المرور غير صحيحة.");
 
             // Logic for Company: Validate the latest subscription
-            if (user.Role == UserRoles.Company && user.Company != null)
+            if (Account.Role == AccountRoles.Company && Account.Company != null)
             {
-                var latestSub = user.Company.Subscription?
-                    .OrderByDescending(s => s.SubscriptionId)
+                var latestSub = Account.Company.CompanySubscription?
+                    .OrderByDescending(s => s.CompanySubscriptionId)
                     .FirstOrDefault();
 
                 if (latestSub == null || latestSub.ExpiryDate <= DateHelper.GetYemenTime()) 
                 {
-                    if (user.IsActive)
+                    if (Account.IsActive)
                     {
-                        user.IsActive = false;
+                        Account.IsActive = false;
                         await _context.SaveChangesAsync();
                     }
                     return ResponseDto.FailureResponse("انتهى الاشتراك يرجى التجديد .");
@@ -65,14 +65,14 @@ namespace Darb.Api.Services.Implementations
             }
 
             // Check account activation status
-            if (!user.IsActive)
+            if (!Account.IsActive)
             {
-                string statusMessage = user.Role == UserRoles.Company ? "حسابك لا يزال قيد المراجعة." : "هذا الحساب غير نشط.";
+                string statusMessage = Account.Role == AccountRoles.Company ? "حسابك لا يزال قيد المراجعة." : "هذا الحساب غير نشط.";
                 return ResponseDto.FailureResponse(statusMessage);
             }
 
             // Success: Generate and return the Token
-            var token = _TokenService.GenerateJwtToken(user);
+            var token = _TokenService.GenerateJwtToken(Account);
             return ResponseDto.SuccessResponse("تم تسجيل الدخول بنجاح.", new { Token = token });
         }
         #endregion
@@ -90,23 +90,23 @@ namespace Darb.Api.Services.Implementations
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // 1. Create the base User
-                    var newUser = new User
+                    // 1. Create the base Account
+                    var newAccount = new Account
                     {
                         Email = dto.Email,
                         Password = SecurityHelper.ConvertToBase64(dto.Password!),
-                        Role = UserRoles.Passenger,
+                        Role = AccountRoles.Passenger,
                         IsActive = true,
                         JoinDate = DateHelper.GetYemenTime(),
                     };
 
-                    _context.Users.Add(newUser);
+                    _context.Accounts.Add(newAccount);
                     await _context.SaveChangesAsync();
 
                     // 2. Create the linked Passenger profile
                     var newPassenger = new Passenger
                     {
-                        UserId = newUser.UserId,
+                        AccountId = newAccount.AccountId,
                         FullName = dto.FullName,
                         Phone = dto.Phone,
                         Address = dto.Address,
@@ -157,22 +157,22 @@ namespace Darb.Api.Services.Implementations
                     // Define Yemen Time (UTC+3) to ensure consistency across all date fields
                     var yemenNow = DateTime.UtcNow.AddHours(3);
 
-                    // --- STEP 2: Create User Identity Account ---
-                    var user = new User
+                    // --- STEP 2: Create Account Identity Account ---
+                    var Account = new Account
                     {
                         Email = request.Email,
                         Password = SecurityHelper.ConvertToBase64(request.Password),
-                        Role = UserRoles.Company,
+                        Role = AccountRoles.Company,
                         IsActive = false, // Companies remain inactive until admin approval
                         JoinDate = yemenNow
                     };
-                    _context.Users.Add(user);
+                    _context.Accounts.Add(Account);
                     await _context.SaveChangesAsync();
 
                     // --- STEP 3: Create Detailed Company Profile ---
                     var company = new Company
                     {
-                        UserId = user.UserId, // Linking the profile to the created user
+                        AccountId = Account.AccountId, // Linking the profile to the created Account
                         Name = request.Name,
                         Address = request.Address,
                         Logo = logoPath,
@@ -188,7 +188,7 @@ namespace Darb.Api.Services.Implementations
                         : yemenNow.AddYears(1);
 
                     // --- STEP 5: Initialize Subscription Record ---
-                    var subscription = new Subscription
+                    var subscription = new CompanySubscription
                     {
                         CompanyId = company.CompanyId,
                         PlanType = request.PlanType,
@@ -197,7 +197,7 @@ namespace Darb.Api.Services.Implementations
                         PaymentSlip = paymentPath
                     };
 
-                    _context.Subscriptions.Add(subscription);
+                    _context.CompanySubscription.Add(subscription);
                     await _context.SaveChangesAsync();
 
                     // Commit transaction if all steps succeeded
@@ -218,7 +218,7 @@ namespace Darb.Api.Services.Implementations
 
         #region Validation Helpers Logic
         public async Task<bool> EmailExists(string email)
-            => await _context.Users.AnyAsync(u => u.Email == email);
+            => await _context.Accounts.AnyAsync(u => u.Email == email);
 
         public async Task<bool> PhoneExists(string phone)
             => await _context.Passengers.AnyAsync(p => p.Phone == phone);

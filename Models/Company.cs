@@ -22,12 +22,12 @@ namespace Darb.Api.Models
         [Required]
         public string ?License { get; set; }
 
-        public int UserId { get; set; }
+        public int AccountId { get; set; }
         [Required]
-        [ForeignKey("UserId")]
-        public User ?User { get; set; }
+        [ForeignKey("AccountId")]
+        public Account ?Account { get; set; }
 
-        public ICollection<Subscription>? Subscription { get; set; }
+        public ICollection<CompanySubscription>? CompanySubscription { get; set; }
 
         public ICollection<Trip>? Trips { get; set; }
 

@@ -4,25 +4,25 @@ namespace Darb.Api.Extensions;
 
 public static class ClaimsPrincipalExtensions
 {
-    public static int GetCompanyId(this ClaimsPrincipal user)
+    public static int GetCompanyId(this ClaimsPrincipal Account)
     {
 
-        var claim = user.FindFirst("CompanyId")?.Value;
+        var claim = Account.FindFirst("CompanyId")?.Value;
 
         return int.TryParse(claim, out int id) ? id : 0;
     }
 
-    public static int GetUserId(this ClaimsPrincipal user)
+    public static int GetAccountId(this ClaimsPrincipal Account)
     {
        
-        var claim = user.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+        var claim = Account.FindFirst(ClaimTypes.NameIdentifier)?.Value;
         return int.TryParse(claim, out int id) ? id : 0;
     }
 
-    public static int GetPassengerId(this ClaimsPrincipal user)
+    public static int GetPassengerId(this ClaimsPrincipal Account)
     {
 
-        var claim = user.FindFirst("PassengerId")?.Value;
+        var claim = Account.FindFirst("PassengerId")?.Value;
 
         return int.TryParse(claim, out int id) ? id : 0;
     }

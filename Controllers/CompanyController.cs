@@ -238,7 +238,7 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(
             Summary = "Create New Station",
             Description = "Adds a new station to the company's network.")]
-        public async Task<IActionResult> AddStation([FromBody] Darb.Api.DTOs.Station.CreateStationDto stationDto)
+        public async Task<IActionResult> AddStation([FromQuery] Darb.Api.DTOs.Station.CreateStationDto stationDto)
         {
             int companyId = User.GetCompanyId();
 
@@ -257,7 +257,7 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(
             Summary = "Update Station Details",
             Description = "Modifies existing station information.")]
-        public async Task<IActionResult> UpdateStation(int id, [FromBody] Darb.Api.DTOs.Station.UpdateStationDto stationDto)
+        public async Task<IActionResult> UpdateStation(int id, [FromQuery] Darb.Api.DTOs.Station.UpdateStationDto stationDto)
         {
             int companyId = User.GetCompanyId();
 
@@ -325,6 +325,17 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : BadRequest(response);
         }
 
+        [HttpPost("trip/bookings/{id}/click")]
+        [SwaggerOperation(Summary = "Confirm a Booking (Click)", Description = "Confirms a specific booking by its ID and generates QR code tickets.")]
+        public async Task<IActionResult> ConfirmBookingClick(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.ConfirmCompanyBookingClickAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
         [HttpDelete("trip/bookings/{id}")]
         [SwaggerOperation(Summary = "Delete Booking", Description = "Permanently removes a booking from the system. Confirmed bookings must be cancelled first.")]
         public async Task<IActionResult> DeleteBooking(int id)
@@ -352,12 +363,12 @@ namespace Darb.Api.Controllers
 
         [HttpPost("bank/accounts")]
         [SwaggerOperation(Summary = "Add New Bank Account", Description = "Creates a new bank account record for the company.")]
-        public async Task<IActionResult> CreateBankAccount([FromBody] BankAccountCreateDto dto) 
+        public async Task<IActionResult> CreateBankAccount([FromQuery] BankAccountCreateDto dto) 
             => Ok(await _companyService.CreateBankAccountAsync(dto, User.GetCompanyId()));
 
         [HttpPut("bank/accounts/{id}")]
         [SwaggerOperation(Summary = "Update Bank Account", Description = "Modifies an existing bank account's details.")]
-        public async Task<IActionResult> UpdateBankAccount(int id, [FromBody] BankAccountUpdateDto dto) 
+        public async Task<IActionResult> UpdateBankAccount(int id, [FromQuery] BankAccountUpdateDto dto) 
             => Ok(await _companyService.UpdateBankAccountAsync(id, dto, User.GetCompanyId()));
 
         [HttpDelete("bank/accounts/{id}")]
@@ -381,12 +392,12 @@ namespace Darb.Api.Controllers
 
         [HttpPost("trip/fares")]
         [SwaggerOperation(Summary = "Add New Trip Fare", Description = "Creates a new trip fare mapping for a specific destination and station.")]
-        public async Task<IActionResult> CreateTripFare([FromBody] CreateTripFareDto dto) 
+        public async Task<IActionResult> CreateTripFare([FromQuery] CreateTripFareDto dto) 
             => Ok(await _companyService.CreateTripFareAsync(dto, User.GetCompanyId()));
 
         [HttpPut("trip/fares/{id}")]
         [SwaggerOperation(Summary = "Update Trip Fare", Description = "Modifies an existing trip fare's price and time offset details.")]
-        public async Task<IActionResult> UpdateTripFare(int id, [FromBody] UpdateTripFareDto dto) 
+        public async Task<IActionResult> UpdateTripFare(int id, [FromQuery] UpdateTripFareDto dto) 
             => Ok(await _companyService.UpdateTripFareAsync(id, dto, User.GetCompanyId()));
 
         [HttpDelete("trip/fares/{id}")]
@@ -410,12 +421,12 @@ namespace Darb.Api.Controllers
 
         [HttpPost("trips/schedules")]
         [SwaggerOperation(Summary = "Add New Trip Schedule stop", Description = "Adds a new station stop to an existing trip.")]
-        public async Task<IActionResult> CreateTripSchedule([FromBody] AddTripScheduleDto dto)
+        public async Task<IActionResult> CreateTripSchedule([FromQuery] AddTripScheduleDto dto)
             => Ok(await _companyService.AddTripScheduleAsync(dto, User.GetCompanyId()));
 
         [HttpPut("trips/schedules/{id}")]
         [SwaggerOperation(Summary = "Update Trip Schedule", Description = "Modifies an existing station stop's time or fare.")]
-        public async Task<IActionResult> UpdateTripSchedule(int id, [FromBody] UpdateTripScheduleDto dto)
+        public async Task<IActionResult> UpdateTripSchedule(int id, [FromQuery] UpdateTripScheduleDto dto)
             => Ok(await _companyService.UpdateTripScheduleAsync(id, dto, User.GetCompanyId()));
 
         [HttpDelete("trips/schedules/{id}")]

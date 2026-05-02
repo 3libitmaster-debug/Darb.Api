@@ -72,10 +72,10 @@ namespace Darb.Api.Controllers
             => Ok(await _passengerService.SearchTripsAsync(query));
 
 
-        [HttpGet("stations/dropdownMenu/{tripId}")]
+        [HttpGet("trip/stations/{tripId}")]
         [SwaggerOperation(
-            Summary = "Get Stations by Company and Governorate",
-            Description = "Retrieves all stations for a specific company within a specific governorate.")]
+            Summary = "Get trip stations",
+            Description = "Retrieves all stations for a specific trip")]
         public async Task<IActionResult> GetStations(int tripId)
             => Ok(await _passengerService.GetTripStationsAsync(tripId));
 
@@ -110,7 +110,7 @@ namespace Darb.Api.Controllers
         }
 
 
-        [HttpPost("trip/bookings")]
+        [HttpPost("trips/book")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
             Summary = "Book a Trip (Stage 1)",
@@ -133,18 +133,18 @@ namespace Darb.Api.Controllers
             }
         }
 
-        [HttpPost("upload/receipt")]
+        [HttpPost("upload/booking/receipt")]
         [Authorize(Roles = "Passenger")]
         [Consumes("multipart/form-data")]
         [SwaggerOperation(
-            Summary = "Upload Payment Receipt (Stage 2)",
+            Summary = "Upload Payment Receipt for (Stage 2)",
             Description = "Upload the payment receipt image for a previously created booking. This confirms the booking.")]
         public async Task<IActionResult> UploadReceipt([FromForm] UploadReceiptDto request)
         {
             try
             {
-                int userId = User.GetPassengerId();
-                var response = await _passengerService.UploadReceiptAsync(userId, request);
+                int accountId = User.GetPassengerId();
+                var response = await _passengerService.UploadReceiptAsync(accountId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -157,6 +157,28 @@ namespace Darb.Api.Controllers
             }
         }
 
+        [HttpGet("my-bookings")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(
+            Summary = "Get Passenger Bookings",
+            Description = "Retrieves all bookings made by the authenticated passenger along with trip, company, and ticket details.")]
+        public async Task<IActionResult> GetMyBookings()
+        {
+            try
+            {
+                int passengerId = User.GetPassengerId();
+                var response = await _passengerService.GetMyBookingsAsync(passengerId);
+
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
 
     }
 }

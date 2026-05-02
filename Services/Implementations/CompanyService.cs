@@ -10,6 +10,7 @@ using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -19,19 +20,20 @@ namespace Darb.Api.Services.Implementations
         private readonly IRepository<Bus> _busRepository;
         private readonly IRepository<Station> _stationRepository;
         private readonly ApplicationDbContext _context;
-
-
+        private readonly IQrCodeService _qrCodeService;
+   
         public CompanyService(
-
             IRepository<Trip> tripRepository,
             IRepository<Bus> busRepository,
             IRepository<Station> stationRepository,
-            ApplicationDbContext context)
+            ApplicationDbContext context,
+            IQrCodeService qrCodeService)
         {
             _tripRepository = tripRepository;
             _busRepository = busRepository;
             _stationRepository = stationRepository;
             _context = context;
+            _qrCodeService = qrCodeService;
         }
 
 
@@ -64,9 +66,9 @@ namespace Darb.Api.Services.Implementations
                 /* Logic C: Capacity-based Status Update
                    If a 'Scheduled' trip is fully booked (0 available seats).
                 */
-                if (trip.Status == TripStatus.scheduled && trip.AvailableSeats <= 0)
+                if (trip.TripStatus == TripStatus.scheduled && trip.AvailableSeats <= 0)
                 {
-                    trip.Status = TripStatus.Fulled;
+                    trip.TripStatus = TripStatus.Fulled;
                     hasChanges = true;
                 }
             }
@@ -79,15 +81,15 @@ namespace Darb.Api.Services.Implementations
 
             // STEP 5: Map to DTOs for the final response.
             var tripList = trips
-                .OrderByDescending(t => t.DepartureDate)
+                .OrderByDescending(t => t.DepDate)
                 .Select(t => new TripReadDto
                 {
                     TripId = t.TripId,
                     StartGoveName = t.StartGovernate?.Name ?? "N/A",
                     EndGoveName = t.EndGovernate?.Name ?? "N/A",
-                    Price = t.BasePrice,
-                    DepartureDate = t.DepartureDate,
-                    Status = t.Status.ToString(),
+                    Price = t.Price,
+                    DepartureDate = t.DepDate,
+                    Status = t.TripStatus.ToString(),
                     AvailableSeats = t.AvailableSeats,
                     BusId = t.BusId
                 }).ToList();
@@ -118,9 +120,9 @@ namespace Darb.Api.Services.Implementations
             bool statusUpdated = false;
 
             // Check for 'Full' status if still scheduled.
-            if (trip.Status == TripStatus.scheduled && trip.AvailableSeats <= 0)
+            if (trip.TripStatus == TripStatus.scheduled && trip.AvailableSeats <= 0)
             {
-                trip.Status = TripStatus.Fulled;
+                trip.TripStatus = TripStatus.Fulled;
                 statusUpdated = true;
             }
 
@@ -136,10 +138,10 @@ namespace Darb.Api.Services.Implementations
                 TripId = trip.TripId,
                 StartGoveName = trip.StartGovernate?.Name ?? "N/A",
                 EndGoveName = trip.EndGovernate?.Name ?? "N/A",
-                Price = trip.BasePrice,
-                Status = trip.Status.ToString(),
+                Price = trip.Price,
+                Status = trip.TripStatus.ToString(),
                 AvailableSeats = trip.AvailableSeats,
-                DepartureDate = trip.DepartureDate,
+                DepartureDate = trip.DepDate,
                 BusId = trip.BusId
             };
 
@@ -153,39 +155,56 @@ namespace Darb.Api.Services.Implementations
         /// </summary>
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
-            // Business Rule: Departure time must be in the future.
-            if (tripDto.DepartureDate.Date < DateHelper.GetYemenTime().Date)
-                return ResponseDto.FailureResponse("عذراً، يجب أن يكون وقت انطلاق الرحلة في تاريخ مستقبلي.");
+            // 1. التحقق من أن البيانات لم تصل فارغة (لتجنب أخطاء التاريخ الافتراضي)
+            if (tripDto == null || tripDto.StartGoveId == 0)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح. تأكد من إرسال البيانات بدون غلاف 'tripDto' خارجي.");
+            }
 
-            // Validation: Ensure the bus is owned by the company making the request.
+            var nowYemen = DateHelper.GetYemenTime();
+
+            // 2. التحقق من منطقية التاريخ (مع كشف التاريخ المستلم في رسالة الخطأ للتصحيح)
+            if (tripDto.DepartureDate.Date < nowYemen.Date)
+            {
+                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي. تاريخ اليوم: ({nowYemen:yyyy-MM-dd})");
+            }
+
+            // 3. التحقق من الوقت إذا كانت الرحلة اليوم
+            if (tripDto.DepartureDate.Date == nowYemen.Date)
+            {
+                var currentTime = TimeOnly.FromDateTime(nowYemen);
+                if (tripDto.Routes.Any(r => r.DepartureTime <= currentTime))
+                {
+                    return ResponseDto.FailureResponse("لا يمكن جدولة رحلة لوقت قد مضى اليوم.");
+                }
+            }
+
+            // 4. التحقق من الحافلة وملكية الشركة لها
             var bus = await _context.Buses
                 .FirstOrDefaultAsync(b => b.BusId == tripDto.BusId && b.CompanyId == companyId);
 
             if (bus == null)
-                return ResponseDto.FailureResponse("الحافلة المختارة غير مسجلة ضمن أسطول شركتكم، يرجى التحقق من تفاصيل الحافلة.");
+                return ResponseDto.FailureResponse("الحافلة المختارة غير موجودة أو غير مسجلة لشركتكم.");
 
-            // Validation: Ensure the bus status is Available.
-            if (bus.Status != BusStatus.Available)
-            {
-                return ResponseDto.FailureResponse("عذراً، الحافلة المختارة غير متاحة للخدمة حالياً.");
-            }
+            if (bus.BusStatus != BusStatus.Available)
+                return ResponseDto.FailureResponse("الحافلة المختارة غير متاحة حالياً.");
 
             if (tripDto.Routes == null || !tripDto.Routes.Any())
                 return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
 
-            // Fetch the fares to validate stations and get system prices.
+            // 5. جلب التسعيرات والتحقق من المسار
             var tripFares = await _context.TripFares
-                .Where(tf => tf.CompanyId == companyId && 
-                             tf.FromGovId == tripDto.StartGoveId && 
+                .Where(tf => tf.CompanyId == companyId &&
+                             tf.FromGovId == tripDto.StartGoveId &&
                              tf.ToGovId == tripDto.EndGoveId)
                 .ToListAsync();
 
             if (!tripFares.Any())
-                return ResponseDto.FailureResponse("لا توجد تسعيرات مسجلة لهذا المسار، يرجى إضافة تسعيرات المحطات أولاً.");
+                return ResponseDto.FailureResponse("لا توجد تسعيرات معرفة لهذا المسار في النظام.");
 
-            var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation == true);
+            var primaryFare = tripFares.FirstOrDefault(tf => tf.IsMainStation);
             if (primaryFare == null)
-                return ResponseDto.FailureResponse("يجب تحديد محطة انطلاق والمسار الرئيسي للرحلة المحددة.");
+                return ResponseDto.FailureResponse("يجب تحديد السعر الرئيسي للمسار (Main Station) في الإعدادات.");
 
             var strategy = _context.Database.CreateExecutionStrategy();
             return await strategy.ExecuteAsync(async () =>
@@ -193,64 +212,56 @@ namespace Darb.Api.Services.Implementations
                 using var transaction = await _context.Database.BeginTransactionAsync();
                 try
                 {
-                    // Create Entity: Assign bus capacity to available seats upon creation.
+                    // 6. إنشاء الكائن الرئيسي للرحلة
                     var trip = new Trip
                     {
                         BusId = tripDto.BusId,
                         CompanyId = companyId,
                         StartGoveId = tripDto.StartGoveId,
                         EndGoveId = tripDto.EndGoveId,
-                        DepartureDate = tripDto.DepartureDate,
-                        BasePrice = primaryFare.Price,
-                        Status = TripStatus.scheduled,
-                        AvailableSeats = bus.Capacity,
+                        DepDate = tripDto.DepartureDate,
+                        Price = primaryFare.Price,
+                        TripStatus = TripStatus.scheduled,
+                        AvailableSeats = bus.BusCapacity,
                         Period = tripDto.Period
                     };
 
                     await _context.Trips.AddAsync(trip);
                     await _context.SaveChangesAsync();
 
+                    // 7. إضافة جدول المحطات (Schedules) بشكل جماعي لزيادة الأداء
+                    var schedules = new List<TripSchedule>();
                     foreach (var routeDto in tripDto.Routes)
                     {
                         var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
                         if (matchingFare == null)
                         {
                             await transaction.RollbackAsync();
-                            return ResponseDto.FailureResponse("إحدى المحطات المختارة لا ترتبط بالمسار المعرف في النظام، يرجى التأكد.");
+                            return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
                         }
 
-                        var tripSchedule = new TripSchedule
+                        schedules.Add(new TripSchedule
                         {
                             TripId = trip.TripId,
-                            StationId = matchingFare.StationId,
+                            StationId = routeDto.StationId,
                             DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
                             SeatFare = matchingFare.Price
-
-                        };
-                        await _context.TripSchedules.AddAsync(tripSchedule);
+                        });
                     }
-                    
+
+                    await _context.TripSchedules.AddRangeAsync(schedules);
                     await _context.SaveChangesAsync();
                     await transaction.CommitAsync();
 
-                    var resultDto = new TripDto
-                    {
-                        TripId = trip.TripId,
-                        BusId = trip.BusId,
-                        BasePrice = trip.BasePrice,
-                        DepartureDate = trip.DepartureDate,
-                        Status = trip.Status.ToString()
-                    };
-
-                    return ResponseDto.SuccessResponse("تم جدولة الرحلة بنجاح.", resultDto);
+                    return ResponseDto.SuccessResponse("تم إنشاء وجدولة الرحلة بنجاح.", new { tripId = trip.TripId });
                 }
                 catch (Exception ex)
                 {
                     await transaction.RollbackAsync();
-                    var realError = ex.InnerException?.Message ?? ex.Message;
-                    return ResponseDto.FailureResponse($"نعتذر، حدث خطأ تقني أثناء حفظ الرحلة: {realError}");
+                    return ResponseDto.FailureResponse($"خطأ تقني: {ex.InnerException?.Message ?? ex.Message}");
                 }
             });
+        
         }
         #endregion
 
@@ -268,7 +279,7 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("نأسف، الرحلة غير موجودة أو لا تملك الصلاحية اللازمة لتعديلها.");
 
             // Logic: Prevent modification if the trip is completed.
-            if (trip.Status == TripStatus.completed)
+            if (trip.TripStatus == TripStatus.completed)
             {
                 return ResponseDto.FailureResponse("لا يمكن تعديل بيانات هذه الرحلة نظراً لكونها مكتملة ومؤرشفة في السجلات المالية.");
             }
@@ -279,7 +290,7 @@ namespace Darb.Api.Services.Implementations
             {
                 if (updateDto.DepartureDate.Value.Date < DateTime.Now.Date)
                     return ResponseDto.FailureResponse("يرجى اختيار تاريخ مستقبلي؛ لا يمكن تعديل وقت الانطلاق لوقت قد مضى.");
-                trip.DepartureDate = updateDto.DepartureDate.Value;
+                trip.DepDate = updateDto.DepartureDate.Value;
             }
 
             // Bus Swap Validation: Ensure the new bus is also owned by this company.
@@ -300,7 +311,7 @@ namespace Darb.Api.Services.Implementations
                 await _context.SaveChangesAsync();
 
 
-                var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.BasePrice, Status = trip.Status.ToString() };
+                var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.Price, Status = trip.TripStatus.ToString() };
                 return ResponseDto.SuccessResponse("تم تحديث بيانات الرحلة والمسارات التابعة لها بنجاح وفق التعديلات الجديدة.", resultDto);
             }
             catch (Exception ex)
@@ -324,7 +335,7 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على الرحلة المراد حذفها.");
 
             // Safety Rule: Completed trips should remain in history and cannot be deleted.
-            if (trip.Status == TripStatus.completed)
+            if (trip.TripStatus == TripStatus.completed)
                 return ResponseDto.FailureResponse("حفاظاً على سلامة السجلات المالية والإحصائية، لا يمكن حذف الرحلات المكتملة.");
 
             // --- NEW: Booking Check ---
@@ -366,8 +377,8 @@ namespace Darb.Api.Services.Implementations
                 BusId = b.BusId,
                 PlateNumber = b.PlateNumber ?? "غير محدد",
                 Model = b.Model ?? "غير محدد",
-                Capacity = b.Capacity,
-                Status = b.Status.ToString() // Converts Enum to String for the client
+                Capacity = b.BusCapacity,
+                Status = b.BusStatus.ToString() // Converts Enum to String for the client
             }).ToList();
 
             return ResponseDto.SuccessResponse($"تم استعادة بيانات الأسطول بنجاح، إجمالي الحافلات: {busList.Count}", busList);
@@ -389,8 +400,8 @@ namespace Darb.Api.Services.Implementations
                 BusId = bus.BusId,
                 PlateNumber = bus.PlateNumber ?? "غير محدد",
                 Model = bus.Model ?? "غير محدد",
-                Capacity = bus.Capacity,
-                Status = bus.Status.ToString()
+                Capacity = bus.BusCapacity,
+                Status = bus.BusStatus.ToString()
             };
 
             return ResponseDto.SuccessResponse("تم استرجاع بيانات الحافلة بنجاح.", busDto);
@@ -410,8 +421,8 @@ namespace Darb.Api.Services.Implementations
             {
                 PlateNumber = busDto.PlateNumber,
                 Model = busDto.Model,
-                Capacity = busDto.Capacity,
-                Status = BusStatus.Available, // New buses are available by default
+                BusCapacity = busDto.Capacity,
+                BusStatus = BusStatus.Available, // New buses are available by default
                 CompanyId = companyId
             };
 
@@ -439,11 +450,10 @@ namespace Darb.Api.Services.Implementations
                 bus.Model = busDto.Model;
 
             if (busDto.Capacity.HasValue && busDto.Capacity.Value > 0)
-                bus.Capacity = busDto.Capacity.Value;
+                bus.BusCapacity = busDto.Capacity.Value;
 
             if (busDto.Status.HasValue)
-                bus.Status = busDto.Status.Value;
-
+                bus.BusStatus = busDto.Status.Value;
 
             // Persisting changes via Generic Repository update pattern
             _busRepository.Update(bus);
@@ -611,8 +621,8 @@ namespace Darb.Api.Services.Implementations
                 TripScheduleId = b.TripScheduleId,
                 StartGovernorate = b.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = b.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = b.TripSchedule?.Trip?.DepartureDate ?? DateTime.MinValue,
-                NumberOfSeats = b.NumberOfSeats,
+                DepartureDate = b.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
+                ReservedSeatsCount = b.ReservedSeatsCount,
                 TotalAmount = b.TotalAmount,
                 ReceiptImagePath = b.ReceiptImagePath,
                 Status = b.Status.ToString(),
@@ -654,8 +664,8 @@ namespace Darb.Api.Services.Implementations
                 TripScheduleId = booking.TripScheduleId,
                 StartGovernorate = booking.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
                 EndGovernorate = booking.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = booking.TripSchedule?.Trip?.DepartureDate ?? DateTime.MinValue,
-                NumberOfSeats = booking.NumberOfSeats,
+                DepartureDate = booking.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
+                ReservedSeatsCount = booking.ReservedSeatsCount,
                 TotalAmount = booking.TotalAmount,
                 ReceiptImagePath = booking.ReceiptImagePath,
                 Status = booking.Status.ToString(),
@@ -668,8 +678,7 @@ namespace Darb.Api.Services.Implementations
                         PassengerDetailId = p.PassengerDetailsId,
                         FullName = p.FullName,
                         NationalId = p.NationalId ?? "غير متوفر",
-                        TicketCode = ticket?.TicketCode,
-                        IsConfirmed = ticket?.IsConfirmed ?? false
+                        TicketCode = ticket?.TicketCode
                     };
                 }).ToList()
             };
@@ -697,17 +706,24 @@ namespace Darb.Api.Services.Implementations
             {
                 foreach (var passenger in booking.Passengers)
                 {
-                    var ticketExists = await _context.ETickets.AnyAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                    if (!ticketExists)
+                    var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
+                    string payload = $"BookingId:{booking.BookingId}|PassengerId:{passenger.PassengerDetailsId}";
+                    string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+                    if (existingTicket == null)
                     {
                         var ticket = new ETicket
                         {
                             PassengerDetailId = passenger.PassengerDetailsId,
-                            TicketCode = Guid.NewGuid().ToString(),
-                            IsConfirmed = true,
-                            Status = Darb.Api.Models.Enums.ETicketStatus.Active
+                            TicketCode = qrBase64,
+                            Status = Darb.Api.Models.Enums.ETicketStatus.Valid
                         };
                         await _context.ETickets.AddAsync(ticket);
+                    }
+                    else
+                    {
+                        existingTicket.TicketCode = qrBase64;
+                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.UnValid;
                     }
                 }
             }
@@ -717,13 +733,12 @@ namespace Darb.Api.Services.Implementations
                 var eTickets = await _context.ETickets.Where(e => passengerDetailIds.Contains(e.PassengerDetailId)).ToListAsync();
                 foreach (var ticket in eTickets)
                 {
-                    ticket.Status = Darb.Api.Models.Enums.ETicketStatus.Cancelled;
-                    ticket.IsConfirmed = false;
+                    ticket.Status = ETicketStatus.UnValid;
                 }
             }
 
             await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse($"تم تحديث حالة الحجز إلى {dto.Status} بنجاح.");
+            return ResponseDto.SuccessResponse("تم تأكيد تحديث حالة الحجز بنجاح.");
         }
 
         public async Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId)
@@ -756,6 +771,54 @@ namespace Darb.Api.Services.Implementations
             await _context.SaveChangesAsync();
 
             return ResponseDto.SuccessResponse("تم حذف الحجز نهائياً من النظام.");
+        }
+
+        public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Passengers)
+                .Include(b => b.TripSchedule)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
+
+            if (booking.Status == BookingStatus.Confirmed)
+                return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
+
+            booking.Status = BookingStatus.Confirmed;
+
+            foreach (var passenger in booking.Passengers)
+            {
+                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
+                int eticketId = existingTicket?.Id ?? 0; // 0 if not created yet
+                int tripScheduleId = booking.TripScheduleId;
+
+                // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
+
+                string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
+                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+                if (existingTicket == null)
+                {
+                    var ticket = new ETicket
+                    {
+                        PassengerDetailId = passenger.PassengerDetailsId,
+                        TicketCode = qrBase64,
+                        Status = ETicketStatus.Valid
+                    };
+                    await _context.ETickets.AddAsync(ticket);
+                }
+                else
+                {
+                    existingTicket.TicketCode = qrBase64;
+                    existingTicket.Status = ETicketStatus.Valid;
+                }
+            }
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
         }
         #endregion
 

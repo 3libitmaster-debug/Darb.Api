@@ -19,39 +19,28 @@ namespace Darb.Api.Controllers
             _authService = authService;
         }
 
-        #region Authentication Endpoints
 
-        /// <summary>
-        /// Handles user login for both Passengers and Companies and admin.
-        /// </summary>
+      
         [HttpPost("login")]
         [SwaggerOperation(Summary = "User Login", Description = "Authenticates users (Admin/Company/Passenger) and returns a JWT token.")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
-            // Validate Model attributes
             if (!ModelState.IsValid)
             {
                 return BadRequest(ResponseDto.FailureResponse("Invalid input data.", ModelState));
             }
 
-            // Call the service which now returns a ResponseDto
             var result = await _authService.Login(dto);
 
-            // If the login failed (Invalid, Inactive, Unsubscribed, etc.)
             if (!result.Success)
             {
-                // We can differentiate status codes if needed
                 if (result.Message.Contains("Invalid")) return Unauthorized(result);
                 return BadRequest(result);
             }
-
-            // Return 200 OK with the token inside the result object
             return Ok(result);
         }
 
-        /// <summary>
-        /// Sends Registration OTP to the user's email.
-        /// </summary>
+  
         [HttpPost("send-registration-otp")]
         [SwaggerOperation(Summary = "Send Registration OTP", Description = "Sends Registration OTP to the user's email.")]
         public async Task<IActionResult> SendOtp([FromBody] SendOtpDto dto)
@@ -66,9 +55,6 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Verifies the OTP provided by the user.
-        /// </summary>
         [HttpPost("verify-registration-otp")]
         [SwaggerOperation(Summary = "Verify Registration OTP", Description = "Checks if the provided OTP matches the one sent to the email.")]
         public async Task<IActionResult> VerifyOtp([FromBody] VerifyOtpDto dto)
@@ -83,14 +69,8 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-        #endregion
-
-        #region Registration Endpoints
-
-        /// <summary>
-        /// Registers a new passenger in the system.
-        /// </summary>
-        [HttpPost("register-passenger")]
+     
+        [HttpPost("register/passengers")]
         [SwaggerOperation(
             Summary = "Register New Passenger",
             Description = "Creates a new passenger account. Checks for duplicate email and phone before saving."
@@ -100,15 +80,12 @@ namespace Darb.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ResponseDto.FailureResponse("Validation failed.", ModelState));
 
-            // Business Check: Duplicate Email
             if (await _authService.EmailExists(dto.Email!))
                 return BadRequest(ResponseDto.FailureResponse("Email is already registered."));
 
-            // Business Check: Duplicate Phone
             if (await _authService.PhoneExists(dto.Phone!))
                 return BadRequest(ResponseDto.FailureResponse("Phone number is already registered."));
 
-            // Call registration service
             var result = await _authService.RegisterPassenger(dto);
 
             if (!result.Success)
@@ -117,10 +94,8 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-        /// <summary>
-        /// Registers a new company with document uploads and subscription details.
-        /// </summary>
-        [HttpPost("register-company")]
+
+        [HttpPost("register/companies")]
         [SwaggerOperation(
             Summary = "Register New Company",
             Description = "Registers a new transport company. Requires uploading legal documents and licenses via form-data."
@@ -130,11 +105,9 @@ namespace Darb.Api.Controllers
             if (!ModelState.IsValid)
                 return BadRequest(ResponseDto.FailureResponse("Validation failed.", ModelState));
 
-            // Business Check: Duplicate Email
             if (await _authService.EmailExists(request.Email!))
                 return BadRequest(ResponseDto.FailureResponse("Email is already in use by another company."));
 
-            // Call registration service (handles files and transactions)
             var result = await _authService.RegisterCompanyAsync(request);
 
             if (!result.Success)
@@ -143,6 +116,6 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-        #endregion
+   
     }
 }

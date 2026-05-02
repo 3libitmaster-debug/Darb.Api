@@ -12,8 +12,8 @@ using darbWebApp.Data;
 namespace Darb.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    [Migration("20260409004520_addRouteFareToTripRoute")]
-    partial class addRouteFareToTripRoute
+    [Migration("20260421160523_IntialMigration")]
+    partial class IntialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -95,11 +95,6 @@ namespace Darb.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("BankAccountId"));
 
-                    b.Property<string>("AccountHolderName")
-                        .IsRequired()
-                        .HasMaxLength(150)
-                        .HasColumnType("nvarchar(150)");
-
                     b.Property<string>("AccountNumber")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -110,6 +105,11 @@ namespace Darb.Api.Migrations
 
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");
+
+                    b.Property<string>("HolderName")
+                        .IsRequired()
+                        .HasMaxLength(150)
+                        .HasColumnType("nvarchar(150)");
 
                     b.HasKey("BankAccountId");
 
@@ -131,14 +131,14 @@ namespace Darb.Api.Migrations
                     b.Property<DateTime>("BookingAt")
                         .HasColumnType("datetime2");
 
-                    b.Property<int>("NumberOfSeats")
-                        .HasColumnType("int");
-
                     b.Property<int>("PassengerId")
                         .HasColumnType("int");
 
                     b.Property<string>("ReceiptImagePath")
                         .HasColumnType("nvarchar(max)");
+
+                    b.Property<int>("ReservedSeatsCount")
+                        .HasColumnType("int");
 
                     b.Property<int>("Status")
                         .HasColumnType("int");
@@ -146,14 +146,14 @@ namespace Darb.Api.Migrations
                     b.Property<decimal>("TotalAmount")
                         .HasColumnType("decimal(18,2)");
 
-                    b.Property<int>("TripRouteId")
+                    b.Property<int>("TripScheduleId")
                         .HasColumnType("int");
 
                     b.HasKey("BookingId");
 
                     b.HasIndex("PassengerId");
 
-                    b.HasIndex("TripRouteId");
+                    b.HasIndex("TripScheduleId");
 
                     b.ToTable("Bookings");
                 });
@@ -260,9 +260,6 @@ namespace Darb.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("Id"));
 
-                    b.Property<bool>("IsConfirmed")
-                        .HasColumnType("bit");
-
                     b.Property<int>("PassengerDetailId")
                         .HasColumnType("int");
 
@@ -365,8 +362,7 @@ namespace Darb.Api.Migrations
 
                     b.Property<string>("NationalId")
                         .IsRequired()
-                        .HasMaxLength(11)
-                        .HasColumnType("nvarchar(11)");
+                        .HasColumnType("nvarchar(max)");
 
                     b.Property<string>("PhoneNumber")
                         .IsRequired()
@@ -452,9 +448,6 @@ namespace Darb.Api.Migrations
 
                     SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripId"));
 
-                    b.Property<DateTime>("ArrivalDateTime")
-                        .HasColumnType("datetime2");
-
                     b.Property<int>("AvailableSeats")
                         .HasColumnType("int");
 
@@ -467,7 +460,7 @@ namespace Darb.Api.Migrations
                     b.Property<int>("CompanyId")
                         .HasColumnType("int");
 
-                    b.Property<DateTime>("DepartureDateTime")
+                    b.Property<DateTime>("DepartureDate")
                         .HasColumnType("datetime2");
 
                     b.Property<int>("EndGoveId")
@@ -512,9 +505,6 @@ namespace Darb.Api.Migrations
                     b.Property<bool>("IsMainStation")
                         .HasColumnType("bit");
 
-                    b.Property<int>("MinutesOffset")
-                        .HasColumnType("int");
-
                     b.Property<decimal>("Price")
                         .HasColumnType("decimal(18, 2)");
 
@@ -537,18 +527,18 @@ namespace Darb.Api.Migrations
                     b.ToTable("TripFares");
                 });
 
-            modelBuilder.Entity("Darb.Api.Models.TripRoute", b =>
+            modelBuilder.Entity("Darb.Api.Models.TripSchedule", b =>
                 {
-                    b.Property<int>("TripRouteId")
+                    b.Property<int>("TripScheduleId")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("int");
 
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripRouteId"));
+                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("TripScheduleId"));
 
-                    b.Property<TimeSpan>("DepartureTime")
+                    b.Property<TimeOnly>("DepartureTime")
                         .HasColumnType("time");
 
-                    b.Property<decimal>("RouteFare")
+                    b.Property<decimal>("SeatFare")
                         .HasColumnType("decimal(18, 2)");
 
                     b.Property<int>("StationId")
@@ -557,13 +547,13 @@ namespace Darb.Api.Migrations
                     b.Property<int>("TripId")
                         .HasColumnType("int");
 
-                    b.HasKey("TripRouteId");
+                    b.HasKey("TripScheduleId");
 
                     b.HasIndex("StationId");
 
                     b.HasIndex("TripId");
 
-                    b.ToTable("TripRoutes");
+                    b.ToTable("TripSchedules");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.User", b =>
@@ -639,15 +629,15 @@ namespace Darb.Api.Migrations
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
 
-                    b.HasOne("Darb.Api.Models.TripRoute", "TripRoute")
+                    b.HasOne("Darb.Api.Models.TripSchedule", "TripSchedule")
                         .WithMany()
-                        .HasForeignKey("TripRouteId")
+                        .HasForeignKey("TripScheduleId")
                         .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.Navigation("Passenger");
 
-                    b.Navigation("TripRoute");
+                    b.Navigation("TripSchedule");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.Bus", b =>
@@ -824,16 +814,16 @@ namespace Darb.Api.Migrations
                     b.Navigation("ToGovernorate");
                 });
 
-            modelBuilder.Entity("Darb.Api.Models.TripRoute", b =>
+            modelBuilder.Entity("Darb.Api.Models.TripSchedule", b =>
                 {
                     b.HasOne("Darb.Api.Models.Station", "Station")
                         .WithMany()
                         .HasForeignKey("StationId")
-                        .OnDelete(DeleteBehavior.Cascade)
+                        .OnDelete(DeleteBehavior.Restrict)
                         .IsRequired();
 
                     b.HasOne("Darb.Api.Models.Trip", "Trip")
-                        .WithMany("TripRoutes")
+                        .WithMany("TripSchedules")
                         .HasForeignKey("TripId")
                         .OnDelete(DeleteBehavior.NoAction)
                         .IsRequired();
@@ -885,7 +875,7 @@ namespace Darb.Api.Migrations
 
             modelBuilder.Entity("Darb.Api.Models.Trip", b =>
                 {
-                    b.Navigation("TripRoutes");
+                    b.Navigation("TripSchedules");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.User", b =>

@@ -14,6 +14,5 @@ namespace Darb.Api.DTOs.Booking
         public string NationalId { get; set; } = string.Empty;
         public string Gender { get; set; } = string.Empty;
         public string? TicketCode { get; set; }
-        public bool IsConfirmed { get; set; }
     }
 }

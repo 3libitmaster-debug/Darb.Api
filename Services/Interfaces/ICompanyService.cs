@@ -63,6 +63,7 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId);
         Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId);
         Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId);
+        Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId);
         Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId);
         #endregion
 

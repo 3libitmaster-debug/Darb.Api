@@ -20,7 +20,7 @@ namespace Darb.Api.Services.Interfaces
         /// Handles the registration logic for a company, including document uploads and subscriptions.
         Task<ResponseDto> RegisterCompanyAsync(RegisterCompanyDto request);
 
-        /// Authenticates the user and returns a response containing the JWT token or error details.
+        /// Authenticates the Account and returns a response containing the JWT token or error details.
         Task<ResponseDto> Login(LoginDto dto);
 
         /// Sends an OTP to the specified email for verification.

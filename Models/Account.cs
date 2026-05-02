@@ -4,18 +4,18 @@ namespace Darb.Api.Models
 {
 
 
-    public class User
+    public class Account
     {
-        public int UserId { get; set; }
+        public int AccountId { get; set; }
 
-      
-        public string ?Email { get; set; }
+
+        public string? Email { get; set; }
 
         [Required, MaxLength(100)]
-        public string ?Password { get; set; }
+        public string? Password { get; set; }
 
         [Required]
-        public UserRoles Role { get; set; }
+        public AccountRoles Role { get; set; }
 
         [Required]
         public bool IsActive { get; set; } = false;

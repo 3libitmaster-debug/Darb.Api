@@ -11,10 +11,10 @@ namespace darbWebApp.Data
         }
 
         // --- Database Sets (Tables) ---
-        public DbSet<User> Users { get; set; }
+        public DbSet<Account> Accounts { get; set; }
         public DbSet<Passenger> Passengers { get; set; }
         public DbSet<Company> Companies { get; set; }
-        public DbSet<Subscription> Subscriptions { get; set; }
+        public DbSet<CompanySubscription> CompanySubscription { get; set; }
         public DbSet<Governorate> Governorates { get; set; }
         public DbSet<Trip> Trips { get; set; }
         public DbSet<Bus> Buses { get; set; }
@@ -37,18 +37,18 @@ namespace darbWebApp.Data
             // 1. PROPERTY CONFIGURATIONS (Enums, Indexes, Constraints)
             // ============================================================
 
-            // Convert UserRole Enum to String in Database
-            modelBuilder.Entity<User>()
+            // Convert AccountRole Enum to String in Database
+            modelBuilder.Entity<Account>()
                 .Property(u => u.Role)
                 .HasConversion<string>();
 
             // Convert Subscription PlanType Enum to String in Database
-            modelBuilder.Entity<Subscription>()
+            modelBuilder.Entity<CompanySubscription>()
                .Property(u => u.PlanType)
                .HasConversion<string>();
 
             // Ensure Email uniqueness for security and login integrity
-            modelBuilder.Entity<User>()
+            modelBuilder.Entity<Account>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
@@ -67,29 +67,29 @@ namespace darbWebApp.Data
             // 2. RELATIONSHIP CONFIGURATIONS (One-to-One, One-to-Many)
             // ============================================================
 
-            // --- Passenger & User Relationship (One-to-One) ---
-            // A Passenger is a specialized type of User. Deleting a User deletes the Passenger profile.
+            // --- Passenger & Account Relationship (One-to-One) ---
+            // A Passenger is a specialized type of Account. Deleting a Account deletes the Passenger profile.
             modelBuilder.Entity<Passenger>()
-                .HasOne(p => p.User)
+                .HasOne(p => p.Account)
                 .WithOne(u => u.Passenger)
-                .HasForeignKey<Passenger>(p => p.UserId)
+                .HasForeignKey<Passenger>(p => p.AccountId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // --- Company & User Relationship (One-to-One) ---
-            // A Company is a specialized type of User. Cascade delete ensures data cleanup.
+            // --- Company & Account Relationship (One-to-One) ---
+            // A Company is a specialized type of Account. Cascade delete ensures data cleanup.
             modelBuilder.Entity<Company>()
-                .HasOne(c => c.User)
+                .HasOne(c => c.Account)
                 .WithOne(u => u.Company)
-                .HasForeignKey<Company>(p => p.UserId)
+                .HasForeignKey<Company>(p => p.AccountId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
             // --- Subscription & Company Relationship (One-to-Many) ---
             // A Company can have multiple subscription history records.
-            modelBuilder.Entity<Subscription>()
+            modelBuilder.Entity<CompanySubscription>()
                 .HasOne(s => s.Company)
-                .WithMany(c => c.Subscription)
+                .WithMany(c => c.CompanySubscription)
                 .HasForeignKey(s => s.CompanyId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
@@ -184,19 +184,19 @@ namespace darbWebApp.Data
 
 
 
-            // --- Advertisement & User Relationships ---
-            // An advertisement is created by a user and owned by a user (Admin).
+            // --- Advertisement & Account Relationships ---
+            // An advertisement is created by a Account and owned by a Account (Admin).
             // Prevent multiple cascade paths
             modelBuilder.Entity<Advertisement>()
-                .HasOne(a => a.User)
+                .HasOne(a => a.Account)
                 .WithMany()
-                .HasForeignKey(a => a.UserId)
+                .HasForeignKey(a => a.AccountId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Advertisement>()
-                .HasOne(a => a.User)
+                .HasOne(a => a.Account)
                 .WithMany()
-                .HasForeignKey(a => a.UserId)
+                .HasForeignKey(a => a.AccountId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // --- Bank & BankAccount Relationships ---

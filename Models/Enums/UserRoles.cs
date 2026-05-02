@@ -1,7 +1,7 @@
 ﻿namespace Darb.Api.Models.Enums
 {
 
-    public enum UserRoles
+    public enum AccountRoles
     {
         Admin = 0,
         Company = 1,
