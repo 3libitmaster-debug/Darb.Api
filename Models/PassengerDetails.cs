@@ -4,10 +4,7 @@ using System.Reflection;
 
 namespace Darb.Api.Models
 {
-    public enum Gender
-    {
-        Male = 0, Female = 1,
-    }
+
  
     public class PassengerDetails
     {

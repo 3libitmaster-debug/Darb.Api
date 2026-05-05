@@ -11,6 +11,7 @@ using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
 using Darb.Api.Models.Enums;
+using Darb.Api.DTOs.companyDtos.Trip;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -155,44 +156,30 @@ namespace Darb.Api.Services.Implementations
         /// </summary>
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
-            // 1. التحقق من أن البيانات لم تصل فارغة (لتجنب أخطاء التاريخ الافتراضي)
+            // 1. التحقق من أن البيانات لم تصل فارغة
             if (tripDto == null || tripDto.StartGoveId == 0)
             {
-                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح. تأكد من إرسال البيانات بدون غلاف 'tripDto' خارجي.");
+                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح.");
             }
 
             var nowYemen = DateHelper.GetYemenTime();
 
-            // 2. التحقق من منطقية التاريخ (مع كشف التاريخ المستلم في رسالة الخطأ للتصحيح)
+            // 2. التحقق من منطقية التاريخ
             if (tripDto.DepartureDate.Date < nowYemen.Date)
             {
-                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي. تاريخ اليوم: ({nowYemen:yyyy-MM-dd})");
+                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي.");
             }
 
-            // 3. التحقق من الوقت إذا كانت الرحلة اليوم
-            if (tripDto.DepartureDate.Date == nowYemen.Date)
-            {
-                var currentTime = TimeOnly.FromDateTime(nowYemen);
-                if (tripDto.Routes.Any(r => r.DepartureTime <= currentTime))
-                {
-                    return ResponseDto.FailureResponse("لا يمكن جدولة رحلة لوقت قد مضى اليوم.");
-                }
-            }
-
-            // 4. التحقق من الحافلة وملكية الشركة لها
+            // 3. التحقق من الحافلة وملكية الشركة لها
             var bus = await _context.Buses
                 .FirstOrDefaultAsync(b => b.BusId == tripDto.BusId && b.CompanyId == companyId);
 
             if (bus == null)
                 return ResponseDto.FailureResponse("الحافلة المختارة غير موجودة أو غير مسجلة لشركتكم.");
 
-            if (bus.BusStatus != BusStatus.Available)
-                return ResponseDto.FailureResponse("الحافلة المختارة غير متاحة حالياً.");
+           
 
-            if (tripDto.Routes == null || !tripDto.Routes.Any())
-                return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
-
-            // 5. جلب التسعيرات والتحقق من المسار
+            // 4. جلب التسعيرات والتحقق من المسار للحصول على السعر الأساسي
             var tripFares = await _context.TripFares
                 .Where(tf => tf.CompanyId == companyId &&
                              tf.FromGovId == tripDto.StartGoveId &&
@@ -206,62 +193,68 @@ namespace Darb.Api.Services.Implementations
             if (primaryFare == null)
                 return ResponseDto.FailureResponse("يجب تحديد السعر الرئيسي للمسار (Main Station) في الإعدادات.");
 
-            var strategy = _context.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
+            // 5. إنشاء الكائن الرئيسي للرحلة
+            var trip = new Trip
             {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
+                BusId = tripDto.BusId,
+                CompanyId = companyId,
+                StartGoveId = tripDto.StartGoveId,
+                EndGoveId = tripDto.EndGoveId,
+                DepDate = tripDto.DepartureDate,
+                Price = primaryFare.Price,
+                TripStatus = TripStatus.scheduled,
+                AvailableSeats = bus.BusCapacity,
+                Period = tripDto.Period
+            };
+
+            await _context.Trips.AddAsync(trip);
+            await _context.SaveChangesAsync();
+
+            return ResponseDto.SuccessResponse("تم إنشاء الرحلة بنجاح. يمكنك الآن إضافة المسارات.", new { tripId = trip.TripId });
+        }
+
+        public async Task<ResponseDto> AddTripRoutesAsync(int tripId, List<RouteRequestDto> routes, int companyId)
+        {
+            // 1. التحقق من وجود الرحلة وملكية الشركة لها
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
+
+            if (trip == null)
+                return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+            if (routes == null || !routes.Any())
+                return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
+
+            // 2. جلب التسعيرات المتاحة لهذا المسار
+            var tripFares = await _context.TripFares
+                .Where(tf => tf.CompanyId == companyId &&
+                             tf.FromGovId == trip.StartGoveId &&
+                             tf.ToGovId == trip.EndGoveId)
+                .ToListAsync();
+
+            var schedules = new List<TripSchedule>();
+            foreach (var routeDto in routes)
+            {
+                var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
+                if (matchingFare == null)
                 {
-                    // 6. إنشاء الكائن الرئيسي للرحلة
-                    var trip = new Trip
-                    {
-                        BusId = tripDto.BusId,
-                        CompanyId = companyId,
-                        StartGoveId = tripDto.StartGoveId,
-                        EndGoveId = tripDto.EndGoveId,
-                        DepDate = tripDto.DepartureDate,
-                        Price = primaryFare.Price,
-                        TripStatus = TripStatus.scheduled,
-                        AvailableSeats = bus.BusCapacity,
-                        Period = tripDto.Period
-                    };
-
-                    await _context.Trips.AddAsync(trip);
-                    await _context.SaveChangesAsync();
-
-                    // 7. إضافة جدول المحطات (Schedules) بشكل جماعي لزيادة الأداء
-                    var schedules = new List<TripSchedule>();
-                    foreach (var routeDto in tripDto.Routes)
-                    {
-                        var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
-                        if (matchingFare == null)
-                        {
-                            await transaction.RollbackAsync();
-                            return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
-                        }
-
-                        schedules.Add(new TripSchedule
-                        {
-                            TripId = trip.TripId,
-                            StationId = routeDto.StationId,
-                            DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
-                            SeatFare = matchingFare.Price
-                        });
-                    }
-
-                    await _context.TripSchedules.AddRangeAsync(schedules);
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return ResponseDto.SuccessResponse("تم إنشاء وجدولة الرحلة بنجاح.", new { tripId = trip.TripId });
+                    return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
                 }
-                catch (Exception ex)
+
+                schedules.Add(new TripSchedule
                 {
-                    await transaction.RollbackAsync();
-                    return ResponseDto.FailureResponse($"خطأ تقني: {ex.InnerException?.Message ?? ex.Message}");
-                }
-            });
-        
+                    TripId = tripId,
+                    StationId = routeDto.StationId,
+                    DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
+                    SeatFare = matchingFare.Price
+                });
+            }
+
+            // 3. إضافة الجداول لقاعدة البيانات
+            await _context.TripSchedules.AddRangeAsync(schedules);
+            await _context.SaveChangesAsync();
+
+            return ResponseDto.SuccessResponse("تم إضافة مسارات الرحلة بنجاح.");
         }
         #endregion
 

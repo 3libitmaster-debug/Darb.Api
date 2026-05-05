@@ -4,6 +4,8 @@ using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.TripFare;
 using Darb.Api.DTOs.TripSchedule;
 
+using Darb.Api.DTOs.companyDtos.Trip;
+
 namespace Darb.Api.Services.Interfaces
 {
     public interface ICompanyService
@@ -11,9 +13,12 @@ namespace Darb.Api.Services.Interfaces
         #region Trip Management
         // Retrieves all trips belonging to the specific company with their full details.
         Task<ResponseDto> GetAllCompanyTripsAsync(int companyId);
-
+        
         // Creates a new trip after validating bus ownership and checking for scheduling conflicts.
         Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId);
+
+        // Adds multiple routes/schedules to a trip at once.
+        Task<ResponseDto> AddTripRoutesAsync(int tripId, List<RouteRequestDto> routes, int companyId);
 
         // Updates an existing trip's details partially, allowed only if the trip is still 'Scheduled'.
         Task<ResponseDto> UpdateTripAsync(int tripId, UpdateTripDto updateDto, int companyId);

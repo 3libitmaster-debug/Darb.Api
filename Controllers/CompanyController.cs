@@ -3,6 +3,7 @@ using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.TripFare;
 using Darb.Api.DTOs.TripSchedule;
+using Darb.Api.DTOs.companyDtos.Trip;
 using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
@@ -59,7 +60,7 @@ namespace Darb.Api.Controllers
         [HttpPost("trips")]
         [SwaggerOperation(
             Summary = "Create New Trip",
-            Description = "Allows the company to schedule a new trip by providing bus details, route, and price.")]
+            Description = "Allows the company to schedule a new trip by providing bus details, start/end locations, and date. Returns the trip ID for route addition.")]
         public async Task<IActionResult> AddTrip([FromBody] CreateTripDto tripDto)
         {
             int companyId = User.GetCompanyId();
@@ -68,6 +69,25 @@ namespace Darb.Api.Controllers
                 return Unauthorized(ResponseDto.FailureResponse("نأسف، هويّة الشركة مفقودة في رمز الأمان الخاص بك."));
 
             var response = await _companyService.createTripAsync(tripDto, companyId);
+
+            if (!response.Success)
+                return BadRequest(response);
+
+            return Ok(response);
+        }
+
+        [HttpPost("trips/{id}/routes")]
+        [SwaggerOperation(
+            Summary = "Add Routes to Trip",
+            Description = "Adds a list of station stops and departure times to an existing trip.")]
+        public async Task<IActionResult> AddTripRoutes(int id, [FromBody] List<RouteRequestDto> routes)
+        {
+            int companyId = User.GetCompanyId();
+
+            if (companyId == 0)
+                return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة مفقودة."));
+
+            var response = await _companyService.AddTripRoutesAsync(id, routes, companyId);
 
             if (!response.Success)
                 return BadRequest(response);

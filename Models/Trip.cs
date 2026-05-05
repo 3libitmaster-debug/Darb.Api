@@ -12,7 +12,7 @@ namespace Darb.Api.Models
         cancelled = 1,
         completed = 2,
         Fulled = 3,
-        InProgress = 4
+
     }
 
 

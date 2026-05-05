@@ -21,7 +21,7 @@ ProjectAssetsFile=<PATH>obj/project.assets.json
 RootNamespace=Darb.Api
 RunAnalyzers=
 RunAnalyzersDuringLiveAnalysis=
-SolutionPath=<PATH>Darb.Api.sln
+SolutionPath=*Undefined*
 TargetFrameworkIdentifier=.NETCoreApp
 TargetPath=<PATH>bin/Debug/net9.0/Darb.Api.dll
 TargetRefPath=<PATH>obj/Debug/net9.0/ref/Darb.Api.dll
@@ -112,13 +112,13 @@ DTOs/company/TripSchedule/
  AddTripScheduleDto.cs
  TripScheduleReadDto.cs
  UpdateTripScheduleDto.cs
-DTOs/customer/Booking/
+DTOs/passenger/Booking/
  BankAccountsDropDownListDto.cs
  BookingRequestDto.cs
  PassengerDetailDto.cs
  TripScheduleResponseDto.cs
  UploadReceiptDto.cs
-DTOs/customer/homePage/
+DTOs/passenger/homePage/
  AdCardDto.cs
  HomePageDto.cs
  PeriodDto.cs
@@ -127,11 +127,13 @@ DTOs/customer/homePage/
  SimpleGovernorateDto.cs
  TripSearchQueryDto.cs
  TripSearchResultDto.cs
-DTOs/customer/MyBookings/
+DTOs/passenger/MyBookings/
  MyBookingDto.cs
  MyTicketDto.cs
-DTOs/customer/settings/PassengerProfileDto.cs
-Extensions/ClaimsPrincipalExtensions.cs
+DTOs/passenger/settings/PassengerProfileDto.cs
+Extensions/
+ ClaimsPrincipalExtensions.cs
+ TimeOnlyJsonConverter.cs
 Migrations/
  20260421160523_IntialMigration.cs
  20260421160523_IntialMigration.Designer.cs
