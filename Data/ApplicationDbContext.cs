@@ -28,7 +28,8 @@ namespace darbWebApp.Data
         public DbSet<PassengerDetails> PassengerDetails { get; set; }
         public DbSet<ETicket> ETickets { get; set; }
         public DbSet<TripFare> TripFares { get; set; }
-    
+        public DbSet<Review> Review { get; set; }
+
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
             base.OnModelCreating(modelBuilder);
@@ -183,6 +184,14 @@ namespace darbWebApp.Data
                 .OnDelete(DeleteBehavior.Restrict);
 
 
+            modelBuilder.Entity<Review>()
+                .HasOne(p => p.Passenger)
+                .WithMany(r => r.Review)
+                .HasForeignKey(p => p.PassengerId);
+
+     
+
+
 
             // --- Advertisement & Account Relationships ---
             // An advertisement is created by a Account and owned by a Account (Admin).
@@ -212,11 +221,11 @@ namespace darbWebApp.Data
                 .HasForeignKey(ba => ba.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade); 
 
-            // --- PassengerDetails & ETicket Relationship (One-to-One) ---
-            modelBuilder.Entity<PassengerDetails>()
-                .HasOne(pd => pd.ETicket)
-                .WithOne(e => e.PassengerDetails)
-                .HasForeignKey<ETicket>(e => e.PassengerDetailId)
+            // --- Booking & ETicket Relationship (One-to-One) ---
+            modelBuilder.Entity<Booking>()
+                .HasOne(b => b.ETicket)
+                .WithOne(e => e.Booking)
+                .HasForeignKey<ETicket>(e => e.BookingId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -245,6 +254,19 @@ namespace darbWebApp.Data
                 .HasForeignKey(tr => tr.StationId)
                 .OnDelete(DeleteBehavior.Restrict);
 
+
+            // Review relationship
+            modelBuilder.Entity<Review>()
+               .HasOne(p => p.Passenger)
+               .WithMany(r => r.Review)
+               .HasForeignKey(p => p.PassengerId)
+               .OnDelete(DeleteBehavior.Restrict); // Â‰« ⁄ÿ·‰« «·Õ–› «· ·ﬁ«∆Ì ··„”«›—
+
+            modelBuilder.Entity<Review>()
+                .HasOne(p => p.Company)
+                .WithMany(r => r.Review)
+                .HasForeignKey(p => p.CompanyId)
+                .OnDelete(DeleteBehavior.Cascade); // « —ﬂ Â–« ≈–« √—œ  Õ–› «·„—«Ã⁄… ⁄‰œ Õ–› «·‘—ﬂ…
 
         }
     }

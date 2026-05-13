@@ -37,5 +37,7 @@ namespace Darb.Api.Models
         
         public ICollection<BankAccount>? BankAccounts { get; set; }
 
+        public ICollection<Review>? Review { get; set; }
+
     }
 }

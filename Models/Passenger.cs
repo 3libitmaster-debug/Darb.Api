@@ -29,6 +29,8 @@ namespace Darb.Api.Models
         [Required]
         public Account ?Account { get; set; }
 
+        public ICollection<Review> ?Review { get; set; }
+
 
     }
 }

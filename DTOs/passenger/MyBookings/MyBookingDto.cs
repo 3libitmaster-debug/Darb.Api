@@ -25,7 +25,7 @@ namespace Darb.Api.DTOs.passengerDtos.bookingDtos
         public string CompanyName { get; set; } = string.Empty;
         public string CompanyLogo { get; set; } = string.Empty;
 
-        public List<MyTicketDto> Tickets { get; set; } = new List<MyTicketDto>();
+        public MyTicketDto? Ticket { get; set; }
     }
 
    

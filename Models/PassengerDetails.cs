@@ -34,7 +34,6 @@ namespace Darb.Api.Models
         [StringLength(250, ErrorMessage = "Address cannot exceed 250 characters.")]
         public string? Address { get; set; }
 
-        public virtual ETicket? ETicket { get; set; }
 
    
     }

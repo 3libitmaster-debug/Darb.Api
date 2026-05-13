@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using darbWebApp.Data;
 
@@ -11,9 +12,11 @@ using darbWebApp.Data;
 namespace Darb.Api.Migrations
 {
     [DbContext(typeof(ApplicationDbContext))]
-    partial class ApplicationDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260505135928_refactorTicket-BookingRealtionship")]
+    partial class refactorTicketBookingRealtionship
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -439,38 +442,6 @@ namespace Darb.Api.Migrations
                     b.ToTable("PassengerDetails");
                 });
 
-            modelBuilder.Entity("Darb.Api.Models.Review", b =>
-                {
-                    b.Property<int>("ReviewId")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("int");
-
-                    SqlServerPropertyBuilderExtensions.UseIdentityColumn(b.Property<int>("ReviewId"));
-
-                    b.Property<int>("CompanyId")
-                        .HasColumnType("int");
-
-                    b.Property<string>("Description")
-                        .HasColumnType("nvarchar(max)");
-
-                    b.Property<int>("PassengerId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Rating")
-                        .HasColumnType("int");
-
-                    b.Property<DateTime>("ReviewDate")
-                        .HasColumnType("datetime2");
-
-                    b.HasKey("ReviewId");
-
-                    b.HasIndex("CompanyId");
-
-                    b.HasIndex("PassengerId");
-
-                    b.ToTable("Review");
-                });
-
             modelBuilder.Entity("Darb.Api.Models.Station", b =>
                 {
                     b.Property<int>("StationId")
@@ -746,25 +717,6 @@ namespace Darb.Api.Migrations
                     b.Navigation("Booking");
                 });
 
-            modelBuilder.Entity("Darb.Api.Models.Review", b =>
-                {
-                    b.HasOne("Darb.Api.Models.Company", "Company")
-                        .WithMany("Review")
-                        .HasForeignKey("CompanyId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("Darb.Api.Models.Passenger", "Passenger")
-                        .WithMany("Review")
-                        .HasForeignKey("PassengerId")
-                        .OnDelete(DeleteBehavior.Restrict)
-                        .IsRequired();
-
-                    b.Navigation("Company");
-
-                    b.Navigation("Passenger");
-                });
-
             modelBuilder.Entity("Darb.Api.Models.Station", b =>
                 {
                     b.HasOne("Darb.Api.Models.City", "City")
@@ -913,8 +865,6 @@ namespace Darb.Api.Migrations
 
                     b.Navigation("CompanySubscription");
 
-                    b.Navigation("Review");
-
                     b.Navigation("Station");
 
                     b.Navigation("Trips");
@@ -925,11 +875,6 @@ namespace Darb.Api.Migrations
                     b.Navigation("City");
 
                     b.Navigation("Station");
-                });
-
-            modelBuilder.Entity("Darb.Api.Models.Passenger", b =>
-                {
-                    b.Navigation("Review");
                 });
 
             modelBuilder.Entity("Darb.Api.Models.Trip", b =>

@@ -56,6 +56,8 @@ namespace Darb.Api.Models
         public BookingStatus Status { get; set; } 
 
         public DateTime BookingAt { get; set; } 
+
+        public virtual ETicket? ETicket { get; set; }
     }
 
    

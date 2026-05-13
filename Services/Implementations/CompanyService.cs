@@ -636,6 +636,7 @@ namespace Darb.Api.Services.Implementations
                 .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.EndGovernate)
+                .Include(b => b.ETicket)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
 
             if (booking == null)
@@ -643,10 +644,6 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول إليه.");
             }
 
-            var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
-            var eTickets = await _context.ETickets
-                .Where(e => passengerDetailIds.Contains(e.PassengerDetailId))
-                .ToListAsync();
 
             var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
             {
@@ -663,16 +660,12 @@ namespace Darb.Api.Services.Implementations
                 ReceiptImagePath = booking.ReceiptImagePath,
                 Status = booking.Status.ToString(),
                 BookingAt = booking.BookingAt,
-                Passengers = booking.Passengers.Select(p =>
+                TicketCode = booking.ETicket?.TicketCode,
+                Passengers = booking.Passengers.Select(p => new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
                 {
-                    var ticket = eTickets.FirstOrDefault(e => e.PassengerDetailId == p.PassengerDetailsId);
-                    return new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
-                    {
-                        PassengerDetailId = p.PassengerDetailsId,
-                        FullName = p.FullName,
-                        NationalId = p.NationalId ?? "غير متوفر",
-                        TicketCode = ticket?.TicketCode
-                    };
+                    PassengerDetailId = p.PassengerDetailsId,
+                    FullName = p.FullName,
+                    NationalId = p.NationalId ?? "غير متوفر",
                 }).ToList()
             };
 
@@ -697,34 +690,30 @@ namespace Darb.Api.Services.Implementations
 
             if (dto.Status == BookingStatus.Confirmed)
             {
-                foreach (var passenger in booking.Passengers)
-                {
-                    var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                    string payload = $"BookingId:{booking.BookingId}|PassengerId:{passenger.PassengerDetailsId}";
-                    string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
+                string payload = $"BookingId:{booking.BookingId}|TripScheduleId:{booking.TripScheduleId}";
+                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
 
-                    if (existingTicket == null)
+                if (existingTicket == null)
+                {
+                    var ticket = new ETicket
                     {
-                        var ticket = new ETicket
-                        {
-                            PassengerDetailId = passenger.PassengerDetailsId,
-                            TicketCode = qrBase64,
-                            Status = Darb.Api.Models.Enums.ETicketStatus.Valid
-                        };
-                        await _context.ETickets.AddAsync(ticket);
-                    }
-                    else
-                    {
-                        existingTicket.TicketCode = qrBase64;
-                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.UnValid;
-                    }
+                        BookingId = booking.BookingId,
+                        TicketCode = qrBase64,
+                        Status = Darb.Api.Models.Enums.ETicketStatus.Valid
+                    };
+                    await _context.ETickets.AddAsync(ticket);
+                }
+                else
+                {
+                    existingTicket.TicketCode = qrBase64;
+                    existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Valid;
                 }
             }
             else if (dto.Status == BookingStatus.Cancelled)
             {
-                var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
-                var eTickets = await _context.ETickets.Where(e => passengerDetailIds.Contains(e.PassengerDetailId)).ToListAsync();
-                foreach (var ticket in eTickets)
+                var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
+                if (ticket != null)
                 {
                     ticket.Status = ETicketStatus.UnValid;
                 }
@@ -754,10 +743,13 @@ namespace Darb.Api.Services.Implementations
             var passengers = await _context.PassengerDetails.Where(pd => pd.BookingId == bookingId).ToListAsync();
             if (passengers.Any())
             {
-                var passengerIds = passengers.Select(p => p.PassengerDetailsId).ToList();
-                var etickets = await _context.ETickets.Where(e => passengerIds.Contains(e.PassengerDetailId)).ToListAsync();
-                _context.ETickets.RemoveRange(etickets);
                 _context.PassengerDetails.RemoveRange(passengers);
+            }
+            
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
+            {
+                _context.ETickets.Remove(ticket);
             }
 
             _context.Bookings.Remove(booking);
@@ -782,32 +774,27 @@ namespace Darb.Api.Services.Implementations
 
             booking.Status = BookingStatus.Confirmed;
 
-            foreach (var passenger in booking.Passengers)
+            var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
+            int eticketId = existingTicket?.Id ?? 0;
+            int tripScheduleId = booking.TripScheduleId;
+
+            string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}";
+            string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+            if (existingTicket == null)
             {
-                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                int eticketId = existingTicket?.Id ?? 0; // 0 if not created yet
-                int tripScheduleId = booking.TripScheduleId;
-
-                // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
-
-                string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
-                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
-
-                if (existingTicket == null)
+                var ticket = new ETicket
                 {
-                    var ticket = new ETicket
-                    {
-                        PassengerDetailId = passenger.PassengerDetailsId,
-                        TicketCode = qrBase64,
-                        Status = ETicketStatus.Valid
-                    };
-                    await _context.ETickets.AddAsync(ticket);
-                }
-                else
-                {
-                    existingTicket.TicketCode = qrBase64;
-                    existingTicket.Status = ETicketStatus.Valid;
-                }
+                    BookingId = booking.BookingId,
+                    TicketCode = qrBase64,
+                    Status = ETicketStatus.Valid
+                };
+                await _context.ETickets.AddAsync(ticket);
+            }
+            else
+            {
+                existingTicket.TicketCode = qrBase64;
+                existingTicket.Status = ETicketStatus.Valid;
             }
 
             await _context.SaveChangesAsync();

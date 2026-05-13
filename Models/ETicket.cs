@@ -9,9 +9,9 @@ namespace Darb.Api.Models
         [Key]
         public int Id { get; set; }
 
-        public int PassengerDetailId { get; set; }
-        [ForeignKey("PassengerDetailId")]
-        public virtual PassengerDetails? PassengerDetails { get; set; }
+        public int BookingId { get; set; }
+        [ForeignKey("BookingId")]
+        public virtual Booking? Booking { get; set; }
 
         public string? TicketCode { get; set; }
 
