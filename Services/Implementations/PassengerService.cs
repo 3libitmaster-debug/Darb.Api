@@ -460,6 +460,66 @@ namespace Darb.Api.Services.Implementations
         }
 
 
+        public async Task<ResponseDto> GetBookingsByStatusAsync(int passengerId, BookingStatus status)
+        {
+            try
+            {
+                // 1. تحقق إضافي لضمان أن القيمة الممررة موجودة ضمن الـ Enum المعرف لدينا
+                if (!Enum.IsDefined(typeof(BookingStatus), status))
+                {
+                    return ResponseDto.FailureResponse("حالة الحجز غير معرفة في النظام.");
+                }
+
+                // 2. جلب البيانات مع الفلترة والتحويل إلى DTO
+                var bookings = await _context.Bookings
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.Company)
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.StartGovernate)
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.EndGovernate)
+                    .Where(b => b.PassengerId == passengerId && b.Status == status)
+                    .OrderByDescending(b => b.BookingAt)
+                    .Select(b => new BookingByStatusDto
+                    {
+                        BookingId = b.BookingId,
+                        TotalAmount = b.TotalAmount,
+                        // جلب اسم الشركة مع التحقق من النل
+                        CompanyName = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null
+                                      ? b.TripSchedule.Trip.Company.Name ?? "غير متوفر" : "غير متوفر",
+
+                        // معالجة رابط الشعار باستخدام الـ BaseUrl
+                        CompanyLogo = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null && !string.IsNullOrEmpty(b.TripSchedule.Trip.Company.Logo)
+                                      ? _baseUrl + b.TripSchedule.Trip.Company.Logo : string.Empty,
+
+                        // جلب بيانات المحافظات
+                        StartGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.StartGovernate != null
+                                           ? b.TripSchedule.Trip.StartGovernate.Name ?? "غير متوفر" : "غير متوفر",
+
+                        EndGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.EndGovernate != null
+                                         ? b.TripSchedule.Trip.EndGovernate.Name ?? "غير متوفر" : "غير متوفر",
+                    })
+                    .ToListAsync();
+
+                // 3. التحقق من وجود نتائج وإرسال الاستجابة المناسبة
+                if (bookings == null || bookings.Count == 0)
+                {
+                    return ResponseDto.SuccessResponse("لا توجد حجوزات متوفرة لهذه الحالة حالياً.", new List<BookingByStatusDto>());
+                }
+
+                return ResponseDto.SuccessResponse($"تم استرجاع الحجوزات بنجاح. ({bookings.Count})", bookings);
+            }
+            catch (Exception ex)
+            {
+                // تسجيل الخطأ أو إرجاع رسالة فشل
+                return ResponseDto.FailureResponse($"فشل استرجاع الحجوزات: {ex.Message}");
+            }
+        }
+
+
         public async Task<ResponseDto> GetMyBookingsAsync(int passengerId)
         {
             try

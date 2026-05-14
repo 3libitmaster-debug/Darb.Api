@@ -130,11 +130,15 @@ DTOs/passenger/
   TripSearchQueryDto.cs
   TripSearchResultDto.cs
  MyBookings/
+  BookingByStatusDto.cs
+  BookingStatusDto.cs
   MyBookingDto.cs
-  MyTicketDto.cs
+ ReviewResponseDto.cs
  settings/PassengerProfileDto.cs
+ UpdateReviewDto.cs
 Extensions/
  ClaimsPrincipalExtensions.cs
+ EnumExtensions.cs
  TimeOnlyJsonConverter.cs
 Migrations/
  20260421160523_IntialMigration.cs
@@ -159,6 +163,7 @@ Models/
  Company.cs
  CompanySubscription.cs
  Enums/
+  BookingStatus.cs
   ETicketStatus.cs
   Periods.cs
   SubscriptionPlans.cs

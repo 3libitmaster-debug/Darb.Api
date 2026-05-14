@@ -4,6 +4,7 @@ using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
 using Darb.Api.Extensions;
+using Darb.Api.Models.Enums;
 using Darb.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -161,13 +162,25 @@ namespace Darb.Api.Controllers
 
 
         [HttpGet("bookings/statuses")]
-
         [SwaggerOperation(
         Summary = "Get Booking Statuses",
         Description = "Returns a lookup list of booking status IDs and their Arabic descriptions.")]
         public async Task<IActionResult> GetBookingStatuses()
         {
             var response = await _passengerService.GetBookingStatusesAsync();
+            return Ok(response);
+        }
+
+
+
+        [HttpGet("bookings/status")] 
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Get Passenger Bookings by StatusId.")]
+        public async Task<IActionResult> GetBookingsByStatus(BookingStatus status) 
+        {
+            int passengerId = User.GetPassengerId();
+            var response = await _passengerService.GetBookingsByStatusAsync(passengerId, status);
+
             return Ok(response);
         }
 

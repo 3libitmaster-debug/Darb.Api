@@ -3,6 +3,7 @@ using Darb.Api.DTOs.passenger;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
+using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -18,7 +19,9 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> BookTripAsync(int AccountId, BookingRequestDto request);
         Task<ResponseDto> UploadReceiptAsync(int AccountId, UploadReceiptDto request);
 
+
         Task<ResponseDto> GetBookingStatusesAsync();
+        Task<ResponseDto> GetBookingsByStatusAsync(int passengerId, BookingStatus status);
         Task<ResponseDto> GetMyBookingsAsync(int passengerId);
 
         #region Review Management Methods
