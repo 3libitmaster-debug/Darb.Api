@@ -470,12 +470,8 @@ namespace Darb.Api.Services.Implementations
                         CompanyName = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null ? (b.TripSchedule.Trip.Company.Name ?? "غير متوفر") : "غير متوفر",
                         CompanyLogo = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null && !string.IsNullOrEmpty(b.TripSchedule.Trip.Company.Logo) ? _baseUrl + b.TripSchedule.Trip.Company.Logo : string.Empty,
 
-                        Ticket = b.ETicket != null ? new MyTicketDto
-                        {
-                            ETicketId = b.ETicket.Id,
-                            TicketCode = b.ETicket.TicketCode,
-                            TicketStatus = (int)b.ETicket.Status,
-                        } : null
+                        TicketCode = b.ETicket.TicketCode,
+                        TicketStatus = (int)b.ETicket.Status
                     })
                     .ToListAsync();
 
@@ -490,6 +486,7 @@ namespace Darb.Api.Services.Implementations
             }
         }
         #endregion
+
         #region CRUD Reviews Logic (Refactored with Specific DTOs)
 
         /// <summary>
