@@ -7,22 +7,7 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Darb.Api.Models
 {
-    public enum BookingStatus
-    {
-        // 0: Pending (Waiting for receipt upload)
-        PendingAttachment = 0,
-
-        // 1: Awaiting Confirmation (Receipt uploaded)
-        AwaitingConfirmation = 1,
-
-        // 2: Confirmed (Receipt accepted)
-        Confirmed = 2,
-
-        // 3: Cancelled
-        Cancelled = 3,
-
-        Completed = 4
-    }
+    
 
     public class Booking
     {

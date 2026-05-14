@@ -17,6 +17,8 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetProfileAsync(int passengerId);
         Task<ResponseDto> BookTripAsync(int AccountId, BookingRequestDto request);
         Task<ResponseDto> UploadReceiptAsync(int AccountId, UploadReceiptDto request);
+
+        Task<ResponseDto> GetBookingStatusesAsync();
         Task<ResponseDto> GetMyBookingsAsync(int passengerId);
 
         #region Review Management Methods

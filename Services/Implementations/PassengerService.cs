@@ -1,8 +1,10 @@
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.passenger;
+using Darb.Api.DTOs.passenger.MyBookings;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
+using Darb.Api.Extensions;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
@@ -434,6 +436,30 @@ namespace Darb.Api.Services.Implementations
         #endregion
 
         #region My Bookings Retrieval Logic
+
+
+        public async Task<ResponseDto> GetBookingStatusesAsync()
+        {
+            try
+            {
+                var statuses = Enum.GetValues(typeof(BookingStatus))
+                    .Cast<BookingStatus>()
+                    .Select(s => new BookingStatusDto
+                    {
+                        Id = (int)s,
+                        StatusName = s.GetDisplayName() 
+                    })
+                    .ToList();
+
+                return ResponseDto.SuccessResponse(data: statuses, message: "Success");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Error: {ex.Message}");
+            }
+        }
+
+
         public async Task<ResponseDto> GetMyBookingsAsync(int passengerId)
         {
             try

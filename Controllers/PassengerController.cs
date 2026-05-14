@@ -159,6 +159,19 @@ namespace Darb.Api.Controllers
             }
         }
 
+
+        [HttpGet("bookings/statuses")]
+
+        [SwaggerOperation(
+        Summary = "Get Booking Statuses",
+        Description = "Returns a lookup list of booking status IDs and their Arabic descriptions.")]
+        public async Task<IActionResult> GetBookingStatuses()
+        {
+            var response = await _passengerService.GetBookingStatusesAsync();
+            return Ok(response);
+        }
+
+
         [HttpGet("bookings")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
