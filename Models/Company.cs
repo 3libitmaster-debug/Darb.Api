@@ -22,6 +22,8 @@ namespace Darb.Api.Models
         [Required]
         public string ?License { get; set; }
 
+        public double AverageRating { get; set; }
+
         public int AccountId { get; set; }
         [Required]
         [ForeignKey("AccountId")]

@@ -11,6 +11,7 @@
         public int CompanyId { get; set; }
         public string ?CompanyName { get; set; }
         public string ?CompanyLogo { get; set; } 
+        public double CompanyRating { get; set; }
 
         // Departure Info (Unified)
         public int StartGoveId { get; set; }

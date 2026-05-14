@@ -1,9 +1,8 @@
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.passenger;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
-using Darb.Api.DTOs.passengerDtos.settings;
-
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
-using Darb.Api.DTOs.Station;
+using Darb.Api.DTOs.passengerDtos.settings;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
@@ -168,6 +167,7 @@ namespace Darb.Api.Services.Implementations
                     // Ensure the logo path is absolute by adding the BaseUrl
                     CompanyLogo = (t.Company != null && !string.IsNullOrEmpty(t.Company.Logo))
                                   ? _baseUrl + t.Company.Logo : "",
+                    CompanyRating = t.Company != null ? t.Company.AverageRating : 0.0,
                     StartGoveId = t.StartGoveId,
                     StartGoveName = t.StartGovernate != null ? (t.StartGovernate.Name ?? "N/A") : "N/A",
                     EndGoveId = t.EndGoveId,
@@ -489,6 +489,175 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse($"فشل استرجاع الحجوزات: {ex.Message}");
             }
         }
+        #endregion
+        #region CRUD Reviews Logic (Refactored with Specific DTOs)
+
+        /// <summary>
+        /// Retrieves a specific review by its unique ID and returns it as a ReviewReturnDto.
+        /// </summary>
+        public async Task<ResponseDto> GetReviewByIdAsync(int reviewId)
+        {
+            try
+            {
+                var review = await _context.Review
+                    .Where(r => r.ReviewId == reviewId)
+                    .Select(r => new ReviewResponseDto // Updated naming
+                    {
+                        ReviewId = r.ReviewId,
+                        Rating = r.Rating,
+                        Description = r.Description,
+                        Date = r.ReviewDate.ToString("yyyy-MM-dd")
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (review == null)
+                    return ResponseDto.FailureResponse("المراجعة غير موجودة");
+
+                return new ResponseDto { Success = true, Message = "Success", Data = review };
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"An error occurred: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Adds a new review using AddReviewDto and updates the company's average rating.
+        /// </summary>
+        public async Task<ResponseDto> AddReviewAsync(int passengerId, AddReviewDto request)
+        {
+            try
+            {
+                var company = await _context.Companies.FindAsync(request.CompanyId);
+                if (company == null) return ResponseDto.FailureResponse("الشركة غير موجودة");
+
+                var review = new Review
+                {
+                    PassengerId = passengerId,
+                    CompanyId = request.CompanyId,
+                    Rating = request.Rating,
+                    Description = request.Description,
+                    ReviewDate = DateHelper.GetYemenTime()
+                };
+
+                _context.Review.Add(review);
+                await _context.SaveChangesAsync();
+
+                // Ensure the company rating is updated after insertion
+                await RecalculateCompanyRating(request.CompanyId);
+
+                return ResponseDto.SuccessResponse("تم إضافة تقييمك بنجاح");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Error adding review: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Retrieves all reviews for a passenger using ReviewReturnDto.
+        /// </summary>
+        public async Task<ResponseDto> GetPassengerReviewsAsync(int passengerId)
+        {
+            try
+            {
+                var reviews = await _context.Review
+                    .Where(r => r.PassengerId == passengerId)
+                    .Select(r => new ReviewResponseDto // Updated naming
+                    {
+                        ReviewId = r.ReviewId,
+                        Rating = r.Rating,
+                        Description = r.Description,
+                        Date = r.ReviewDate.ToString("yyyy-MM-dd")
+                    })
+                    .ToListAsync();
+
+                return ResponseDto.SuccessResponse(data: reviews, message: "Success");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Error fetching reviews: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Updates an existing review using UpdateReviewDto and recalculates the rating.
+        /// </summary>
+        public async Task<ResponseDto> UpdateReviewAsync(int passengerId, int reviewId, UpdateReviewDto request)
+        {
+            try
+            {
+                var review = await _context.Review
+                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.PassengerId == passengerId);
+
+                if (review == null) return ResponseDto.FailureResponse("المراجعة غير موجودة أو لا تملك صلاحية تعديلها");
+
+                review.Rating = request.Rating;
+                review.Description = request.Description;
+                review.ReviewDate = DateHelper.GetYemenTime();
+
+                _context.Review.Update(review);
+                await _context.SaveChangesAsync();
+
+                // Recalculate to reflect the updated score
+                await RecalculateCompanyRating(review.CompanyId);
+
+                return ResponseDto.SuccessResponse("تم تحديث التقييم بنجاح");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Error updating review: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Deletes a review and updates the company's average rating accordingly.
+        /// </summary>
+        public async Task<ResponseDto> DeleteReviewAsync(int passengerId, int reviewId)
+        {
+            try
+            {
+                var review = await _context.Review
+                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.PassengerId == passengerId);
+
+                if (review == null) return ResponseDto.FailureResponse("المراجعة غير موجودة");
+
+                int companyId = review.CompanyId;
+
+                _context.Review.Remove(review);
+                await _context.SaveChangesAsync();
+
+                // Recalculate after deletion to ensure accuracy
+                await RecalculateCompanyRating(companyId);
+
+                return ResponseDto.SuccessResponse("تم حذف التقييم بنجاح");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"Error deleting review: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// Private helper to maintain data integrity for company average ratings.
+        /// </summary>
+        private async Task RecalculateCompanyRating(int companyId)
+        {
+            var company = await _context.Companies.FindAsync(companyId);
+            if (company != null)
+            {
+                var ratings = await _context.Review
+                    .Where(r => r.CompanyId == companyId)
+                    .Select(r => r.Rating)
+                    .ToListAsync();
+
+                company.AverageRating = ratings.Any() ? Math.Round(ratings.Average(), 1) : 0;
+
+                _context.Companies.Update(company);
+                await _context.SaveChangesAsync();
+            }
+        }
+
         #endregion
     }
 }

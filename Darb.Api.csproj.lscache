@@ -21,7 +21,7 @@ ProjectAssetsFile=<PATH>obj/project.assets.json
 RootNamespace=Darb.Api
 RunAnalyzers=
 RunAnalyzersDuringLiveAnalysis=
-SolutionPath=*Undefined*
+SolutionPath=<PATH>Darb.Api.sln
 TargetFrameworkIdentifier=.NETCoreApp
 TargetPath=<PATH>bin/Debug/net9.0/Darb.Api.dll
 TargetRefPath=<PATH>obj/Debug/net9.0/ref/Darb.Api.dll
@@ -112,25 +112,27 @@ DTOs/company/TripSchedule/
  AddTripScheduleDto.cs
  TripScheduleReadDto.cs
  UpdateTripScheduleDto.cs
-DTOs/passenger/Booking/
- BankAccountsDropDownListDto.cs
- BookingRequestDto.cs
- PassengerDetailDto.cs
- TripScheduleResponseDto.cs
- UploadReceiptDto.cs
-DTOs/passenger/homePage/
- AdCardDto.cs
- HomePageDto.cs
- PeriodDto.cs
- SearchCardDto.cs
- SimpleCompanyDto.cs
- SimpleGovernorateDto.cs
- TripSearchQueryDto.cs
- TripSearchResultDto.cs
-DTOs/passenger/MyBookings/
- MyBookingDto.cs
- MyTicketDto.cs
-DTOs/passenger/settings/PassengerProfileDto.cs
+DTOs/passenger/
+ AddReviewDto.cs
+ Booking/
+  BankAccountsDropDownListDto.cs
+  BookingRequestDto.cs
+  PassengerDetailDto.cs
+  TripScheduleResponseDto.cs
+  UploadReceiptDto.cs
+ homePage/
+  AdCardDto.cs
+  HomePageDto.cs
+  PeriodDto.cs
+  SearchCardDto.cs
+  SimpleCompanyDto.cs
+  SimpleGovernorateDto.cs
+  TripSearchQueryDto.cs
+  TripSearchResultDto.cs
+ MyBookings/
+  MyBookingDto.cs
+  MyTicketDto.cs
+ settings/PassengerProfileDto.cs
 Extensions/
  ClaimsPrincipalExtensions.cs
  TimeOnlyJsonConverter.cs
@@ -139,6 +141,12 @@ Migrations/
  20260421160523_IntialMigration.Designer.cs
  20260422035221_AutoMigration_20260422.cs
  20260422035221_AutoMigration_20260422.Designer.cs
+ 20260505135928_refactorTicket-BookingRealtionship.cs
+ 20260505135928_refactorTicket-BookingRealtionship.Designer.cs
+ 20260513201445_addReviewModel.cs
+ 20260513201445_addReviewModel.Designer.cs
+ 20260513222054_addAverageRatingField.cs
+ 20260513222054_addAverageRatingField.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  Account.cs
@@ -159,6 +167,7 @@ Models/
  Governorate.cs
  Passenger.cs
  PassengerDetails.cs
+ Review.cs
  Station.cs
  Trip.cs
  TripFare.cs

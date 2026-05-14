@@ -1,11 +1,13 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.Services.Interfaces;
+using Darb.Api.DTOs.passenger;
+using Darb.Api.DTOs.passengerDtos.bookingDtos;
+using Darb.Api.DTOs.passengerDtos.homePageDtos;
+using Darb.Api.DTOs.passengerDtos.settings;
 using Darb.Api.Extensions;
+using Darb.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Darb.Api.DTOs.passengerDtos.homePageDtos;
-using Darb.Api.DTOs.passengerDtos.bookingDtos;
 
 namespace Darb.Api.Controllers
 {
@@ -157,7 +159,7 @@ namespace Darb.Api.Controllers
             }
         }
 
-        [HttpGet("my-bookings")]
+        [HttpGet("bookings")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
             Summary = "Get Passenger Bookings",
@@ -179,6 +181,101 @@ namespace Darb.Api.Controllers
                 return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
             }
         }
+
+        #region Passenger Reviews Endpoints
+
+        /// <summary>
+        /// Retrieves the details of a specific review using its unique ID.
+        /// </summary>
+        [HttpGet("reviews/{reviewId}")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Get Review By ID")]
+        public async Task<IActionResult> GetReviewById(int reviewId)
+        {
+            var response = await _passengerService.GetReviewByIdAsync(reviewId);
+
+            if (!response.Success)
+                return NotFound(response);
+
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Submits a new review for a company.
+        /// Uses AddReviewDto to ensure CompanyId is provided.
+        /// </summary>
+        [HttpPost("reviews")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Add Company Review")]
+        public async Task<IActionResult> AddReview([FromBody] AddReviewDto request) // تم التعديل هنا
+        {
+            try
+            {
+                int passengerId = User.GetPassengerId();
+
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ResponseDto.FailureResponse("بيانات التقييم غير مكتملة أو غير صالحة."));
+                }
+
+                var response = await _passengerService.AddReviewAsync(passengerId, request);
+
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
+
+        /// <summary>
+        /// Returns a list of all reviews submitted by the currently authenticated passenger.
+        /// </summary>
+        [HttpGet("reviews")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Get My Reviews")]
+        public async Task<IActionResult> GetMyReviews()
+        {
+            int passengerId = User.GetPassengerId();
+            var response = await _passengerService.GetPassengerReviewsAsync(passengerId);
+            return Ok(response);
+        }
+
+        /// <summary>
+        /// Updates an existing review's rating and comment.
+        /// Uses UpdateReviewDto as required by the service layer.
+        /// </summary>
+        [HttpPut("reviews/{reviewId}")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Update Review")]
+        public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] UpdateReviewDto request) // تم التعديل هنا لحل الخطأ CS1503
+        {
+            int passengerId = User.GetPassengerId();
+
+            // الآن المتغير 'request' من نوع UpdateReviewDto سيتوافق تماماً مع توقيع الميثود في الخدمة
+            var response = await _passengerService.UpdateReviewAsync(passengerId, reviewId, request);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        /// <summary>
+        /// Deletes a specific review and updates the associated company's average rating.
+        /// </summary>
+        [HttpDelete("reviews/{reviewId}")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(Summary = "Delete Review")]
+        public async Task<IActionResult> DeleteReview(int reviewId)
+        {
+            int passengerId = User.GetPassengerId();
+            var response = await _passengerService.DeleteReviewAsync(passengerId, reviewId);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        #endregion
 
     }
 }
