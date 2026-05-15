@@ -1,4 +1,5 @@
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.passenger;
 using Darb.Api.DTOs.passenger.MyBookings;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
@@ -15,6 +16,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
 using System.ComponentModel.DataAnnotations;
 using System.Reflection;
+
 
 namespace Darb.Api.Services.Implementations
 {
@@ -516,6 +518,68 @@ namespace Darb.Api.Services.Implementations
             {
                 // تسجيل الخطأ أو إرجاع رسالة فشل
                 return ResponseDto.FailureResponse($"فشل استرجاع الحجوزات: {ex.Message}");
+            }
+        }
+
+        public async Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int passengerId)
+        {
+            try
+            {
+                // استخدام Include للوصول إلى كافة الجداول المرتبطة بناءً على الـ Model الجديد
+                var booking = await _context.Bookings
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.Company)
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.StartGovernate)
+                    .Include(b => b.TripSchedule)
+                        .ThenInclude(ts => ts!.Trip)
+                            .ThenInclude(t => t!.EndGovernate)
+                    .Include(b => b.ETicket)
+                    .Include(b => b.Passengers) // الربط مع كيان PassengerDetails
+                    .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PassengerId == passengerId);
+
+                if (booking == null)
+                    return ResponseDto.FailureResponse("تفاصيل الحجز غير موجودة.");
+
+                // بناء الـ DTO يدوياً لضمان الدقة في التحويل
+                var details = new BookingDetailsDto
+                {
+                    BookingId = booking.BookingId,
+                    BookingDate = booking.BookingAt.ToString("yyyy-MM-dd HH:mm"),
+                    ReservedSeatsCount = booking.ReservedSeatsCount,
+                    TotalAmount = booking.TotalAmount,
+                    StatusId = (int)booking.Status,
+                    StatusName = booking.Status.GetDisplayName(), // الميثود التي أنشأناها باللغة العربية
+
+                    // بيانات الرحلة
+                    CompanyName = booking.TripSchedule?.Trip?.Company?.Name ?? "غير متوفر",
+                    CompanyLogo = !string.IsNullOrEmpty(booking.TripSchedule?.Trip?.Company?.Logo)
+                                  ? _baseUrl + booking.TripSchedule.Trip.Company.Logo : string.Empty,
+                    StartGovernorate = booking.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير متوفر",
+                    EndGovernorate = booking.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير متوفر",
+                    DepartureDate = booking.TripSchedule?.Trip?.DepDate.ToString("yyyy-MM-dd") ?? string.Empty,
+                    DepartureTime = booking.TripSchedule?.DepartureTime.ToString("hh:mm tt") ?? string.Empty,
+
+                    // بيانات التذكرة (في حال وجودها)
+                    TicketCode = booking.ETicket?.TicketCode ?? "بانتظار التأكيد",
+                    TicketStatus = booking.ETicket != null ? booking.ETicket.Status.ToString() : "N/A",
+
+                    // تحويل قائمة الركاب بناءً على كيان PassengerDetails الخاص بك
+                    Passengers = booking.Passengers.Select(p => new PassengerItemDto
+                    {
+                        FullName = p.FullName,
+                        NationalId = p.NationalId,
+                        PhoneNumber = p.PhoneNumber
+                    }).ToList()
+                };
+
+                return ResponseDto.SuccessResponse(data: details , message: "تم جلب تفاصيل الحجز بنجاح.");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"خطأ أثناء جلب تفاصيل الحجز: {ex.Message}");
             }
         }
 

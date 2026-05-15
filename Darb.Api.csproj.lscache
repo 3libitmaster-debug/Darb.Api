@@ -131,6 +131,7 @@ DTOs/passenger/
   TripSearchResultDto.cs
  MyBookings/
   BookingByStatusDto.cs
+  BookingDetailsDto.cs
   BookingStatusDto.cs
   MyBookingDto.cs
  ReviewResponseDto.cs
