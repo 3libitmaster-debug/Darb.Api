@@ -185,6 +185,35 @@ namespace Darb.Api.Controllers
         }
 
 
+        /// <summary>
+        /// Retrieves full details for a specific booking.
+        /// Example: GET api/passenger/bookings/5/details
+        /// </summary>
+        /// <param name="bookingId">The unique ID of the booking.</param>
+        /// <returns>Full booking details including passengers and ticket info.</returns>
+        [HttpGet("bookings/{bookingId}/details")]
+        [Authorize(Roles = "Passenger")]
+        [SwaggerOperation(
+            Summary = "Get Full Booking Details",
+            Description = "Returns all details related to a booking, trip, and associated passengers.")]
+        public async Task<IActionResult> GetBookingDetails(int bookingId)
+        {
+            // استخراج معرف المسافر من الـ Claims الموجودة في الـ Token
+            int passengerId = User.GetPassengerId();
+
+            // استدعاء الخدمة لجلب البيانات
+            var response = await _passengerService.GetBookingDetailsAsync(bookingId, passengerId);
+
+            if (!response.Success)
+            {
+                // إذا لم يجد الحجز أو كان لا يخص المسافر، نعيد 404
+                return NotFound(response);
+            }
+
+            return Ok(response);
+        }
+
+
         [HttpGet("bookings")]
         [Authorize(Roles = "Passenger")]
         [SwaggerOperation(
