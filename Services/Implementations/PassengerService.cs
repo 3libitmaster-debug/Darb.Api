@@ -584,57 +584,6 @@ namespace Darb.Api.Services.Implementations
         }
 
 
-        public async Task<ResponseDto> GetMyBookingsAsync(int passengerId)
-        {
-            try
-            {
-                var bookings = await _context.Bookings
-                    .Include(b => b.TripSchedule)
-                        .ThenInclude(ts => ts!.Trip)
-                            .ThenInclude(t => t!.Company)
-                    .Include(b => b.TripSchedule)
-                        .ThenInclude(ts => ts!.Trip)
-                            .ThenInclude(t => t!.StartGovernate)
-                    .Include(b => b.TripSchedule)
-                        .ThenInclude(ts => ts!.Trip)
-                            .ThenInclude(t => t!.EndGovernate)
-                    .Include(b => b.ETicket)
-                    .Where(b => b.PassengerId == passengerId)
-                    .OrderByDescending(b => b.BookingAt)
-                    .Select(b => new MyBookingDto
-                    {
-                        BookingId = b.BookingId,
-                        BookingStatus = (int)b.Status,
-                        BookingAt = b.BookingAt,
-                        TotalAmount = b.TotalAmount,
-                        ReservedSeatsCount = b.ReservedSeatsCount,
-
-                        TripScheduleId = b.TripScheduleId,
-                        TripId = b.TripSchedule != null ? b.TripSchedule.TripId : 0,
-                        StartGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.StartGovernate != null ? (b.TripSchedule.Trip.StartGovernate.Name ?? "غير متوفر") : "غير متوفر",
-                        EndGovernorate = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.EndGovernate != null ? (b.TripSchedule.Trip.EndGovernate.Name ?? "غير متوفر") : "غير متوفر",
-                        DepartureDate = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.DepDate.ToString("yyyy-MM-dd") : string.Empty,
-                        DepartureTime = b.TripSchedule != null ? b.TripSchedule.DepartureTime.ToString("hh:mm tt") : string.Empty,
-
-                        CompanyId = b.TripSchedule != null && b.TripSchedule.Trip != null ? b.TripSchedule.Trip.CompanyId : 0,
-                        CompanyName = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null ? (b.TripSchedule.Trip.Company.Name ?? "غير متوفر") : "غير متوفر",
-                        CompanyLogo = b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.Company != null && !string.IsNullOrEmpty(b.TripSchedule.Trip.Company.Logo) ? _baseUrl + b.TripSchedule.Trip.Company.Logo : string.Empty,
-
-                        TicketCode = b.ETicket.TicketCode,
-                        TicketStatus = (int)b.ETicket.Status
-                    })
-                    .ToListAsync();
-
-                if (bookings.Count == 0)
-                    return ResponseDto.SuccessResponse("لا يوجد حجوزات سابقة.", bookings);
-
-                return ResponseDto.SuccessResponse($"تم استرجاع الحجوزات بنجاح. ({bookings.Count})", bookings);
-            }
-            catch (Exception ex)
-            {
-                return ResponseDto.FailureResponse($"فشل استرجاع الحجوزات: {ex.Message}");
-            }
-        }
         #endregion
 
         #region CRUD Reviews Logic (Refactored with Specific DTOs)

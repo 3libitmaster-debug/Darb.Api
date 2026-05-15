@@ -161,7 +161,7 @@ namespace Darb.Api.Controllers
         }
 
 
-        [HttpGet("bookings/statuses")]
+        [HttpGet("bookings/status-banner")]
         [SwaggerOperation(
         Summary = "Get Booking Statuses",
         Description = "Returns a lookup list of booking status IDs and their Arabic descriptions.")]
@@ -214,29 +214,7 @@ namespace Darb.Api.Controllers
         }
 
 
-        [HttpGet("bookings")]
-        [Authorize(Roles = "Passenger")]
-        [SwaggerOperation(
-            Summary = "Get Passenger Bookings",
-            Description = "Retrieves all bookings made by the authenticated passenger along with trip, company, and ticket details.")]
-        public async Task<IActionResult> GetMyBookings()
-        {
-            try
-            {
-                int passengerId = User.GetPassengerId();
-                var response = await _passengerService.GetMyBookingsAsync(passengerId);
-
-                if (!response.Success)
-                    return BadRequest(response);
-
-                return Ok(response);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
-            }
-        }
-
+        
         #region Passenger Reviews Endpoints
 
         /// <summary>
