@@ -28,5 +28,8 @@ namespace Darb.Api.Services.Interfaces
 
         /// Verifies the provided OTP for the specified email.
         Task<ResponseDto> VerifyOtpAsync(VerifyOtpDto dto);
+
+        Task<ResponseDto> ForgetPasswordAsync(ForgetPasswordDto dto);
+        Task<ResponseDto> ResetPasswordAsync(ResetPasswordDto dto);
     }
 }

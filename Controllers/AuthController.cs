@@ -116,6 +116,33 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-   
+        [HttpPost("forget-password")]
+        [SwaggerOperation(Summary = "Forget Password", Description = "Sends an OTP to the user's email to initiate password reset.")]
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("«·»Ì«‰«  «·„œŒ·… €Ì— ’ÕÌÕ….", ModelState));
+
+            var result = await _authService.ForgetPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        [SwaggerOperation(Summary = "Reset Password", Description = "Verifies the OTP and updates the user's password.")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("«·»Ì«‰«  «·„œŒ·… €Ì— ’ÕÌÕ….", ModelState));
+
+            var result = await _authService.ResetPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
     }
 }

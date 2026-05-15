@@ -255,5 +255,53 @@ namespace Darb.Api.Services.Implementations
         }
         #endregion
         #endregion
+
+        #region Reset Password Logic
+        
+        public async Task<ResponseDto> ForgetPasswordAsync(ForgetPasswordDto dto)
+        {
+            // 1. التحقق من وجود الحساب (عكس التسجيل: هنا يجب أن يكون الحساب موجوداً)
+            if (!await EmailExists(dto.Email))
+                return ResponseDto.FailureResponse("هذا البريد الإلكتروني غير مسجل لدينا.");
+
+            // 2. استدعاء خدمة البريد الإلكتروني بنفس الطريقة المعتمدة في كود التسجيل لديك
+            var otp = await _EmailService.SendOtpEmailAsync(dto.Email);
+
+            // 3. التحقق من نجاح إرسال الإيميل وتوليد الرمز
+            if (string.IsNullOrEmpty(otp))
+                return ResponseDto.FailureResponse("فشل إرسال البريد الإلكتروني. يرجى المحاولة لاحقاً.");
+
+            // 4. تخزين الرمز في الكاش لمدة 5 دقائق ببادئة خاصة لعملية إعادة التعيين
+            _Cache.Set($"RESET_OTP_{dto.Email}", otp, TimeSpan.FromMinutes(5));
+
+            return ResponseDto.SuccessResponse("تم إرسال رمز التحقق إلى بريدك الإلكتروني.");
+        }
+
+    
+        public async Task<ResponseDto> ResetPasswordAsync(ResetPasswordDto dto)
+        {
+            // 1. التحقق من وجود الرمز وصحته داخل الكاش
+            if (!_Cache.TryGetValue($"RESET_OTP_{dto.Email}", out string? storedOtp) || storedOtp != dto.OtpCode)
+            {
+                return ResponseDto.FailureResponse("الرمز غير صحيح أو انتهت صلاحيته.");
+            }
+
+            // 2. جلب الحساب لتعديله
+            var account = await _context.Accounts.FirstOrDefaultAsync(u => u.Email == dto.Email);
+            if (account == null)
+                return ResponseDto.FailureResponse("حدث خطأ، الحساب لم يعد متاحاً.");
+
+            // 3. تشفير كلمة المرور الجديدة بنفس أسلوب مشروعك (Base64)
+            account.Password = SecurityHelper.ConvertToBase64(dto.NewPassword);
+
+            _context.Accounts.Update(account);
+            await _context.SaveChangesAsync();
+
+            // 4. مسح الرمز من الكاش بعد نجاح العملية لضمان الأمان
+            _Cache.Remove($"RESET_OTP_{dto.Email}");
+
+            return ResponseDto.SuccessResponse("تمت إعادة تعيين كلمة المرور بنجاح.");
+        }
+        #endregion
     }
 }
