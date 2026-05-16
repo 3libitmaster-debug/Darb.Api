@@ -594,7 +594,7 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId)
         {
             var bookings = await _context.Bookings
-                .Include(b => b.Passenger)
+                .Include(b => b.Customer)
                 .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.StartGovernate)
@@ -608,8 +608,8 @@ namespace Darb.Api.Services.Implementations
             var bookingList = bookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
             {
                 BookingId = b.BookingId,
-                PassengerName = b.Passenger?.FullName ?? "غير محدد",
-                PhoneNumber = b.Passenger?.Phone ?? "غير محدد",
+                PassengerName = b.Customer?.FullName ?? "غير محدد",
+                PhoneNumber = b.Customer?.Phone ?? "غير محدد",
                 TripId = b.TripSchedule?.TripId ?? 0,
                 TripScheduleId = b.TripScheduleId,
                 StartGovernorate = b.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
@@ -628,8 +628,8 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId)
         {
             var booking = await _context.Bookings
-                .Include(b => b.Passenger)
-                .Include(b => b.Passengers)
+                .Include(b => b.Customer)
+                .Include(b => b.Customers)
                 .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.StartGovernate)
@@ -648,8 +648,8 @@ namespace Darb.Api.Services.Implementations
             var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
             {
                 BookingId = booking.BookingId,
-                PassengerName = booking.Passenger?.FullName ?? "غير محدد",
-                PhoneNumber = booking.Passenger?.Phone ?? "غير محدد",
+                PassengerName = booking.Customer?.FullName ?? "غير محدد",
+                PhoneNumber = booking.Customer?.Phone ?? "غير محدد",
                 TripId = booking.TripSchedule?.TripId ?? 0,
                 TripScheduleId = booking.TripScheduleId,
                 StartGovernorate = booking.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
@@ -661,9 +661,9 @@ namespace Darb.Api.Services.Implementations
                 Status = booking.Status.ToString(),
                 BookingAt = booking.BookingAt,
                 TicketCode = booking.ETicket?.TicketCode,
-                Passengers = booking.Passengers.Select(p => new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
+                Customers = booking.Customers.Select(p => new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
                 {
-                    PassengerDetailId = p.PassengerDetailsId,
+                    PassengerDetailId = p.PassengerId,
                     FullName = p.FullName,
                     NationalId = p.NationalId ?? "غير متوفر",
                 }).ToList()
@@ -675,7 +675,7 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId)
         {
             var booking = await _context.Bookings
-                .Include(b => b.Passengers)
+                .Include(b => b.Customers)
                 .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
@@ -738,12 +738,12 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("لا يمكن حذف حجز مؤكد. الرجاء تغيير حالته إلى ملغى أولاً إذا لزم الأمر.");
             }
 
-            // Must remove related passengers and their etickets before deleting booking. Or rely on cascade delete.
+            // Must remove related customers and their etickets before deleting booking. Or rely on cascade delete.
             // Explicit delete for safety
-            var passengers = await _context.PassengerDetails.Where(pd => pd.BookingId == bookingId).ToListAsync();
-            if (passengers.Any())
+            var customers = await _context.Passenger.Where(pd => pd.BookingId == bookingId).ToListAsync();
+            if (customers.Any())
             {
-                _context.PassengerDetails.RemoveRange(passengers);
+                _context.Passenger.RemoveRange(customers);
             }
             
             var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
@@ -761,7 +761,7 @@ namespace Darb.Api.Services.Implementations
         public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
         {
             var booking = await _context.Bookings
-                .Include(b => b.Passengers)
+                .Include(b => b.Customers)
                 .Include(b => b.TripSchedule)
                     .ThenInclude(tr => tr!.Trip)
                 .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
@@ -806,7 +806,7 @@ namespace Darb.Api.Services.Implementations
 
         public async Task<ResponseDto> GetAllBankAccountsAsync(int companyId)
         {
-            var accounts = await _context.BankAccounts
+            var users = await _context.BankAccounts
                 .Include(ba => ba.Bank)
                 .Where(ba => ba.CompanyId == companyId)
                 .Select(ba => new BankAccountReadDto
@@ -818,7 +818,7 @@ namespace Darb.Api.Services.Implementations
                     BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
                     CompanyId = ba.CompanyId
                 }).ToListAsync();
-            return ResponseDto.SuccessResponse($"تم استرجاع ({accounts.Count}) حساب بنكي بنجاح.", accounts);
+            return ResponseDto.SuccessResponse($"تم استرجاع ({users.Count}) حساب بنكي بنجاح.", users);
         }
 
         public async Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId)
@@ -846,31 +846,31 @@ namespace Darb.Api.Services.Implementations
             var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId);
             if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود في النظام.");
 
-            var account = new BankAccount
+            var user = new BankAccount
             {
                 AccountNumber = dto.AccountNumber,
                 HolderName = dto.AccountHolderName,
                 BankId = dto.BankId,
                 CompanyId = companyId
             };
-            await _context.BankAccounts.AddAsync(account);
+            await _context.BankAccounts.AddAsync(user);
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم إضافة الحساب البنكي بنجاح.");
         }
 
         public async Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId)
         {
-            var account = await _context.BankAccounts
+            var user = await _context.BankAccounts
                 .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
-            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+            if (user == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
 
-            if (!string.IsNullOrEmpty(dto.AccountNumber)) account.AccountNumber = dto.AccountNumber;
-            if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.HolderName = dto.AccountHolderName;
+            if (!string.IsNullOrEmpty(dto.AccountNumber)) user.AccountNumber = dto.AccountNumber;
+            if (!string.IsNullOrEmpty(dto.AccountHolderName)) user.HolderName = dto.AccountHolderName;
             if (dto.BankId.HasValue)
             {
                 var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId.Value);
                 if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود.");
-                account.BankId = dto.BankId.Value;
+                user.BankId = dto.BankId.Value;
             }
 
             await _context.SaveChangesAsync();
@@ -879,11 +879,11 @@ namespace Darb.Api.Services.Implementations
 
         public async Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId)
         {
-            var account = await _context.BankAccounts
+            var user = await _context.BankAccounts
                 .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
-            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+            if (user == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
 
-            _context.BankAccounts.Remove(account);
+            _context.BankAccounts.Remove(user);
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم حذف الحساب البنكي بنجاح.");
         }

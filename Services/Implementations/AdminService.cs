@@ -165,7 +165,7 @@ namespace Darb.Api.Services.Implementations
     #region Advertisement Logic
 
     /// <summary>
-    /// Retrieves all advertisements with related Account information.
+    /// Retrieves all advertisements with related User information.
     /// </summary>
     public async Task<ResponseDto> GetAllAdvertisementsAsync()
     {
@@ -173,20 +173,20 @@ namespace Darb.Api.Services.Implementations
         var ads = await _adRepo.GetAllAsync();
 
         // Extract unique AccountIDs to fetch their emails in a single batch for better performance (Optimization)
-        var AccountIds = ads.Select(a => a.AccountId).Distinct().ToList();
+        var AccountIds = ads.Select(a => a.UserId).Distinct().ToList();
 
-        // Fetch Account emails and store them in a dictionary for fast lookup
-        var Accounts = await _context.Accounts
-            .Where(u => AccountIds.Contains(u.AccountId))
-            .ToDictionaryAsync(u => u.AccountId, u => u.Email);
+        // Fetch User emails and store them in a dictionary for fast lookup
+        var Users = await _context.Users
+            .Where(u => AccountIds.Contains(u.UserId))
+            .ToDictionaryAsync(u => u.UserId, u => u.Email);
 
         // Map the database entities to Read-Only DTOs for the client side
         var dtos = ads.Select(a => new AdvertisementReadDto
         {
             AdvertisementID = a.AdvertisementID,
-            AccountID = a.AccountId,
-            // Safely handle cases where a Account might not exist in the dictionary
-            Account_Email = Accounts.ContainsKey(a.AccountId) ? Accounts[a.AccountId] : "Unknown Account",
+            AccountID = a.UserId,
+            // Safely handle cases where a User might not exist in the dictionary
+            Account_Email = Users.ContainsKey(a.UserId) ? Users[a.UserId] : "Unknown User",
             Title = a.AdsTitle,
             Description = a.Description,
             ImageUrl = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : string.Empty,
@@ -209,13 +209,13 @@ namespace Darb.Api.Services.Implementations
         if (ad == null) return ResponseDto.FailureResponse("Advertisement not found.");
 
         // Fetch the owner/creator information
-        var Account = await _context.Accounts.FindAsync(ad.AccountId);
+        var User = await _context.Users.FindAsync(ad.UserId);
 
         var dto = new AdvertisementReadDto
         {
             AdvertisementID = ad.AdvertisementID,
-            AccountID = ad.AccountId,
-            Account_Email = Account?.Email ?? "Unknown Account",
+            AccountID = ad.UserId,
+            Account_Email = User?.Email ?? "Unknown User",
             Title = ad.AdsTitle,
             Description = ad.Description,
             ImageUrl = !string.IsNullOrEmpty(ad.Image) ? _baseUrl + ad.Image : string.Empty,
@@ -234,13 +234,13 @@ namespace Darb.Api.Services.Implementations
     public async Task<ResponseDto> CreateAdvertisementAsync(int adminId, AdvertisementCreateDto dto)
     {
         // Verify if the Admin ID from the token exists in the database to prevent Foreign Key constraints violation
-        var adminExists = await _context.Accounts.AnyAsync(u => u.AccountId == adminId);
-        if (!adminExists) return ResponseDto.FailureResponse("Unauthorized: Admin Account not found.");
+        var adminExists = await _context.Users.AnyAsync(u => u.UserId == adminId);
+        if (!adminExists) return ResponseDto.FailureResponse("Unauthorized: Admin User not found.");
 
         // Initialize the Advertisement entity with data from DTO and the Token
         var ad = new Advertisement
         {
-            AccountId = adminId,  // Automatic binding to the logged-in admin
+            UserId = adminId,  // Automatic binding to the logged-in admin
             AdsTitle = dto.Title,
             Description = dto.Description,
             StartDateAds = dto.StartDateAds,

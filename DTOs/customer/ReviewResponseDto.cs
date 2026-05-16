@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.passenger
+namespace Darb.Api.DTOs.customer
 {
     public class ReviewResponseDto
     {

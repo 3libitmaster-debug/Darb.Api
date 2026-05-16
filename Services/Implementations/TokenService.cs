@@ -1,4 +1,4 @@
-﻿using Darb.Api.Models;
+using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -18,21 +18,21 @@ namespace Darb.Api.Services.Implemention
             _configuration = configuration;
         }
 
-        public string GenerateJwtToken(Account Account)
+        public string GenerateJwtToken(User User)
         {
             // 1. Setup Claims
             var claims = new List<Claim>
             {
-                new Claim(ClaimTypes.NameIdentifier, Account.AccountId.ToString()),
-                new Claim(ClaimTypes.Email, Account.Email ?? string.Empty),
-                new Claim(ClaimTypes.Role, Account.Role.ToString())
+                new Claim(ClaimTypes.NameIdentifier, User.UserId.ToString()),
+                new Claim(ClaimTypes.Email, User.Email ?? string.Empty),
+                new Claim(ClaimTypes.Role, User.Role.ToString())
             };
 
             // Add profile-specific IDs
-            if (Account.Role == AccountRoles.Passenger && Account.Passenger != null)
-                claims.Add(new Claim("PassengerId", Account.Passenger.PassengerId.ToString()));
-            else if (Account.Role == AccountRoles.Company && Account.Company != null)
-                claims.Add(new Claim("CompanyId", Account.Company.CompanyId.ToString()));
+            if (User.Role == AccountRoles.Customer && User.Customer != null)
+                claims.Add(new Claim("CustomerId", User.Customer.CustomerId.ToString()));
+            else if (User.Role == AccountRoles.Company && User.Company != null)
+                claims.Add(new Claim("CompanyId", User.Company.CompanyId.ToString()));
 
             // 2. Fetch the Key from appsettings.json using the exact path
             // Note: We use "JwtSettings:Key" to match your appsettings structure

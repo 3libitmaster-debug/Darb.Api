@@ -107,7 +107,7 @@ builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IRepository<Governorate>, Repository<Governorate>>();
 builder.Services.AddScoped<IRepository<City>, Repository<City>>();
 builder.Services.AddScoped<IRepository<Advertisement>, Repository<Advertisement>>();
-builder.Services.AddScoped<IPassengerService, PassengerService>();
+builder.Services.AddScoped<ICustomerService, CustomerService>();
 builder.Services.AddScoped<IRepository<Company>, Repository<Company>>();
 builder.Services.AddScoped<IRepository<Trip>, Repository<Trip>>();
 

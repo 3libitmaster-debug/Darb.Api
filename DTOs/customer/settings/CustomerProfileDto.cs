@@ -4,7 +4,7 @@ namespace Darb.Api.DTOs.passengerDtos.settings
 {
     public class PassengerProfileDto
     {
-        public int PassengerId { get; set; }
+        public int CustomerId { get; set; }
 
         public string FullName { get; set; } = string.Empty;
 

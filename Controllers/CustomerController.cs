@@ -1,5 +1,5 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.passenger;
+using Darb.Api.DTOs.customer;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
@@ -14,10 +14,10 @@ namespace Darb.Api.Controllers
 {
     [Route("api/[controller]")]
     [ApiController]
-    public class PassengerController : ControllerBase
+    public class CustomerController : ControllerBase
     {
-        private readonly IPassengerService _passengerService;
-        public PassengerController(IPassengerService passengerService)
+        private readonly ICustomerService _passengerService;
+        public CustomerController(ICustomerService passengerService)
         {
             _passengerService = passengerService;
         }
@@ -82,24 +82,24 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetStations(int tripId)
             => Ok(await _passengerService.GetTripStationsAsync(tripId));
 
-        [HttpGet("bank/accounts/{companyId}")]
+        [HttpGet("bank/users/{companyId}")]
         [SwaggerOperation(
-            Summary = "Get Company Bank Accounts",
-            Description = "Retrieves all bank accounts for a specific company.")]
+            Summary = "Get Company Bank Users",
+            Description = "Retrieves all bank users for a specific company.")]
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
 
         [HttpGet("settings/profile")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(
-            Summary = "Get Passenger Profile",
-            Description = "Retrieves personal profile details for the authenticated passenger.")]
+            Summary = "Get Customer Profile",
+            Description = "Retrieves personal profile details for the authenticated customer.")]
         public async Task<IActionResult> GetProfile()
         {
             try
             {
-                int passengerId = User.GetPassengerId();
-                var response = await _passengerService.GetProfileAsync(passengerId);
+                int customerId = User.GetPassengerId();
+                var response = await _passengerService.GetProfileAsync(customerId);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -114,10 +114,10 @@ namespace Darb.Api.Controllers
 
 
         [HttpPost("trips/book")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(
             Summary = "Book a Trip (Stage 1)",
-            Description = "Allows an authorized passenger to create a booking without the receipt image. Returns the BookingId to be used in Stage 2.")]
+            Description = "Allows an authorized customer to create a booking without the receipt image. Returns the BookingId to be used in Stage 2.")]
         public async Task<IActionResult> BookTrip([FromBody] BookingRequestDto request)
         {
             try
@@ -137,7 +137,7 @@ namespace Darb.Api.Controllers
         }
 
         [HttpPost("upload/booking/receipt")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [Consumes("multipart/form-data")]
         [SwaggerOperation(
             Summary = "Upload Payment Receipt for (Stage 2)",
@@ -146,8 +146,8 @@ namespace Darb.Api.Controllers
         {
             try
             {
-                int accountId = User.GetPassengerId();
-                var response = await _passengerService.UploadReceiptAsync(accountId, request);
+                int userId = User.GetPassengerId();
+                var response = await _passengerService.UploadReceiptAsync(userId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -174,12 +174,12 @@ namespace Darb.Api.Controllers
 
 
         [HttpGet("bookings/status")] 
-        [Authorize(Roles = "Passenger")]
-        [SwaggerOperation(Summary = "Get Passenger Bookings by StatusId.")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(Summary = "Get Customer Bookings by StatusId.")]
         public async Task<IActionResult> GetBookingsByStatus(BookingStatus status) 
         {
-            int passengerId = User.GetPassengerId();
-            var response = await _passengerService.GetBookingsByStatusAsync(passengerId, status);
+            int customerId = User.GetPassengerId();
+            var response = await _passengerService.GetBookingsByStatusAsync(customerId, status);
 
             return Ok(response);
         }
@@ -187,22 +187,22 @@ namespace Darb.Api.Controllers
 
         /// <summary>
         /// Retrieves full details for a specific booking.
-        /// Example: GET api/passenger/bookings/5/details
+        /// Example: GET api/customer/bookings/5/details
         /// </summary>
         /// <param name="bookingId">The unique ID of the booking.</param>
-        /// <returns>Full booking details including passengers and ticket info.</returns>
+        /// <returns>Full booking details including customers and ticket info.</returns>
         [HttpGet("bookings/{bookingId}/details")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(
             Summary = "Get Full Booking Details",
-            Description = "Returns all details related to a booking, trip, and associated passengers.")]
+            Description = "Returns all details related to a booking, trip, and associated customers.")]
         public async Task<IActionResult> GetBookingDetails(int bookingId)
         {
             // استخراج معرف المسافر من الـ Claims الموجودة في الـ Token
-            int passengerId = User.GetPassengerId();
+            int customerId = User.GetPassengerId();
 
             // استدعاء الخدمة لجلب البيانات
-            var response = await _passengerService.GetBookingDetailsAsync(bookingId, passengerId);
+            var response = await _passengerService.GetBookingDetailsAsync(bookingId, customerId);
 
             if (!response.Success)
             {
@@ -215,13 +215,13 @@ namespace Darb.Api.Controllers
 
 
         
-        #region Passenger Reviews Endpoints
+        #region Customer Reviews Endpoints
 
         /// <summary>
         /// Retrieves the details of a specific review using its unique ID.
         /// </summary>
         [HttpGet("reviews/{reviewId}")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(Summary = "Get Review By ID")]
         public async Task<IActionResult> GetReviewById(int reviewId)
         {
@@ -238,20 +238,20 @@ namespace Darb.Api.Controllers
         /// Uses AddReviewDto to ensure CompanyId is provided.
         /// </summary>
         [HttpPost("reviews")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(Summary = "Add Company Review")]
         public async Task<IActionResult> AddReview([FromBody] AddReviewDto request) // تم التعديل هنا
         {
             try
             {
-                int passengerId = User.GetPassengerId();
+                int customerId = User.GetPassengerId();
 
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ResponseDto.FailureResponse("بيانات التقييم غير مكتملة أو غير صالحة."));
                 }
 
-                var response = await _passengerService.AddReviewAsync(passengerId, request);
+                var response = await _passengerService.AddReviewAsync(customerId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -265,15 +265,15 @@ namespace Darb.Api.Controllers
         }
 
         /// <summary>
-        /// Returns a list of all reviews submitted by the currently authenticated passenger.
+        /// Returns a list of all reviews submitted by the currently authenticated customer.
         /// </summary>
         [HttpGet("reviews")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(Summary = "Get My Reviews")]
         public async Task<IActionResult> GetMyReviews()
         {
-            int passengerId = User.GetPassengerId();
-            var response = await _passengerService.GetPassengerReviewsAsync(passengerId);
+            int customerId = User.GetPassengerId();
+            var response = await _passengerService.GetPassengerReviewsAsync(customerId);
             return Ok(response);
         }
 
@@ -282,14 +282,14 @@ namespace Darb.Api.Controllers
         /// Uses UpdateReviewDto as required by the service layer.
         /// </summary>
         [HttpPut("reviews/{reviewId}")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(Summary = "Update Review")]
         public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] UpdateReviewDto request) // تم التعديل هنا لحل الخطأ CS1503
         {
-            int passengerId = User.GetPassengerId();
+            int customerId = User.GetPassengerId();
 
             // الآن المتغير 'request' من نوع UpdateReviewDto سيتوافق تماماً مع توقيع الميثود في الخدمة
-            var response = await _passengerService.UpdateReviewAsync(passengerId, reviewId, request);
+            var response = await _passengerService.UpdateReviewAsync(customerId, reviewId, request);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }
@@ -298,12 +298,12 @@ namespace Darb.Api.Controllers
         /// Deletes a specific review and updates the associated company's average rating.
         /// </summary>
         [HttpDelete("reviews/{reviewId}")]
-        [Authorize(Roles = "Passenger")]
+        [Authorize(Roles = "Customer")]
         [SwaggerOperation(Summary = "Delete Review")]
         public async Task<IActionResult> DeleteReview(int reviewId)
         {
-            int passengerId = User.GetPassengerId();
-            var response = await _passengerService.DeleteReviewAsync(passengerId, reviewId);
+            int customerId = User.GetPassengerId();
+            var response = await _passengerService.DeleteReviewAsync(customerId, reviewId);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }

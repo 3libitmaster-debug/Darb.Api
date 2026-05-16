@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Dtos
+namespace Darb.Api.Dtos
 {
     public class BusReadDto
     {

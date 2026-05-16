@@ -24,10 +24,10 @@ namespace Darb.Api.Models
 
         public double AverageRating { get; set; }
 
-        public int AccountId { get; set; }
+        public int UserId { get; set; }
         [Required]
-        [ForeignKey("AccountId")]
-        public Account ?Account { get; set; }
+        [ForeignKey("UserId")]
+        public User ?User { get; set; }
 
         public ICollection<CompanySubscription>? CompanySubscription { get; set; }
 

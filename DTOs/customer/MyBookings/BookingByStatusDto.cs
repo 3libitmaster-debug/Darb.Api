@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.passenger.MyBookings
+namespace Darb.Api.DTOs.customer.MyBookings
 {
     public class BookingByStatusDto
     {

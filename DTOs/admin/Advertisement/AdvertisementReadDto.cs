@@ -1,4 +1,4 @@
-﻿using Darb.Api.Models;
+using Darb.Api.Models;
 
 namespace Darb.Api.DTOs.adminDtos.Advertisement
 {

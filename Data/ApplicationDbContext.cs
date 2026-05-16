@@ -11,8 +11,8 @@ namespace darbWebApp.Data
         }
 
         // --- Database Sets (Tables) ---
-        public DbSet<Account> Accounts { get; set; }
-        public DbSet<Passenger> Passengers { get; set; }
+        public DbSet<User> Users { get; set; }
+        public DbSet<Customer> Customers { get; set; }
         public DbSet<Company> Companies { get; set; }
         public DbSet<CompanySubscription> CompanySubscription { get; set; }
         public DbSet<Governorate> Governorates { get; set; }
@@ -25,7 +25,7 @@ namespace darbWebApp.Data
         public DbSet<BankAccount> BankAccounts { get; set; }
         public DbSet<TripSchedule> TripSchedules { get; set; }
         public DbSet<Booking> Bookings { get; set; }
-        public DbSet<PassengerDetails> PassengerDetails { get; set; }
+        public DbSet<Passenger> Passenger { get; set; }
         public DbSet<ETicket> ETickets { get; set; }
         public DbSet<TripFare> TripFares { get; set; }
         public DbSet<Review> Review { get; set; }
@@ -39,7 +39,7 @@ namespace darbWebApp.Data
             // ============================================================
 
             // Convert AccountRole Enum to String in Database
-            modelBuilder.Entity<Account>()
+            modelBuilder.Entity<User>()
                 .Property(u => u.Role)
                 .HasConversion<string>();
 
@@ -49,12 +49,12 @@ namespace darbWebApp.Data
                .HasConversion<string>();
 
             // Ensure Email uniqueness for security and login integrity
-            modelBuilder.Entity<Account>()
+            modelBuilder.Entity<User>()
                 .HasIndex(u => u.Email)
                 .IsUnique();
 
-            // Ensure Phone Number uniqueness for Passengers
-            modelBuilder.Entity<Passenger>()
+            // Ensure Phone Number uniqueness for Customers
+            modelBuilder.Entity<Customer>()
                 .HasIndex(p => p.Phone)
                 .IsUnique();
 
@@ -68,21 +68,21 @@ namespace darbWebApp.Data
             // 2. RELATIONSHIP CONFIGURATIONS (One-to-One, One-to-Many)
             // ============================================================
 
-            // --- Passenger & Account Relationship (One-to-One) ---
-            // A Passenger is a specialized type of Account. Deleting a Account deletes the Passenger profile.
-            modelBuilder.Entity<Passenger>()
-                .HasOne(p => p.Account)
-                .WithOne(u => u.Passenger)
-                .HasForeignKey<Passenger>(p => p.AccountId)
+            // --- Customer & User Relationship (One-to-One) ---
+            // A Customer is a specialized type of User. Deleting a User deletes the Customer profile.
+            modelBuilder.Entity<Customer>()
+                .HasOne(p => p.User)
+                .WithOne(u => u.Customer)
+                .HasForeignKey<Customer>(p => p.UserId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
-            // --- Company & Account Relationship (One-to-One) ---
-            // A Company is a specialized type of Account. Cascade delete ensures data cleanup.
+            // --- Company & User Relationship (One-to-One) ---
+            // A Company is a specialized type of User. Cascade delete ensures data cleanup.
             modelBuilder.Entity<Company>()
-                .HasOne(c => c.Account)
+                .HasOne(c => c.User)
                 .WithOne(u => u.Company)
-                .HasForeignKey<Company>(p => p.AccountId)
+                .HasForeignKey<Company>(p => p.UserId)
                 .IsRequired()
                 .OnDelete(DeleteBehavior.Cascade);
 
@@ -185,27 +185,27 @@ namespace darbWebApp.Data
 
 
             modelBuilder.Entity<Review>()
-                .HasOne(p => p.Passenger)
+                .HasOne(p => p.Customer)
                 .WithMany(r => r.Review)
-                .HasForeignKey(p => p.PassengerId);
+                .HasForeignKey(p => p.CustomerId);
 
      
 
 
 
-            // --- Advertisement & Account Relationships ---
-            // An advertisement is created by a Account and owned by a Account (Admin).
+            // --- Advertisement & User Relationships ---
+            // An advertisement is created by a User and owned by a User (Admin).
             // Prevent multiple cascade paths
             modelBuilder.Entity<Advertisement>()
-                .HasOne(a => a.Account)
+                .HasOne(a => a.User)
                 .WithMany()
-                .HasForeignKey(a => a.AccountId)
+                .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Cascade);
 
             modelBuilder.Entity<Advertisement>()
-                .HasOne(a => a.Account)
+                .HasOne(a => a.User)
                 .WithMany()
-                .HasForeignKey(a => a.AccountId)
+                .HasForeignKey(a => a.UserId)
                 .OnDelete(DeleteBehavior.Restrict);
 
             // --- Bank & BankAccount Relationships ---
@@ -231,9 +231,9 @@ namespace darbWebApp.Data
 
             // --- Booking Relationships (Prevent multiple cascade paths) ---
             modelBuilder.Entity<Booking>()
-                .HasOne(b => b.Passenger)
+                .HasOne(b => b.Customer)
                 .WithMany()
-                .HasForeignKey(b => b.PassengerId)
+                .HasForeignKey(b => b.CustomerId)
                 .OnDelete(DeleteBehavior.NoAction);
 
             modelBuilder.Entity<Booking>()
@@ -257,9 +257,9 @@ namespace darbWebApp.Data
 
             // Review relationship
             modelBuilder.Entity<Review>()
-               .HasOne(p => p.Passenger)
+               .HasOne(p => p.Customer)
                .WithMany(r => r.Review)
-               .HasForeignKey(p => p.PassengerId)
+               .HasForeignKey(p => p.CustomerId)
                .OnDelete(DeleteBehavior.Restrict); // Â‰« ⁄ÿ·‰« «·Õ–› «· ·ﬁ«∆Ì ··„”«›—
 
             modelBuilder.Entity<Review>()

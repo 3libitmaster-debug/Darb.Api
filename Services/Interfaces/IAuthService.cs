@@ -11,16 +11,16 @@ namespace Darb.Api.Services.Interfaces
         // Validates if an email is already registered in the system.
         Task<bool> EmailExists(string email);
 
-        // Validates if a phone number is already registered for any passenger.
+        // Validates if a phone number is already registered for any customer.
         Task<bool> PhoneExists(string phone);
 
-        /// Handles the registration logic for a new passenger and returns a unified response.
+        /// Handles the registration logic for a new customer and returns a unified response.
         Task<ResponseDto> RegisterPassenger(RegisterPassengerDto dto);
 
         /// Handles the registration logic for a company, including document uploads and subscriptions.
         Task<ResponseDto> RegisterCompanyAsync(RegisterCompanyDto request);
 
-        /// Authenticates the Account and returns a response containing the JWT token or error details.
+        /// Authenticates the User and returns a response containing the JWT token or error details.
         Task<ResponseDto> Login(LoginDto dto);
 
         /// Sends an OTP to the specified email for verification.

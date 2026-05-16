@@ -1,4 +1,4 @@
-ï»¿using Darb.Api.Helpers;
+using Darb.Api.Helpers;
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 
@@ -10,10 +10,10 @@ namespace Darb.Api.Models
         public int ReviewId { get; set; }
 
         [Required]
-        public int PassengerId { get; set; }
+        public int CustomerId { get; set; }
         
-        [ForeignKey(nameof(PassengerId))]
-        public virtual Passenger? Passenger { get; set; }
+        [ForeignKey(nameof(CustomerId))]
+        public virtual Customer? Customer { get; set; }
 
         [Required]
         public int CompanyId { get; set; }
@@ -22,10 +22,10 @@ namespace Darb.Api.Models
         public virtual Company? Company { get; set; }
 
         [Required]
-        [Range(1, 5, ErrorMessage = "Ø§Ù„ØªÙ‚ÙŠÙŠÙ… ÙŠØ¬Ø¨ Ø£Ù† ÙŠÙƒÙˆÙ† Ø¨ÙŠÙ† 1 Ùˆ 5 Ù†Ø¬ÙˆÙ…")]
+        [Range(1, 5, ErrorMessage = "ÇáÊŞííã íÌÈ Ãä íßæä Èíä 1 æ 5 äÌæã")]
         public int Rating { get; set; }
 
-        [StringLength(1000, ErrorMessage = "Ø§Ù„ÙˆØµÙ Ù„Ø§ ÙŠÙ…ÙƒÙ† Ø£Ù† ÙŠØªØ¬Ø§ÙˆØ² 1000 Ø­Ø±Ù")]
+        [StringLength(1000, ErrorMessage = "ÇáæÕİ áÇ íãßä Ãä íÊÌÇæÒ 1000 ÍÑİ")]
         public string? Description { get; set; }
 
         [Required]

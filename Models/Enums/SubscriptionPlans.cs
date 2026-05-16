@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Models.Enums
+namespace Darb.Api.Models.Enums
 {
     public enum SubscriptionPlans
     {

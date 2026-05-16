@@ -1,5 +1,5 @@
 using Darb.Api.DTOs.Base;
-using Darb.Api.DTOs.passenger;
+using Darb.Api.DTOs.customer;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
@@ -7,52 +7,52 @@ using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Services.Interfaces
 {
-    public interface IPassengerService
+    public interface ICustomerService
     {
         
-        // Retrieves all data required for the passenger home page 
+        // Retrieves all data required for the customer home page 
         Task<ResponseDto> GetHomePageDataAsync();
         Task<ResponseDto> SearchTripsAsync(TripSearchQueryDto query);
         Task<ResponseDto> GetTripStationsAsync(int tripId);
         Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId);
-        Task<ResponseDto> GetProfileAsync(int passengerId);
-        Task<ResponseDto> BookTripAsync(int AccountId, BookingRequestDto request);
-        Task<ResponseDto> UploadReceiptAsync(int AccountId, UploadReceiptDto request);
+        Task<ResponseDto> GetProfileAsync(int customerId);
+        Task<ResponseDto> BookTripAsync(int UserId, BookingRequestDto request);
+        Task<ResponseDto> UploadReceiptAsync(int UserId, UploadReceiptDto request);
 
 
         Task<ResponseDto> GetBookingStatusesAsync();
-        Task<ResponseDto> GetBookingsByStatusAsync(int passengerId, BookingStatus status);
-        Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int passengerId);
+        Task<ResponseDto> GetBookingsByStatusAsync(int customerId, BookingStatus status);
+        Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int customerId);
 
         #region Review Management Methods
 
         /// <summary>
         /// Submits a new review for a company using specialized AddReviewDto.
         /// </summary>
-        /// <param name="passengerId">The ID of the authenticated passenger.</param>
+        /// <param name="customerId">The ID of the authenticated customer.</param>
         /// <param name="request">Contains CompanyId, Rating, and Description.</param>
-        Task<ResponseDto> AddReviewAsync(int passengerId, AddReviewDto request);
+        Task<ResponseDto> AddReviewAsync(int customerId, AddReviewDto request);
 
         /// <summary>
-        /// Retrieves all reviews submitted by the specific passenger, returned as ReviewReturnDto.
+        /// Retrieves all reviews submitted by the specific customer, returned as ReviewReturnDto.
         /// </summary>
-        /// <param name="passengerId">The ID of the passenger fetching their history.</param>
-        Task<ResponseDto> GetPassengerReviewsAsync(int passengerId);
+        /// <param name="customerId">The ID of the customer fetching their history.</param>
+        Task<ResponseDto> GetPassengerReviewsAsync(int customerId);
 
         /// <summary>
         /// Updates an existing review's content using UpdateReviewDto and recalculates the company's average.
         /// </summary>
-        /// <param name="passengerId">The passenger ID for ownership verification.</param>
+        /// <param name="customerId">The customer ID for ownership verification.</param>
         /// <param name="reviewId">The unique identifier of the review.</param>
         /// <param name="request">Contains updated Rating and Description.</param>
-        Task<ResponseDto> UpdateReviewAsync(int passengerId, int reviewId, UpdateReviewDto request);
+        Task<ResponseDto> UpdateReviewAsync(int customerId, int reviewId, UpdateReviewDto request);
 
         /// <summary>
         /// Permanently deletes a review and triggers a rating recalculation for the associated company.
         /// </summary>
-        /// <param name="passengerId">The passenger ID for ownership verification.</param>
+        /// <param name="customerId">The customer ID for ownership verification.</param>
         /// <param name="reviewId">The ID of the review to be removed.</param>
-        Task<ResponseDto> DeleteReviewAsync(int passengerId, int reviewId);
+        Task<ResponseDto> DeleteReviewAsync(int customerId, int reviewId);
 
         /// <summary>
         /// Retrieves the details of a single review, mapped to ReviewReturnDto.

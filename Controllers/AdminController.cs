@@ -128,7 +128,7 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> UpdateBank(int id, [FromBody] BankUpdateDto dto) => Ok(await _adminService.UpdateBankAsync(id, dto));
 
         [HttpDelete("banks/{id}")]
-        [SwaggerOperation(Summary = "Delete Bank", Description = "Permanently removes a bank from the system. Note: Only banks without linked accounts can be deleted.")]
+        [SwaggerOperation(Summary = "Delete Bank", Description = "Permanently removes a bank from the system. Note: Only banks without linked users can be deleted.")]
         public async Task<IActionResult> DeleteBank(int id) => Ok(await _adminService.DeleteBankAsync(id));
 
         #endregion

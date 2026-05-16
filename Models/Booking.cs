@@ -18,10 +18,10 @@ namespace Darb.Api.Models
         // --- Foreign Keys ---
 
         [Required]
-        public int PassengerId { get; set; }
+        public int CustomerId { get; set; }
 
-        [ForeignKey("PassengerId")]
-        public virtual Passenger? Passenger { get; set; }
+        [ForeignKey("CustomerId")]
+        public virtual Customer? Customer { get; set; }
 
         [Required]
         public int TripScheduleId { get; set; }
@@ -29,7 +29,7 @@ namespace Darb.Api.Models
         [ForeignKey("TripScheduleId")]
         public virtual TripSchedule? TripSchedule { get; set; } 
 
-        public virtual ICollection<PassengerDetails> Passengers { get; set; } = new List<PassengerDetails>();
+        public virtual ICollection<Passenger> Customers { get; set; } = new List<Passenger>();
 
         public int ReservedSeatsCount { get; set; } 
 

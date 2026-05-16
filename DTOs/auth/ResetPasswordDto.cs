@@ -1,18 +1,18 @@
-ï»¿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Darb.Api.DTOs.auth
 {
     public class ResetPasswordDto
     {
-        [Required(ErrorMessage = "Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ Ù…Ø·Ù„ÙˆØ¨.")]
-        [EmailAddress(ErrorMessage = "ØµÙŠØºØ© Ø§Ù„Ø¨Ø±ÙŠØ¯ Ø§Ù„Ø¥Ù„ÙƒØªØ±ÙˆÙ†ÙŠ ØºÙŠØ± ØµØ­ÙŠØ­Ø©.")]
+        [Required(ErrorMessage = "ÇáÈÑíÏ ÇáÅáßÊÑæäí ãØáæÈ.")]
+        [EmailAddress(ErrorMessage = "ÕíÛÉ ÇáÈÑíÏ ÇáÅáßÊÑæäí ÛíÑ ÕÍíÍÉ.")]
         public string Email { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "Ø±Ù…Ø² Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ø·Ù„ÙˆØ¨.")]
+        [Required(ErrorMessage = "ÑãÒ ÇáÊÍŞŞ ãØáæÈ.")]
         public string OtpCode { get; set; } = string.Empty;
 
-        [Required(ErrorMessage = "ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø§Ù„Ø¬Ø¯ÙŠØ¯Ø© Ù…Ø·Ù„ÙˆØ¨Ø©.")]
-        [MinLength(6, ErrorMessage = "ÙŠØ¬Ø¨ Ø£Ù„Ø§ ØªÙ‚Ù„ ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± Ø¹Ù† 6 Ø£Ø­Ø±Ù.")]
+        [Required(ErrorMessage = "ßáãÉ ÇáãÑæÑ ÇáÌÏíÏÉ ãØáæÈÉ.")]
+        [MinLength(6, ErrorMessage = "íÌÈ ÃáÇ ÊŞá ßáãÉ ÇáãÑæÑ Úä 6 ÃÍÑİ.")]
         public string NewPassword { get; set; } = string.Empty;
     }
 }

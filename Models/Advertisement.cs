@@ -15,10 +15,10 @@ namespace Darb.Api.Models
         public int AdvertisementID { get; set; }
 
         [Required]
-        public int AccountId { get; set; }
+        public int UserId { get; set; }
 
-        [ForeignKey("AccountId")]
-        public Account? Account { get; set; }
+        [ForeignKey("UserId")]
+        public User? User { get; set; }
 
         [MaxLength(100)]
         public string? AdsTitle { get; set; }

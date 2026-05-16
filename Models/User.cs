@@ -1,12 +1,12 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using Darb.Api.Models.Enums;
 namespace Darb.Api.Models
 {
 
 
-    public class Account
+    public class User
     {
-        public int AccountId { get; set; }
+        public int UserId { get; set; }
 
 
         public string? Email { get; set; }
@@ -22,7 +22,7 @@ namespace Darb.Api.Models
 
         public DateTime JoinDate { get; set; } = DateTime.UtcNow;
 
-        public Passenger? Passenger { get; set; }
+        public Customer? Customer { get; set; }
 
         public Company? Company { get; set; }
 

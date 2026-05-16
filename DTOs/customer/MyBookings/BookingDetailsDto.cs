@@ -1,4 +1,4 @@
-ï»¿namespace Darb.Api.DTOs.Booking
+namespace Darb.Api.DTOs.Booking
 {
     public class BookingDetailsDto
     {
@@ -17,12 +17,12 @@
         public string DepartureDate { get; set; } = string.Empty;
         public string DepartureTime { get; set; } = string.Empty;
 
-        // Ø¨ÙŠØ§Ù†Ø§Øª Ø§Ù„ØªØ°ÙƒØ±Ø©
+        // ÈíÇäÇÊ ÇáÊĞßÑÉ
         public string? TicketCode { get; set; }
         public string? TicketStatus { get; set; }
 
-        // Ù‚Ø§Ø¦Ù…Ø© Ø§Ù„Ø±ÙƒØ§Ø¨ (Ø§Ù„Ø¢Ù† Ù…ØªÙˆØ§ÙÙ‚Ø© Ù…Ø¹ PassengerDetails)
-        public List<PassengerItemDto> Passengers { get; set; } = new();
+        // ŞÇÆãÉ ÇáÑßÇÈ (ÇáÂä ãÊæÇİŞÉ ãÚ Passenger)
+        public List<PassengerItemDto> Customers { get; set; } = new();
     }
 
     public class PassengerItemDto

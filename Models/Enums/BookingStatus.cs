@@ -1,22 +1,22 @@
-ï»¿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 
 namespace Darb.Api.Models.Enums
 {
     public enum BookingStatus
     {
-        [Display(Name = "Ù‚ÙŠØ¯ Ø§Ù„Ø§Ù†ØªØ¸Ø§Ø± (Ø¨Ø§Ù†ØªØ¸Ø§Ø± Ø±ÙØ¹ Ø§Ù„Ø³Ù†Ø¯)")]
+        [Display(Name = "ŞíÏ ÇáÇäÊÙÇÑ (ÈÇäÊÙÇÑ ÑİÚ ÇáÓäÏ)")]
         PendingAttachment = 0,
 
-        [Display(Name = "ÙÙŠ Ø§Ù†ØªØ¸Ø§Ø± Ø§Ù„ØªØ£ÙƒÙŠØ¯")]
+        [Display(Name = "İí ÇäÊÙÇÑ ÇáÊÃßíÏ")]
         AwaitingConfirmation = 1,
 
-        [Display(Name = "Ù…Ø¤ÙƒØ¯")]
+        [Display(Name = "ãÄßÏ")]
         Confirmed = 2,
 
-        [Display(Name = "Ù…Ù„ØºÙŠ")]
+        [Display(Name = "ãáÛí")]
         Cancelled = 3,
 
-        [Display(Name = "Ù…ÙƒØªÙ…Ù„")]
+        [Display(Name = "ãßÊãá")]
         Completed = 4
     }
 }

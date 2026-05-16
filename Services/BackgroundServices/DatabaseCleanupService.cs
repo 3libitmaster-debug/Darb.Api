@@ -76,7 +76,7 @@ namespace Darb.Api.Services.BackgroundServices
                     }
                 }
 
-                // Delete bookings (Cascade delete will handle dependent entities like ETickets, PassengerDetails)
+                // Delete bookings (Cascade delete will handle dependent entities like ETickets, Passenger)
                 dbContext.Bookings.RemoveRange(expiredBookings);
                 
                 await dbContext.SaveChangesAsync(cancellationToken);

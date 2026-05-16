@@ -324,7 +324,7 @@ namespace Darb.Api.Controllers
         }
 
         [HttpGet("trip/bookings/{id}")]
-        [SwaggerOperation(Summary = "Get Booking By ID", Description = "Retrieves detailed information about a specific booking and its passengers.")]
+        [SwaggerOperation(Summary = "Get Booking By ID", Description = "Retrieves detailed information about a specific booking and its customers.")]
         public async Task<IActionResult> GetBooking(int id)
         {
             int companyId = User.GetCompanyId();
@@ -371,28 +371,28 @@ namespace Darb.Api.Controllers
 
         #region BankAccount Management Endpoints
 
-        [HttpGet("bank/accounts")]
-        [SwaggerOperation(Summary = "Get All Bank Accounts", Description = "Retrieves a list of all bank accounts for the authenticated company.")]
+        [HttpGet("bank/users")]
+        [SwaggerOperation(Summary = "Get All Bank Users", Description = "Retrieves a list of all bank users for the authenticated company.")]
         public async Task<IActionResult> GetBankAccounts() 
             => Ok(await _companyService.GetAllBankAccountsAsync(User.GetCompanyId()));
 
-        [HttpGet("bank/accounts/{id}")]
-        [SwaggerOperation(Summary = "Get Bank Account by ID", Description = "Retrieves detailed information about a specific bank account.")]
+        [HttpGet("bank/users/{id}")]
+        [SwaggerOperation(Summary = "Get Bank User by ID", Description = "Retrieves detailed information about a specific bank user.")]
         public async Task<IActionResult> GetBankAccount(int id) 
             => Ok(await _companyService.GetBankAccountByIdAsync(id, User.GetCompanyId()));
 
-        [HttpPost("bank/accounts")]
-        [SwaggerOperation(Summary = "Add New Bank Account", Description = "Creates a new bank account record for the company.")]
+        [HttpPost("bank/users")]
+        [SwaggerOperation(Summary = "Add New Bank User", Description = "Creates a new bank user record for the company.")]
         public async Task<IActionResult> CreateBankAccount([FromQuery] BankAccountCreateDto dto) 
             => Ok(await _companyService.CreateBankAccountAsync(dto, User.GetCompanyId()));
 
-        [HttpPut("bank/accounts/{id}")]
-        [SwaggerOperation(Summary = "Update Bank Account", Description = "Modifies an existing bank account's details.")]
+        [HttpPut("bank/users/{id}")]
+        [SwaggerOperation(Summary = "Update Bank User", Description = "Modifies an existing bank user's details.")]
         public async Task<IActionResult> UpdateBankAccount(int id, [FromQuery] BankAccountUpdateDto dto) 
             => Ok(await _companyService.UpdateBankAccountAsync(id, dto, User.GetCompanyId()));
 
-        [HttpDelete("bank/accounts/{id}")]
-        [SwaggerOperation(Summary = "Delete Bank Account", Description = "Permanently removes a bank account from the system.")]
+        [HttpDelete("bank/users/{id}")]
+        [SwaggerOperation(Summary = "Delete Bank User", Description = "Permanently removes a bank user from the system.")]
         public async Task<IActionResult> DeleteBankAccount(int id) 
             => Ok(await _companyService.DeleteBankAccountAsync(id, User.GetCompanyId()));
 

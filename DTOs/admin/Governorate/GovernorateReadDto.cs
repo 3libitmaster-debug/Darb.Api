@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.adminDtos.Governorate
+namespace Darb.Api.DTOs.adminDtos.Governorate
 {
     public class GovernorateReadDto 
     {

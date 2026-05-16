@@ -1,4 +1,4 @@
-ï»¿using Darb.Api.Models;
+using Darb.Api.Models;
 using System.ComponentModel.DataAnnotations;
 
 namespace Darb.Api.Dtos
@@ -7,7 +7,7 @@ namespace Darb.Api.Dtos
     {
         public string? Model { get; set; }
 
-        [Range(5, 100, ErrorMessage = "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø§Ù„Ø³Ø¹Ø© Ø¨ÙŠÙ† 5 Ùˆ 100 Ù…Ù‚Ø¹Ø¯.")]
+        [Range(5, 100, ErrorMessage = "íÌÈ Ãä Êßæä ÇáÓÚÉ Èíä 5 æ 100 ãŞÚÏ.")]
         public int? Capacity { get; set; }
 
         public BusStatus? Status { get; set; }

@@ -1,7 +1,7 @@
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Booking;
-using Darb.Api.DTOs.passenger;
-using Darb.Api.DTOs.passenger.MyBookings;
+using Darb.Api.DTOs.customer;
+using Darb.Api.DTOs.customer.MyBookings;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
@@ -21,7 +21,7 @@ using System.Reflection;
 namespace Darb.Api.Services.Implementations
 {
 
-    public class PassengerService : IPassengerService
+    public class CustomerService : ICustomerService
     {
         private readonly IRepository<Governorate> _govRepo;
         private readonly IRepository<Advertisement> _adRepo;
@@ -32,7 +32,7 @@ namespace Darb.Api.Services.Implementations
         // Base URL for external links and images (injected via Options Pattern)
         private readonly string _baseUrl;
 
-        public PassengerService(
+        public CustomerService(
             IRepository<Governorate> govRepo,
             IRepository<Advertisement> adRepo,
             IRepository<Company> companyRepo,
@@ -118,7 +118,7 @@ namespace Darb.Api.Services.Implementations
 
         #region Trip Search Logic
         /// <summary>
-        /// Searches for scheduled trips based on dynamic Account filters.
+        /// Searches for scheduled trips based on dynamic User filters.
         /// </summary>
         /// <param name="query">DTO containing filter parameters like Date, Period, and Governorates.</param>
         /// <returns>A list of matching trips wrapped in a ResponseDto.</returns>
@@ -136,7 +136,7 @@ namespace Darb.Api.Services.Implementations
                     .AsQueryable();
 
                 // 2. DYNAMIC FILTERING LOGIC
-                // Filters are only applied if the Account provides a value (> 0).
+                // Filters are only applied if the User provides a value (> 0).
 
                 // Filter by Departure Governorate
                 if (query.FromGovernorateId.HasValue && query.FromGovernorateId > 0)
@@ -233,7 +233,7 @@ namespace Darb.Api.Services.Implementations
         }
         #endregion
 
-        #region Company Bank Accounts Retrieval Logic
+        #region Company Bank Users Retrieval Logic
         public async Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId)
         {
             var bankAccounts = await _context.BankAccounts
@@ -256,9 +256,9 @@ namespace Darb.Api.Services.Implementations
         #region Book Trip Logic
         /// <summary>
         /// Orchestrates the booking process. 
-        /// Handles seat inventory, multi-passenger registration, and owner-as-passenger injection.
+        /// Handles seat inventory, multi-customer registration, and owner-as-customer injection.
         /// </summary>
-        public async Task<ResponseDto> BookTripAsync(int passengerId, BookingRequestDto request)
+        public async Task<ResponseDto> BookTripAsync(int customerId, BookingRequestDto request)
         {
             // 1. PRE-TRANSACTION VALIDATIONS ---
 
@@ -276,7 +276,7 @@ namespace Darb.Api.Services.Implementations
             if (trip.TripStatus != TripStatus.scheduled)
                 return ResponseDto.FailureResponse("عذراً، هذه الرحلة لم تعد متاحة للحجز.");
 
-            // Calculate total seats required from the provided passengers list
+            // Calculate total seats required from the provided customers list
             int totalSeatsRequired = request.AdditionalPassengers?.Count ?? 0;
 
             if (totalSeatsRequired == 0)
@@ -300,7 +300,7 @@ namespace Darb.Api.Services.Implementations
                     // A. Create Booking Header
                     var booking = new Booking
                     {
-                        PassengerId = passengerId,
+                        CustomerId = customerId,
                         TripScheduleId = tripSchedule.TripScheduleId,
                         ReservedSeatsCount = totalSeatsRequired,
                         TotalAmount = totalAmount,
@@ -311,13 +311,13 @@ namespace Darb.Api.Services.Implementations
                     _context.Bookings.Add(booking);
                     await _context.SaveChangesAsync(); // Commit to generate BookingId for FK relations
 
-                    // B. Build Unified Passenger List from DTOs
-                    var allPassengersList = new List<PassengerDetails>();
+                    // B. Build Unified Customer List from DTOs
+                    var allPassengersList = new List<Passenger>();
 
-                    // Map all passengers from the request
+                    // Map all customers from the request
                     foreach (var pDto in request.AdditionalPassengers)
                     {
-                        allPassengersList.Add(new PassengerDetails
+                        allPassengersList.Add(new Passenger
                         {
                             BookingId = booking.BookingId,
                             FullName = pDto.FullName,
@@ -327,8 +327,8 @@ namespace Darb.Api.Services.Implementations
                         });
                     }
 
-                    // Bulk save all passengers to optimize database performance
-                    _context.PassengerDetails.AddRange(allPassengersList);
+                    // Bulk save all customers to optimize database performance
+                    _context.Passenger.AddRange(allPassengersList);
                     await _context.SaveChangesAsync();
 
                     // C. Generate Placeholder E-Ticket for the booking
@@ -363,13 +363,13 @@ namespace Darb.Api.Services.Implementations
         #endregion
 
         #region Upload Booking Payment Receipts Logic
-        public async Task<ResponseDto> UploadReceiptAsync(int passengerId, UploadReceiptDto request)
+        public async Task<ResponseDto> UploadReceiptAsync(int customerId, UploadReceiptDto request)
         {
-            var passenger = await _context.Passengers.FirstOrDefaultAsync(p => p.PassengerId == passengerId);
-            if (passenger == null)
-                return ResponseDto.FailureResponse("Passenger profile not found.");
+            var customer = await _context.Customers.FirstOrDefaultAsync(p => p.CustomerId == customerId);
+            if (customer == null)
+                return ResponseDto.FailureResponse("Customer profile not found.");
 
-            var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == request.BookingId && b.PassengerId == passenger.PassengerId);
+            var booking = await _context.Bookings.FirstOrDefaultAsync(b => b.BookingId == request.BookingId && b.CustomerId == customer.CustomerId);
 
             if (booking == null)
                 return ResponseDto.FailureResponse("Booking not found or does not belong to you.");
@@ -403,25 +403,25 @@ namespace Darb.Api.Services.Implementations
         }
         #endregion
 
-        #region Passenger Profile Logic
-        public async Task<ResponseDto> GetProfileAsync(int passengerId)
+        #region Customer Profile Logic
+        public async Task<ResponseDto> GetProfileAsync(int customerId)
         {
             try
             {
-                var profile = await _context.Passengers
-                    .Include(p => p.Account)
-                    .Where(p => p.PassengerId == passengerId)
+                var profile = await _context.Customers
+                    .Include(p => p.User)
+                    .Where(p => p.CustomerId == customerId)
                     .Select(p => new PassengerProfileDto
                     {
-                        PassengerId = p.PassengerId,
+                        CustomerId = p.CustomerId,
                         FullName = p.FullName ?? "",
                         DateOfBirth = p.DateOfBirth,
                         PhoneNumber = p.Phone ?? "",
                         Address = p.Address ?? "",
                         NationalId = p.NationalId ?? "",
-                        Email = p.Account != null ? p.Account.Email ?? "" : "",
-                        Password = p.Account != null ? p.Account.Password ?? "" : "",
-                        CreatedAt = p.Account != null ? p.Account.JoinDate : DateTime.MinValue
+                        Email = p.User != null ? p.User.Email ?? "" : "",
+                        Password = p.User != null ? p.User.Password ?? "" : "",
+                        CreatedAt = p.User != null ? p.User.JoinDate : DateTime.MinValue
                     })
                     .FirstOrDefaultAsync();
 
@@ -462,7 +462,7 @@ namespace Darb.Api.Services.Implementations
         }
 
 
-        public async Task<ResponseDto> GetBookingsByStatusAsync(int passengerId, BookingStatus status)
+        public async Task<ResponseDto> GetBookingsByStatusAsync(int customerId, BookingStatus status)
         {
             try
             {
@@ -483,7 +483,7 @@ namespace Darb.Api.Services.Implementations
                     .Include(b => b.TripSchedule)
                         .ThenInclude(ts => ts!.Trip)
                             .ThenInclude(t => t!.EndGovernate)
-                    .Where(b => b.PassengerId == passengerId && b.Status == status)
+                    .Where(b => b.CustomerId == customerId && b.Status == status)
                     .OrderByDescending(b => b.BookingAt)
                     .Select(b => new BookingByStatusDto
                     {
@@ -521,7 +521,7 @@ namespace Darb.Api.Services.Implementations
             }
         }
 
-        public async Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int passengerId)
+        public async Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int customerId)
         {
             try
             {
@@ -537,8 +537,8 @@ namespace Darb.Api.Services.Implementations
                         .ThenInclude(ts => ts!.Trip)
                             .ThenInclude(t => t!.EndGovernate)
                     .Include(b => b.ETicket)
-                    .Include(b => b.Passengers) // الربط مع كيان PassengerDetails
-                    .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.PassengerId == passengerId);
+                    .Include(b => b.Customers) // الربط مع كيان Passenger
+                    .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
 
                 if (booking == null)
                     return ResponseDto.FailureResponse("تفاصيل الحجز غير موجودة.");
@@ -566,8 +566,8 @@ namespace Darb.Api.Services.Implementations
                     TicketCode = booking.ETicket?.TicketCode ?? "بانتظار التأكيد",
                     TicketStatus = booking.ETicket != null ? booking.ETicket.Status.ToString() : "N/A",
 
-                    // تحويل قائمة الركاب بناءً على كيان PassengerDetails الخاص بك
-                    Passengers = booking.Passengers.Select(p => new PassengerItemDto
+                    // تحويل قائمة الركاب بناءً على كيان Passenger الخاص بك
+                    Customers = booking.Customers.Select(p => new PassengerItemDto
                     {
                         FullName = p.FullName,
                         NationalId = p.NationalId,
@@ -620,7 +620,7 @@ namespace Darb.Api.Services.Implementations
         /// <summary>
         /// Adds a new review using AddReviewDto and updates the company's average rating.
         /// </summary>
-        public async Task<ResponseDto> AddReviewAsync(int passengerId, AddReviewDto request)
+        public async Task<ResponseDto> AddReviewAsync(int customerId, AddReviewDto request)
         {
             try
             {
@@ -629,7 +629,7 @@ namespace Darb.Api.Services.Implementations
 
                 var review = new Review
                 {
-                    PassengerId = passengerId,
+                    CustomerId = customerId,
                     CompanyId = request.CompanyId,
                     Rating = request.Rating,
                     Description = request.Description,
@@ -651,14 +651,14 @@ namespace Darb.Api.Services.Implementations
         }
 
         /// <summary>
-        /// Retrieves all reviews for a passenger using ReviewReturnDto.
+        /// Retrieves all reviews for a customer using ReviewReturnDto.
         /// </summary>
-        public async Task<ResponseDto> GetPassengerReviewsAsync(int passengerId)
+        public async Task<ResponseDto> GetPassengerReviewsAsync(int customerId)
         {
             try
             {
                 var reviews = await _context.Review
-                    .Where(r => r.PassengerId == passengerId)
+                    .Where(r => r.CustomerId == customerId)
                     .Select(r => new ReviewResponseDto // Updated naming
                     {
                         ReviewId = r.ReviewId,
@@ -679,12 +679,12 @@ namespace Darb.Api.Services.Implementations
         /// <summary>
         /// Updates an existing review using UpdateReviewDto and recalculates the rating.
         /// </summary>
-        public async Task<ResponseDto> UpdateReviewAsync(int passengerId, int reviewId, UpdateReviewDto request)
+        public async Task<ResponseDto> UpdateReviewAsync(int customerId, int reviewId, UpdateReviewDto request)
         {
             try
             {
                 var review = await _context.Review
-                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.PassengerId == passengerId);
+                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.CustomerId == customerId);
 
                 if (review == null) return ResponseDto.FailureResponse("المراجعة غير موجودة أو لا تملك صلاحية تعديلها");
 
@@ -709,12 +709,12 @@ namespace Darb.Api.Services.Implementations
         /// <summary>
         /// Deletes a review and updates the company's average rating accordingly.
         /// </summary>
-        public async Task<ResponseDto> DeleteReviewAsync(int passengerId, int reviewId)
+        public async Task<ResponseDto> DeleteReviewAsync(int customerId, int reviewId)
         {
             try
             {
                 var review = await _context.Review
-                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.PassengerId == passengerId);
+                    .FirstOrDefaultAsync(r => r.ReviewId == reviewId && r.CustomerId == customerId);
 
                 if (review == null) return ResponseDto.FailureResponse("المراجعة غير موجودة");
 

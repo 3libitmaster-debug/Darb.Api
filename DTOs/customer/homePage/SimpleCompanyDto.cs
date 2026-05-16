@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.DTOs.passengerDtos.homePageDtos
+namespace Darb.Api.DTOs.passengerDtos.homePageDtos
 {
     public class SimpleCompanyDto
     {

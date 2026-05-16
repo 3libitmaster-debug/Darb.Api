@@ -5,7 +5,7 @@ namespace Darb.Api.DTOs.Booking
     public class CompanyBookingDetailsDto : CompanyBookingReadDto
     {
         public string? TicketCode { get; set; }
-        public List<CompanyPassengerDetailDto> Passengers { get; set; } = new List<CompanyPassengerDetailDto>();
+        public List<CompanyPassengerDetailDto> Customers { get; set; } = new List<CompanyPassengerDetailDto>();
     }
 
     public class CompanyPassengerDetailDto
