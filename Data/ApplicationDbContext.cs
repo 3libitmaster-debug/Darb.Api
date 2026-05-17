@@ -1,5 +1,6 @@
-using Microsoft.EntityFrameworkCore;
 using Darb.Api.Models;
+using Darb.Core.Entities;
+using Microsoft.EntityFrameworkCore;
 
 namespace darbWebApp.Data
 {
@@ -29,6 +30,8 @@ namespace darbWebApp.Data
         public DbSet<ETicket> ETickets { get; set; }
         public DbSet<TripFare> TripFares { get; set; }
         public DbSet<Review> Review { get; set; }
+        public DbSet<Notification> Notifications { get; set; }
+        public DbSet<DeviceToken> DeviceTokens { get; set; }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -267,6 +270,19 @@ namespace darbWebApp.Data
                 .WithMany(r => r.Review)
                 .HasForeignKey(p => p.CompanyId)
                 .OnDelete(DeleteBehavior.Cascade); // « —ﬂ Â–« ≈–« √—œ  Õ–› «·„—«Ã⁄… ⁄‰œ Õ–› «·‘—ﬂ…
+
+            modelBuilder.Entity<DeviceToken>()
+                .HasOne(d => d.User)
+                .WithMany(u => u.DeviceTokens)
+                .HasForeignKey(d => d.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // —»ÿ «·≈‘⁄«—«  »«·„” Œœ„ ﬂ„” ·„ ÊÕ–›Â«  ·ﬁ«∆Ì« ⁄‰œ Õ–› «·Õ”«»
+            modelBuilder.Entity<Notification>()
+                .HasOne(n => n.Receiver)
+                .WithMany(u => u.ReceivedNotifications)
+                .HasForeignKey(n => n.ReceiverId)
+                .OnDelete(DeleteBehavior.Cascade);
 
         }
     }
