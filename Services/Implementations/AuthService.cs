@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Darb.Api.Models.Enums;
 using Microsoft.Extensions.Caching.Memory;
 using Darb.Api.DTOs.auth;
+using Darb.Api.Enums;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -53,9 +54,13 @@ namespace Darb.Api.Services.Implementations
                     .OrderByDescending(s => s.CompanySubscriptionId)
                     .FirstOrDefault();
 
-                if (latestSub == null || latestSub.ExpiryDate <= DateHelper.GetYemenTime()) 
+                
+
+                if (latestSub == null || latestSub.ExpiryDate <= DateHelper.GetYemenTime()  ) 
                 {
-                    if (User.IsActive)
+                    
+
+                    if (User.IsActive || latestSub.Status == SubscriptionStatus.Approved)
                     {
                         User.IsActive = false;
                         await _context.SaveChangesAsync();
@@ -164,7 +169,7 @@ namespace Darb.Api.Services.Implementations
                         Password = SecurityHelper.ConvertToBase64(request.Password),
                         Role = AccountRoles.Company,
                         IsActive = false, // Companies remain inactive until admin approval
-                        JoinDate = yemenNow
+                        JoinDate = DateHelper.GetYemenTime(),
                     };
                     _context.Users.Add(User);
                     await _context.SaveChangesAsync();
@@ -176,7 +181,9 @@ namespace Darb.Api.Services.Implementations
                         Name = request.Name,
                         Address = request.Address,
                         Logo = logoPath,
-                        License = licensePath
+                        License = licensePath,
+                        
+                        
                     };
                     _context.Companies.Add(company);
                     await _context.SaveChangesAsync();
@@ -194,7 +201,9 @@ namespace Darb.Api.Services.Implementations
                         PlanType = request.PlanType,
                         SubscriptionDate = yemenNow,
                         ExpiryDate = expiryDate,
-                        PaymentSlip = paymentPath
+                        PaymentSlip = paymentPath,
+                        Status = SubscriptionStatus.Pending,
+                        RequestType = RequestType.NewRegistration
                     };
 
                     _context.CompanySubscription.Add(subscription);

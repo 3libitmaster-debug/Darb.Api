@@ -4,15 +4,21 @@ using Darb.Api.Models.Enums;
 
 namespace Darb.Api.Models
 {
-   
+
 
     public enum TripStatus
     {
+        [Display(Name = "„ÃœÊ·…")]
         scheduled = 0,
-        cancelled = 1,
-        completed = 2,
-        Fulled = 3,
 
+        [Display(Name = "„·€Ì…")]
+        cancelled = 1,
+
+        [Display(Name = "„ﬂ „·…")]
+        completed = 2,
+
+        [Display(Name = "„„ ·∆…")]
+        Fulled = 3
     }
 
 

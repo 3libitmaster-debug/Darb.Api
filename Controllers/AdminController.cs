@@ -1,14 +1,16 @@
+using Darb.Api.DTOs.admin.Company;
+using Darb.Api.DTOs.admin.Customers;
+using Darb.Api.DTOs.adminDtos.Advertisement;
+using Darb.Api.DTOs.adminDtos.Bank;
+using Darb.Api.DTOs.adminDtos.City;
+using Darb.Api.DTOs.adminDtos.Governorate;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Extensions;
+using Darb.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using Darb.Api.Services.Interfaces;
 using System.Text.Json.Serialization;
-using Darb.Api.DTOs.adminDtos.Advertisement;
-using Darb.Api.DTOs.adminDtos.Governorate;
-using Darb.Api.DTOs.adminDtos.Bank;
-using Darb.Api.DTOs.adminDtos.City;
 
 namespace Darb.Api.Controllers
 {
@@ -130,6 +132,91 @@ namespace Darb.Api.Controllers
         [HttpDelete("banks/{id}")]
         [SwaggerOperation(Summary = "Delete Bank", Description = "Permanently removes a bank from the system. Note: Only banks without linked users can be deleted.")]
         public async Task<IActionResult> DeleteBank(int id) => Ok(await _adminService.DeleteBankAsync(id));
+
+        #endregion
+
+        #region Customers Management Endpoints
+
+        [HttpGet("customers")]
+        [SwaggerOperation(Summary = "جلب كافة العملاء في النظام")]
+        public async Task<IActionResult> GetAllCustomers() => Ok(await _adminService.GetAllCustomersAsync());
+
+        [HttpGet("customers/{id}")]
+        [SwaggerOperation(Summary = "جلب بيانات عميل محدد")]
+        public async Task<IActionResult> GetCustomerById(int id) => Ok(await _adminService.GetCustomerByIdAsync(id));
+
+        [HttpPost("customers")]
+        [SwaggerOperation(Summary = "إنشاء حساب عميل جديد")]
+        public async Task<IActionResult> CreateCustomer([FromBody] CustomerCreateDto dto) => Ok(await _adminService.CreateCustomerAsync(dto));
+
+        [HttpPut("customers/{id}")]
+        [SwaggerOperation(Summary = "تحديث بيانات عميل")]
+        public async Task<IActionResult> UpdateCustomer(int id, [FromBody] CustomerUpdateDto dto) => Ok(await _adminService.UpdateCustomerAsync(id, dto));
+
+        [HttpDelete("customers/{id}")]
+        [SwaggerOperation(Summary = "حذف حساب عميل نهائياً")]
+        public async Task<IActionResult> DeleteCustomer(int id) => Ok(await _adminService.DeleteCustomerAsync(id));
+
+        [HttpPut("customers/{id}/activate")]
+        [SwaggerOperation(Summary = "تنشيط حساب عميل معطل")]
+        public async Task<IActionResult> ActivateCustomer(int id)
+    => Ok(await _adminService.ActivateCustomerAsync(id));
+
+        [HttpPut("customers/{id}/deactivate")]
+        [SwaggerOperation(Summary = "إلغاء تنشيط/حظر حساب عميل")]
+        public async Task<IActionResult> DeactivateCustomer(int id)
+            => Ok(await _adminService.DeactivateCustomerAsync(id));
+        #endregion
+
+        #region Companies Management Endpoints
+
+        [HttpGet("companies")]
+        [SwaggerOperation(Summary = "جلب كافة شركات النقل في النظام")]
+        public async Task<IActionResult> GetAllCompanies() => Ok(await _adminService.GetAllCompaniesAsync());
+
+        [HttpGet("companies/{id}")]
+        [SwaggerOperation(Summary = "جلب بيانات شركة نقل محددة")]
+        public async Task<IActionResult> GetCompanyById(int id) => Ok(await _adminService.GetCompanyByIdAsync(id));
+
+        [HttpPost("companies")]
+        [SwaggerOperation(Summary = "إنشاء حساب شركة نقل جديد")]
+        public async Task<IActionResult> CreateCompany([FromForm] CompanyCreateDto dto) => Ok(await _adminService.CreateCompanyAsync(dto));
+
+        [HttpPut("companies/{id}")]
+        [SwaggerOperation(Summary = "تحديث بيانات شركة نقل")]
+        public async Task<IActionResult> UpdateCompany(int id, [FromForm] CompanyUpdateDto dto) => Ok(await _adminService.UpdateCompanyAsync(id, dto));
+
+        [HttpDelete("companies/{id}")]
+        [SwaggerOperation(Summary = "حذف شركة نقل نهائياً من النظام")]
+        public async Task<IActionResult> DeleteCompany(int id) => Ok(await _adminService.DeleteCompanyAsync(id));
+
+        [HttpPut("companies/{id}/activate")]
+        [SwaggerOperation(Summary = "تنشيط حساب شركة نقل معطل")]
+        public async Task<IActionResult> ActivateCompany(int id) => Ok(await _adminService.ActivateCompanyAsync(id));
+
+        [HttpPut("companies/{id}/deactivate")]
+        [SwaggerOperation(Summary = "إلغاء تفعيل/حظر حساب الشركة")]
+        public async Task<IActionResult> DeactivateCompany(int id) => Ok(await _adminService.DeactivateCompanyAsync(id));
+
+        #endregion
+
+        #region Subscription Management Endpoints
+
+        [HttpGet("subscriptions/pending")]
+        [SwaggerOperation(Summary = "عرض الاشتراكات المعلقة", Description = "يجلب جميع طلبات تجديد الاشتراكات أو الاشتراكات الجديدة المعلقة.")]
+        public async Task<IActionResult> GetPendingSubscriptions() => Ok(await _adminService.GetPendingSubscriptionsAsync());
+
+        [HttpGet("companies/requests/new")]
+        [SwaggerOperation(Summary = "عرض طلبات تسجيل الشركات الجديدة", Description = "يجلب الشركات التي قامت بطلب تسجيل جديد واشتراكها معلق.")]
+        public async Task<IActionResult> GetNewCompanyRegistrationRequests() => Ok(await _adminService.GetNewCompanyRegistrationRequestsAsync());
+
+        [HttpPut("subscriptions/{id}/accept")]
+        [SwaggerOperation(Summary = "قبول الاشتراك", Description = "يقوم بقبول الاشتراك المعلق وتفعيل حساب الشركة تلقائياً.")]
+        public async Task<IActionResult> AcceptSubscription(int id) => Ok(await _adminService.AcceptSubscriptionAsync(id));
+
+        [HttpPut("subscriptions/{id}/reject")]
+        [SwaggerOperation(Summary = "رفض الاشتراك", Description = "يقوم برفض طلب الاشتراك أو التجديد المعلق.")]
+        public async Task<IActionResult> RejectSubscription(int id) => Ok(await _adminService.RejectSubscriptionAsync(id));
 
         #endregion
     }

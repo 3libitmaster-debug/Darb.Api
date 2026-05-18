@@ -1,3 +1,4 @@
+using Darb.Api.Enums;
 using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using System.ComponentModel.DataAnnotations;

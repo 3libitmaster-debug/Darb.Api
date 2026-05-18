@@ -455,5 +455,29 @@ namespace Darb.Api.Controllers
             => Ok(await _companyService.DeleteTripScheduleAsync(id, User.GetCompanyId()));
 
         #endregion
+
+        #region Subscription Management Endpoints
+
+        [HttpGet("subscriptions/plans")]
+        [SwaggerOperation(
+            Summary = "Get Subscription Plans",
+            Description = "Returns all available subscription plan types with their ID and Arabic display name (e.g. شهري, سنوي).")]
+        public async Task<IActionResult> GetSubscriptionPlans()
+            => Ok(await _companyService.GetSubscriptionPlansAsync());
+
+        [HttpPost("subscriptions/renew")]
+        [SwaggerOperation(Summary = "Renew Subscription", Description = "Allows the company to renew their subscription by uploading a payment slip. Status will be set to Pending until admin approves.")]
+        public async Task<IActionResult> RenewSubscription([FromForm] Darb.Api.DTOs.company.SubscriptionRenewalDto dto)
+        {
+            int companyId = User.GetCompanyId();
+
+            if (companyId == 0)
+                return Unauthorized(ResponseDto.FailureResponse("عذراً، لم يتم العثور على بيانات تعريف الشركة."));
+
+            var response = await _companyService.RenewSubscriptionAsync(dto, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        #endregion
     }
 }

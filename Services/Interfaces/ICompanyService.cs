@@ -89,11 +89,18 @@ namespace Darb.Api.Services.Interfaces
         #endregion
 
         #region Trip Schedule Management
+        
         Task<ResponseDto> GetAllTripSchedulesAsync(int tripId, int companyId);
         Task<ResponseDto> GetTripScheduleByIdAsync(int scheduleId, int companyId);
         Task<ResponseDto> AddTripScheduleAsync(AddTripScheduleDto dto, int companyId);
         Task<ResponseDto> UpdateTripScheduleAsync(int scheduleId, UpdateTripScheduleDto dto, int companyId);
         Task<ResponseDto> DeleteTripScheduleAsync(int scheduleId, int companyId);
+        #endregion
+        #region Subscription Management
+        // Submits a subscription renewal request with a payment slip, setting status to Pending.
+        Task<ResponseDto> RenewSubscriptionAsync(Darb.Api.DTOs.company.SubscriptionRenewalDto dto, int companyId);
+        // Returns all available subscription plans with their ID and Arabic display name.
+        Task<ResponseDto> GetSubscriptionPlansAsync();
         #endregion
     }
 }
