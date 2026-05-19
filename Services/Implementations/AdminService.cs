@@ -398,7 +398,8 @@ namespace Darb.Api.Services.Implementations
 
         #endregion
 
-        #region Customer Mangement Logic
+        #region Customer Management Logic
+
         public async Task<ResponseDto> GetAllCustomersAsync()
         {
             var customers = await _context.Customers
@@ -416,7 +417,7 @@ namespace Darb.Api.Services.Implementations
                 Address = c.Address,
                 NationalId = c.NationalId,
                 JoinDate = c.User?.JoinDate ?? DateHelper.GetYemenTime(),
-                IsAcive = c.User.IsActive
+                IsActive = c.User?.IsActive ?? false
             }).ToList();
 
             return ResponseDto.SuccessResponse($"تم استرجاع ({dtos.Count}) عميل بنجاح.", dtos);
@@ -437,7 +438,8 @@ namespace Darb.Api.Services.Implementations
                 Phone = c.Phone,
                 Address = c.Address,
                 NationalId = c.NationalId,
-                JoinDate = c.User?.JoinDate ?? DateHelper.GetYemenTime()
+                JoinDate = c.User?.JoinDate ?? DateHelper.GetYemenTime(),
+                IsActive = c.User?.IsActive ?? false
             };
             return ResponseDto.SuccessResponse("تم جلب بيانات العميل بنجاح.", dto);
         }
@@ -450,9 +452,10 @@ namespace Darb.Api.Services.Implementations
             var user = new User
             {
                 Email = dto.Email,
-                Password = dto.Password, // يفضل عمل Hashing هنا إذا لم يكن مطبقاً في الـ Entity
+                Password = dto.Password,
                 Role = AccountRoles.Customer,
-                JoinDate = DateHelper.GetYemenTime()
+                JoinDate = DateHelper.GetYemenTime(),
+                IsActive = true
             };
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
@@ -508,36 +511,6 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم حذف حساب العميل نهائياً من النظام.");
         }
 
-        public async Task<ResponseDto> ActivateCustomerAsync(int id)
-        {
-            // جلب العميل مع حساب المستخدم المرتبط به
-            var customer = await _context.Customers.Include(c => c.User).FirstOrDefaultAsync(x => x.CustomerId == id);
-            if (customer == null || customer.User == null)
-                return ResponseDto.FailureResponse("العميل غير موجود في النظام.");
-
-            if (customer.User.IsActive)
-                return ResponseDto.FailureResponse("حساب العميل نشط بالفعل.");
-
-            customer.User.IsActive = true;
-            await _context.SaveChangesAsync();
-
-            return ResponseDto.SuccessResponse($"تم تنشيط حساب العميل ({customer.FullName}) بنجاح، بإمكانه تسجيل الدخول الآن.");
-        }
-
-        public async Task<ResponseDto> DeactivateCustomerAsync(int id)
-        {
-            var customer = await _context.Customers.Include(c => c.User).FirstOrDefaultAsync(x => x.CustomerId == id);
-            if (customer == null || customer.User == null)
-                return ResponseDto.FailureResponse("العميل غير موجود في النظام.");
-
-            if (!customer.User.IsActive)
-                return ResponseDto.FailureResponse("حساب العميل معطل بالفعل.");
-
-            customer.User.IsActive = false;
-            await _context.SaveChangesAsync();
-
-            return ResponseDto.SuccessResponse($"تم إلغاء تنشيط حساب العميل ({customer.FullName}) بنجاح، ولن يتمكن من استخدام التطبيق حتى يتم تفعيله.");
-        }
         #endregion
 
         #region Company Management Logic
@@ -555,7 +528,7 @@ namespace Darb.Api.Services.Implementations
                 Email = c.User?.Email ?? "N/A",
                 Name = c.Name,
                 Address = c.Address,
-                License = c.License,
+                LicenseUrl = !string.IsNullOrEmpty(c.License) ? _baseUrl + c.License : string.Empty,
                 LogoUrl = !string.IsNullOrEmpty(c.Logo) ? _baseUrl + c.Logo : string.Empty,
                 AverageRating = c.AverageRating,
                 JoinDate = c.User?.JoinDate ?? DateHelper.GetYemenTime(),
@@ -577,7 +550,7 @@ namespace Darb.Api.Services.Implementations
                 Email = c.User?.Email ?? "N/A",
                 Name = c.Name,
                 Address = c.Address,
-                License = c.License,
+                LicenseUrl = !string.IsNullOrEmpty(c.License) ? _baseUrl + c.License : string.Empty,
                 LogoUrl = !string.IsNullOrEmpty(c.Logo) ? _baseUrl + c.Logo : string.Empty,
                 AverageRating = c.AverageRating,
                 JoinDate = c.User?.JoinDate ?? DateHelper.GetYemenTime(),
@@ -594,28 +567,25 @@ namespace Darb.Api.Services.Implementations
             var user = new User
             {
                 Email = dto.Email,
-                Password = dto.Password, // يفضل عمل Hashing هنا إذا لم يكن مطبقاً في الـ Entity
+                Password = dto.Password,
                 Role = AccountRoles.Company,
                 JoinDate = DateHelper.GetYemenTime(),
-                IsActive = dto.IsActive // يمكن التحكم بالحالة الافتراضية عند الإنشاء
+                IsActive = dto.IsActive,
             };
             await _context.Users.AddAsync(user);
             await _context.SaveChangesAsync();
 
-            string logoPath = string.Empty;
-            if (dto.LogoFile != null)
-            {
-                logoPath = await _imageService.SaveImageAsync(dto.LogoFile, "CompaniesLogos");
-            }
+            string logoPath = dto.LogoFile != null ? await _imageService.SaveImageAsync(dto.LogoFile, "CompaniesLogos") ?? string.Empty : string.Empty;
+            string licensePath = dto.LicenseFile != null ? await _imageService.SaveImageAsync(dto.LicenseFile, "CompaniesLicenses") ?? string.Empty : string.Empty;
 
             var company = new Company
             {
                 UserId = user.UserId,
                 Name = dto.Name,
                 Address = dto.Address,
-                License = dto.License,
+                License = licensePath,
                 Logo = logoPath,
-                AverageRating = 0.0 // قيمة افتراضية للشركات الجديدة
+                AverageRating = 0.0
             };
             await _context.Companies.AddAsync(company);
             await _context.SaveChangesAsync();
@@ -639,13 +609,17 @@ namespace Darb.Api.Services.Implementations
 
             if (!string.IsNullOrEmpty(dto.Name)) company.Name = dto.Name;
             if (!string.IsNullOrEmpty(dto.Address)) company.Address = dto.Address;
-            if (!string.IsNullOrEmpty(dto.License)) company.License = dto.License;
 
             if (dto.LogoFile != null)
             {
-                // تحديث الصورة وحذف القديمة لضمان Clean Engineering للمساحة التخزينية للسيرفر
                 var newLogoPath = await _imageService.UpdateImageAsync(dto.LogoFile, company.Logo, "CompaniesLogos");
                 if (!string.IsNullOrEmpty(newLogoPath)) company.Logo = newLogoPath;
+            }
+
+            if (dto.LicenseFile != null)
+            {
+                var newLicensePath = await _imageService.UpdateImageAsync(dto.LicenseFile, company.License, "CompaniesLicenses");
+                if (!string.IsNullOrEmpty(newLicensePath)) company.License = newLicensePath;
             }
 
             await _context.SaveChangesAsync();
@@ -662,14 +636,13 @@ namespace Darb.Api.Services.Implementations
 
             if (company == null) return ResponseDto.FailureResponse("شركة النقل غير موجودة لحذفها.");
 
-            // قاعدة حماية البيانات: منع حذف الشركة لوجود رحلات مجدولة أو حافلات مسجلة تحت اسمها
             if ((company.Trips != null && company.Trips.Any()) || (company.Bus != null && company.Bus.Any()))
             {
                 return ResponseDto.FailureResponse("لا يمكن حذف الشركة، هناك حافلات أو رحلات نشطة تابعة لها بالنظام. يمكنك إلغاء تنشيطها بدلاً من ذلك.");
             }
 
-            // حذف الصورة الفيزيائية من السيرفر قبل حذف السجل من قاعدة البيانات
             if (!string.IsNullOrEmpty(company.Logo)) _imageService.DeleteImage(company.Logo);
+            if (!string.IsNullOrEmpty(company.License)) _imageService.DeleteImage(company.License);
 
             var associatedUser = company.User;
             _context.Companies.Remove(company);
@@ -679,36 +652,32 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم حذف شركة النقل وكافة حساباتها التابعة نهائياً من النظام.");
         }
 
-        public async Task<ResponseDto> ActivateCompanyAsync(int id)
-        {
-            var company = await _context.Companies.Include(c => c.User).FirstOrDefaultAsync(x => x.CompanyId == id);
-            if (company == null || company.User == null)
-                return ResponseDto.FailureResponse("شركة النقل غير موجودة في النظام.");
-
-            if (company.User.IsActive)
-                return ResponseDto.FailureResponse("حساب الشركة نشط بالفعل.");
-
-            company.User.IsActive = true;
-            await _context.SaveChangesAsync();
-
-            return ResponseDto.SuccessResponse($"تم تنشيط حساب شركة النقل ({company.Name}) بنجاح، وبإمكانهم الآن جدولة الرحلات.");
-        }
-
-        public async Task<ResponseDto> DeactivateCompanyAsync(int id)
-        {
-            var company = await _context.Companies.Include(c => c.User).FirstOrDefaultAsync(x => x.CompanyId == id);
-            if (company == null || company.User == null)
-                return ResponseDto.FailureResponse("شركة النقل غير موجودة في النظام.");
-
-            if (!company.User.IsActive)
-                return ResponseDto.FailureResponse("حساب الشركة معطل بالفعل.");
-
-            company.User.IsActive = false;
-            await _context.SaveChangesAsync();
-
-            return ResponseDto.SuccessResponse($"تم إلغاء تنشيط حساب شركة ({company.Name}) بنجاح، ولن تظهر رحلاتهم للمسافرين حتى يتم التفعيل مجدداً.");
-        }
         #endregion
+
+        #region Unified Account Activation Logic
+
+        public async Task<ResponseDto> ToggleUserActivationAsync(int userId)
+        {
+            // 1. البحث عن المستخدم
+            var user = await _context.Users.FirstOrDefaultAsync(u => u.UserId == userId);
+            if (user == null) return ResponseDto.FailureResponse("الحساب المستهدف غير موجود في النظام.");
+
+            // 2. عكس الحالة الحالية تلقائياً (التوجل الفعلي)
+            user.IsActive = !user.IsActive;
+
+            // 3. حفظ التعديل في قاعدة البيانات
+            await _context.SaveChangesAsync();
+
+            // 4. صياغة رسالة ديناميكية واضحة بناءً على الحالة الجديدة والـ Role
+            string profileType = user.Role == AccountRoles.Company ? "شركة النقل" : "العميل";
+            string statusMessage = user.IsActive ? "تنشيطه بنجاح، وبإمكانه العمل الآن." : "إلغاء تنشيطه وحظر دخوله للنظام.";
+
+            return ResponseDto.SuccessResponse($"تم تحديث حساب {profileType} و{statusMessage}");
+        }
+
+        #endregion
+
+
 
         #region Subscription Management Logic
 

@@ -17,7 +17,7 @@ namespace Darb.Api.DTOs.admin.Company
 
         public IFormFile? LogoFile { get; set; } 
 
-        public string? License { get; set; }
+        public IFormFile? LicenseFile { get; set; }
 
         public bool? IsActive { get; set; }
     }

@@ -24,7 +24,7 @@ namespace Darb.Api.DTOs.admin.Company
         public IFormFile LogoFile { get; set; } = null!; // لاستقبال الشعار كملف فوري عبر الـ Form
 
         [Required(ErrorMessage = "رقم السجل التجاري أو الترخيص مطلوب.")]
-        public string License { get; set; } = null!;
+        public IFormFile LicenseFile { get; set; } = null!;
 
         public bool IsActive { get; set; } = true; // حالة الحساب الافتراضية عند الإنشاء
     }

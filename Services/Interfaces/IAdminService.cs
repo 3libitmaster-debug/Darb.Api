@@ -39,24 +39,28 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> UpdateBankAsync(int bankId, BankUpdateDto dto);
         Task<ResponseDto> DeleteBankAsync(int bankId);
 
-        // Customers Management
+        #region Customer Operations
         Task<ResponseDto> GetAllCustomersAsync();
         Task<ResponseDto> GetCustomerByIdAsync(int id);
         Task<ResponseDto> CreateCustomerAsync(CustomerCreateDto dto);
         Task<ResponseDto> UpdateCustomerAsync(int id, CustomerUpdateDto dto);
         Task<ResponseDto> DeleteCustomerAsync(int id);
-        Task<ResponseDto> ActivateCustomerAsync(int id);
-        Task<ResponseDto> DeactivateCustomerAsync(int id);
+        #endregion
 
-        //Companies Management
+        #region Company Operations
         Task<ResponseDto> GetAllCompaniesAsync();
         Task<ResponseDto> GetCompanyByIdAsync(int id);
         Task<ResponseDto> CreateCompanyAsync(CompanyCreateDto dto);
         Task<ResponseDto> UpdateCompanyAsync(int id, CompanyUpdateDto dto);
         Task<ResponseDto> DeleteCompanyAsync(int id);
-        Task<ResponseDto> ActivateCompanyAsync(int id);
-        Task<ResponseDto> DeactivateCompanyAsync(int id);
-        
+        #endregion
+
+        #region Unified Activation Operation
+        // Replaced 4 separate activation/deactivation methods with this single unified function
+        Task<ResponseDto> ToggleUserActivationAsync(int userId);
+        #endregion
+
+
         // Subscription Management
         Task<ResponseDto> GetPendingSubscriptionsAsync();
         Task<ResponseDto> GetNewCompanyRegistrationRequestsAsync();
