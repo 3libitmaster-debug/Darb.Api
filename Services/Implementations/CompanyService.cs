@@ -1189,50 +1189,74 @@ namespace Darb.Api.Services.Implementations
         /// Handles a subscription renewal request from a company.
         /// Validates and uploads the payment slip, then creates a Pending record for admin review.
         /// </summary>
-        public async Task<ResponseDto> RenewSubscriptionAsync(SubscriptionRenewalDto dto, int companyId)
+        public async Task<ResponseDto> RenewSubscriptionAsync(SubscriptionRenewalDto dto)
         {
+            // 1. Find the company profile by linking the provided email through the associated User account
             var company = await _context.Companies
                 .Include(c => c.User)
-                .FirstOrDefaultAsync(c => c.CompanyId == companyId);
+                .FirstOrDefaultAsync(c => c.User != null && c.User.Email == dto.Email.Trim());
 
-            if (company == null)
-                return ResponseDto.FailureResponse("الشركة غير موجودة.");
+            // Validate that the company and its corresponding user record exist
+            if (company == null || company.User == null)
+                return ResponseDto.FailureResponse("No transport company registered with this email address.");
 
-            // Validate that a payment slip was attached
+            // 2. Anti-Spam Check: Prevent submitting multiple duplicate pending requests
+            bool hasPendingRequest = await _context.CompanySubscription
+                .AnyAsync(cs => cs.CompanyId == company.CompanyId &&
+                                cs.Status == SubscriptionStatus.Pending &&
+                                cs.RequestType == RequestType.Renewal);
+
+            if (hasPendingRequest)
+                return ResponseDto.FailureResponse("You already have a renewal request pending review. Please wait for admin approval.");
+
+            // Validate that the file attachment is not null
             if (dto.PaymentSlip == null)
-                return ResponseDto.FailureResponse("يجب إرفاق سند الدفع لتجديد الاشتراك.");
+                return ResponseDto.FailureResponse("Please upload and attach the payment slip file.");
 
-            // Upload the payment slip to the designated folder via ImageService
+            // 3. Upload the uploaded payment receipt via ImageService to the designated physical folder
             string? paymentSlipPath = await _imageService.SaveImageAsync(dto.PaymentSlip, "PaymentSlips");
             if (string.IsNullOrEmpty(paymentSlipPath))
-                return ResponseDto.FailureResponse("حدث خطأ أثناء رفع صورة سند الدفع.");
+                return ResponseDto.FailureResponse("An error occurred while uploading the payment slip image.");
 
-            // Define Yemen Time (UTC+3)
+            // Fetch current timestamp synchronized to Yemen Timezone (UTC+3)
             var yemenNow = DateHelper.GetYemenTime();
 
-            // Calculate Subscription Expiry Date based on PlanType
-            DateTime expiryDate = dto.PlanType == SubscriptionPlans.Monthly
-                ? yemenNow.AddDays(30)
-                : yemenNow.AddYears(1);
+            // 4. Smart Expiry Logic: Retrieve the latest subscription record to evaluate remaining time
+            var latestSub = await _context.CompanySubscription
+                .Where(cs => cs.CompanyId == company.CompanyId)
+                .OrderByDescending(cs => cs.ExpiryDate)
+                .FirstOrDefaultAsync();
 
-            // Create a new subscription record awaiting admin approval
+            // If the user profile is active and the latest subscription is still valid (early renewal), cumulative extension applies.
+            // Otherwise (account blocked/expired), calculation baseline drops back to the current date.
+            DateTime baseStartDate = (company.User.IsActive && latestSub != null && latestSub.ExpiryDate > yemenNow)
+                ? latestSub.ExpiryDate
+                : yemenNow;
+
+            // Compute the target expiry date based on the chosen contract tier plan
+            DateTime expiryDate = dto.PlanType == SubscriptionPlans.Monthly
+                ? baseStartDate.AddDays(30)
+                : baseStartDate.AddYears(1);
+
+            // 5. Structure and map the new pending contract record
             var subscription = new CompanySubscription
             {
-                CompanyId = companyId,
+                CompanyId = company.CompanyId,
                 PlanType = dto.PlanType,
                 PaymentSlip = paymentSlipPath,
-                SubscriptionDate = yemenNow,
-                ExpiryDate = expiryDate,
+                SubscriptionDate = yemenNow,   // Request created timestamp
+                ExpiryDate = expiryDate,       // Future target coverage timeline
                 Status = SubscriptionStatus.Pending,
                 RequestType = RequestType.Renewal
             };
 
+            // Commit and save changes transactionally into the SQL database state
             await _context.CompanySubscription.AddAsync(subscription);
             await _context.SaveChangesAsync();
 
-            return ResponseDto.SuccessResponse("تم رفع طلب تجديد الاشتراك بنجاح وهو الآن قيد المراجعة من قبل الإدارة.");
+            return ResponseDto.SuccessResponse("Your renewal request and payment receipt have been uploaded successfully. Administration will review it shortly.");
         }
-
-        #endregion
     }
+    #endregion
 }
+

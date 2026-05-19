@@ -1,9 +1,10 @@
 using Darb.Api.Dtos;
-using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.company;
+using Darb.Api.DTOs.companyDtos.Trip;
 using Darb.Api.DTOs.TripFare;
 using Darb.Api.DTOs.TripSchedule;
-using Darb.Api.DTOs.companyDtos.Trip;
 using Darb.Api.Extensions;
 using Darb.Api.Models;
 using Darb.Api.Services.Interfaces;
@@ -466,15 +467,18 @@ namespace Darb.Api.Controllers
             => Ok(await _companyService.GetSubscriptionPlansAsync());
 
         [HttpPost("subscriptions/renew")]
-        [SwaggerOperation(Summary = "Renew Subscription", Description = "Allows the company to renew their subscription by uploading a payment slip. Status will be set to Pending until admin approves.")]
-        public async Task<IActionResult> RenewSubscription([FromForm] Darb.Api.DTOs.company.SubscriptionRenewalDto dto)
+        [AllowAnonymous] // Bypasses authorization requirements for login-screen accessibility
+        [SwaggerOperation(Summary = "Renew Subscription from Login Dashbord Page", Description = "Enables expired/blocked companies to send renewal requests using their registration email and a payment slip.")]
+        public async Task<IActionResult> RenewSubscriptionExternal([FromForm] SubscriptionRenewalDto dto)
         {
-            int companyId = User.GetCompanyId();
+            // Input state validation guard
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("Invalid inputs submitted. Check file format or fields."));
 
-            if (companyId == 0)
-                return Unauthorized(ResponseDto.FailureResponse("عذراً، لم يتم العثور على بيانات تعريف الشركة."));
+            // Forward execution request down to the service implementation layer
+            var response = await _companyService.RenewSubscriptionAsync(dto);
 
-            var response = await _companyService.RenewSubscriptionAsync(dto, companyId);
+            // Output standard context wrappers depending on execution result
             return response.Success ? Ok(response) : BadRequest(response);
         }
 

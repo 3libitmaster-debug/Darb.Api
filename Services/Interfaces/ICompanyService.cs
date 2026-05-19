@@ -1,10 +1,10 @@
 using Darb.Api.Dtos;
-using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.BankAccount;
+using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.company;
+using Darb.Api.DTOs.companyDtos.Trip;
 using Darb.Api.DTOs.TripFare;
 using Darb.Api.DTOs.TripSchedule;
-
-using Darb.Api.DTOs.companyDtos.Trip;
 
 namespace Darb.Api.Services.Interfaces
 {
@@ -98,7 +98,7 @@ namespace Darb.Api.Services.Interfaces
         #endregion
         #region Subscription Management
         // Submits a subscription renewal request with a payment slip, setting status to Pending.
-        Task<ResponseDto> RenewSubscriptionAsync(Darb.Api.DTOs.company.SubscriptionRenewalDto dto, int companyId);
+        Task<ResponseDto> RenewSubscriptionAsync(SubscriptionRenewalDto dto);
         // Returns all available subscription plans with their ID and Arabic display name.
         Task<ResponseDto> GetSubscriptionPlansAsync();
         #endregion
