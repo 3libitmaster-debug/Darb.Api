@@ -1,3 +1,4 @@
+using Darb.Api.DTOs.admin;
 using Darb.Api.DTOs.admin.Company;
 using Darb.Api.DTOs.admin.Customers;
 using Darb.Api.DTOs.adminDtos.Advertisement;
@@ -38,6 +39,49 @@ namespace Darb.Api.Services.Implementations
             _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
             _emailService = emailService;
         }
+
+        #region Dashboard Statistics Logic
+
+        public async Task<ResponseDto> GetDashboardStatsAsync()
+        {
+            var currentYemenTime = DateHelper.GetYemenTime();
+
+            // 1. عدد طلبات الاشتراك الجديدة (Pending && NewRegistration)
+            var newRegistrations = await _context.CompanySubscription
+                .AsNoTracking()
+                .CountAsync(cs => cs.Status == SubscriptionStatus.Pending
+                               && cs.RequestType == RequestType.NewRegistration);
+
+            // 2. عدد طلبات تجديد الاشتراك (Pending && Renewal)
+            var renewalRequests = await _context.CompanySubscription
+                .AsNoTracking()
+                .CountAsync(cs => cs.Status == SubscriptionStatus.Pending
+                               && cs.RequestType == RequestType.Renewal);
+
+            // 3. إجمالي عدد العملاء في النظام
+            var totalCustomers = await _context.Customers
+                .AsNoTracking()
+                .CountAsync();
+
+            // 4. عدد الإعلانات النشطة حالياً (Active && تاريخ النهاية مستقبلي)
+            var activeAds = await _context.Advertisements
+                .AsNoTracking()
+                .CountAsync(a => a.AdsStatus == AdsStatus.Active
+                              && a.EndDateAds >= currentYemenTime);
+
+            // تجميع الإحصائيات الأربعة المطلوبة فقط
+            var statsDto = new DashboardStatsDto
+            {
+                NewRegistrationsCount = newRegistrations,
+                RenewalRequestsCount = renewalRequests,
+                TotalCustomersCount = totalCustomers,
+                ActiveAdsCount = activeAds
+            };
+
+            return ResponseDto.SuccessResponse("تم استرجاع إحصائيات المسؤول بنجاح.", statsDto);
+        }
+
+        #endregion
 
         #region Governorate Logic
         public async Task<ResponseDto> GetAllGovernoratesAsync()
@@ -198,7 +242,7 @@ namespace Darb.Api.Services.Implementations
                 ImageUrl = !string.IsNullOrEmpty(a.Image) ? _baseUrl + a.Image : string.Empty,
                 StartDateAds = a.StartDateAds,
                 EndDateAds = a.EndDateAds,
-                AdsStatus = a.AdsStatus,
+                AdsStatus = a.AdsStatus.ToString(),
                 CreatedAt = a.AdsCreatedAt
             }).ToList();
 
@@ -227,7 +271,7 @@ namespace Darb.Api.Services.Implementations
                 ImageUrl = !string.IsNullOrEmpty(ad.Image) ? _baseUrl + ad.Image : string.Empty,
                 StartDateAds = ad.StartDateAds,
                 EndDateAds = ad.EndDateAds,
-                AdsStatus = ad.AdsStatus,
+                AdsStatus = ad.AdsStatus.ToString(),
                 CreatedAt = ad.AdsCreatedAt
             };
 
@@ -676,8 +720,6 @@ namespace Darb.Api.Services.Implementations
         }
 
         #endregion
-
-
 
         #region Subscription Management Logic
 

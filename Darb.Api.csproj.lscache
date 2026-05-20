@@ -108,17 +108,17 @@ DTOs/company/TripFare/
  CreateTripFareDto.cs
  TripFareReadDto.cs
  UpdateTripFareDto.cs
-DTOs/company/TripSchedule/
- AddTripScheduleDto.cs
- TripScheduleReadDto.cs
- UpdateTripScheduleDto.cs
+DTOs/company/TripRoute/
+ AddTripRouteDto.cs
+ TripRouteReadDto.cs
+ UpdateTripRouteDto.cs
 DTOs/passenger/
  AddReviewDto.cs
  Booking/
   BankAccountsDropDownListDto.cs
   BookingRequestDto.cs
   PassengerDetailDto.cs
-  TripScheduleResponseDto.cs
+  TripRouteResponseDto.cs
   UploadReceiptDto.cs
  homePage/
   AdCardDto.cs
@@ -177,7 +177,7 @@ Models/
  Station.cs
  Trip.cs
  TripFare.cs
- TripSchedule.cs
+ TripRoute.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  Darb.Api.AssemblyInfo.cs

@@ -10,6 +10,8 @@ namespace Darb.Api.Services.Interfaces
 {
     public interface IAdminService
     {
+        Task<ResponseDto> GetDashboardStatsAsync();
+
         // Governorate Management
         Task<ResponseDto> GetAllGovernoratesAsync();
         Task<ResponseDto> GetGovernorateByIdAsync(int id);

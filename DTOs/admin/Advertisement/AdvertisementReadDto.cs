@@ -20,7 +20,7 @@ namespace Darb.Api.DTOs.adminDtos.Advertisement
 
         public DateTime? EndDateAds { get; set; }
 
-        public AdsStatus AdsStatus { get; set; }
+        public string AdsStatus { get; set; }
 
         public DateTime CreatedAt { get; set; }
     }

@@ -23,6 +23,14 @@ namespace Darb.Api.Controllers
         private readonly IAdminService _adminService;
         public AdminController(IAdminService adminService) { _adminService = adminService; }
 
+        #region Dashboard Statistics Endpoints
+
+        [HttpGet("dashboard-stats")]
+        [SwaggerOperation(Summary = "Get core dashboard statistics", Description = "Retrieves the four essential metrics for the admin dashboard: pending registrations, pending renewals, total customers, and active advertisements.")]
+        public async Task<IActionResult> GetDashboardStats() => Ok(await _adminService.GetDashboardStatsAsync());
+
+        #endregion
+
         #region Governorate Endpoints
 
         [HttpGet("governorates")]

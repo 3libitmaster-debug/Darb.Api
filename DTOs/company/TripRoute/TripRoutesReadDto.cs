@@ -1,15 +1,15 @@
-namespace Darb.Api.DTOs.passengerDtos.bookingDtos
+using System;
+
+namespace Darb.Api.DTOs.TripRoute
 {
-  public class TripRouteResponseDto
+  public class TripRouteReadDto
   {
     public int TripRouteId { get; set; }
     public int TripId { get; set; }
     public int StationId { get; set; }
-    public string? DepartureTime { get; set; }
+    public string? StationName { get; set; }
     public string? CityName { get; set; }
-    public string? Address { get; set; }
+    public TimeOnly? DepartureTime { get; set; }
     public decimal SeatFare { get; set; }
-
-
   }
 }

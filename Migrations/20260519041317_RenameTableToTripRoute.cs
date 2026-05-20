@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace Darb.Api.Migrations
 {
     /// <inheritdoc />
-    public partial class IntialMigration : Migration
+    public partial class RenameTableToTripRoute : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -82,13 +82,13 @@ namespace Darb.Api.Migrations
                     AdvertisementID = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     UserId = table.Column<int>(type: "int", nullable: false),
-                    Title = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
+                    AdsTitle = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: true),
                     Description = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     Image = table.Column<string>(type: "nvarchar(max)", nullable: true),
                     StartDateAds = table.Column<DateTime>(type: "datetime2", nullable: true),
                     EndDateAds = table.Column<DateTime>(type: "datetime2", nullable: true),
-                    IsActive = table.Column<bool>(type: "bit", nullable: false),
-                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
+                    AdsStatus = table.Column<int>(type: "int", nullable: false),
+                    AdsCreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
@@ -111,6 +111,7 @@ namespace Darb.Api.Migrations
                     Address = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     Logo = table.Column<string>(type: "nvarchar(max)", nullable: false),
                     License = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    AverageRating = table.Column<double>(type: "float", nullable: false),
                     UserId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -125,10 +126,10 @@ namespace Darb.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Passengers",
+                name: "Customers",
                 columns: table => new
                 {
-                    PassengerId = table.Column<int>(type: "int", nullable: false)
+                    CustomerId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     FullName = table.Column<string>(type: "nvarchar(255)", maxLength: 255, nullable: false),
                     DateOfBirth = table.Column<DateTime>(type: "date", nullable: false),
@@ -139,9 +140,32 @@ namespace Darb.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Passengers", x => x.PassengerId);
+                    table.PrimaryKey("PK_Customers", x => x.CustomerId);
                     table.ForeignKey(
-                        name: "FK_Passengers_Users_UserId",
+                        name: "FK_Customers_Users_UserId",
+                        column: x => x.UserId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "DeviceTokens",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Token = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    DeviceType = table.Column<int>(type: "int", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    LastUpdatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    UserId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_DeviceTokens", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_DeviceTokens_Users_UserId",
                         column: x => x.UserId,
                         principalTable: "Users",
                         principalColumn: "UserId",
@@ -183,9 +207,9 @@ namespace Darb.Api.Migrations
                     BusId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     PlateNumber = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
+                    BusStatus = table.Column<int>(type: "int", nullable: false),
                     Model = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    Capacity = table.Column<int>(type: "int", nullable: false),
+                    BusCapacity = table.Column<int>(type: "int", nullable: false),
                     CompanyId = table.Column<int>(type: "int", nullable: false)
                 },
                 constraints: table =>
@@ -196,6 +220,62 @@ namespace Darb.Api.Migrations
                         column: x => x.CompanyId,
                         principalTable: "Companies",
                         principalColumn: "CompanyId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "CompanySubscription",
+                columns: table => new
+                {
+                    CompanySubscriptionId = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    PlanType = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    SubscriptionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    PaymentSlip = table.Column<string>(type: "nvarchar(max)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    RequestType = table.Column<int>(type: "int", nullable: false),
+                    CompanyId = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_CompanySubscription", x => x.CompanySubscriptionId);
+                    table.ForeignKey(
+                        name: "FK_CompanySubscription_Companies_CompanyId",
+                        column: x => x.CompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "CompanyId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Notifications",
+                columns: table => new
+                {
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    Title = table.Column<string>(type: "nvarchar(150)", maxLength: 150, nullable: false),
+                    Body = table.Column<string>(type: "nvarchar(500)", maxLength: 500, nullable: false),
+                    IsRead = table.Column<bool>(type: "bit", nullable: false),
+                    CreatedAt = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    ReceiverId = table.Column<int>(type: "int", nullable: false),
+                    NotificationType = table.Column<int>(type: "int", nullable: false),
+                    SenderType = table.Column<int>(type: "int", nullable: false),
+                    SenderCompanyId = table.Column<int>(type: "int", nullable: true)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_Notifications", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_Notifications_Companies_SenderCompanyId",
+                        column: x => x.SenderCompanyId,
+                        principalTable: "Companies",
+                        principalColumn: "CompanyId");
+                    table.ForeignKey(
+                        name: "FK_Notifications_Users_ReceiverId",
+                        column: x => x.ReceiverId,
+                        principalTable: "Users",
+                        principalColumn: "UserId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -234,26 +314,32 @@ namespace Darb.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "Subscriptions",
+                name: "Review",
                 columns: table => new
                 {
-                    SubscriptionId = table.Column<int>(type: "int", nullable: false)
+                    ReviewId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    PlanType = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    SubscriptionDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    ExpiryDate = table.Column<DateTime>(type: "datetime2", nullable: false),
-                    PaymentSlip = table.Column<string>(type: "nvarchar(max)", nullable: false),
-                    CompanyId = table.Column<int>(type: "int", nullable: false)
+                    CustomerId = table.Column<int>(type: "int", nullable: false),
+                    CompanyId = table.Column<int>(type: "int", nullable: false),
+                    Rating = table.Column<int>(type: "int", nullable: false),
+                    Description = table.Column<string>(type: "nvarchar(1000)", maxLength: 1000, nullable: true),
+                    ReviewDate = table.Column<DateTime>(type: "datetime2", nullable: false)
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Subscriptions", x => x.SubscriptionId);
+                    table.PrimaryKey("PK_Review", x => x.ReviewId);
                     table.ForeignKey(
-                        name: "FK_Subscriptions_Companies_CompanyId",
+                        name: "FK_Review_Companies_CompanyId",
                         column: x => x.CompanyId,
                         principalTable: "Companies",
                         principalColumn: "CompanyId",
                         onDelete: ReferentialAction.Cascade);
+                    table.ForeignKey(
+                        name: "FK_Review_Customers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "Customers",
+                        principalColumn: "CustomerId",
+                        onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
@@ -265,10 +351,10 @@ namespace Darb.Api.Migrations
                     StartGoveId = table.Column<int>(type: "int", nullable: false),
                     EndGoveId = table.Column<int>(type: "int", nullable: false),
                     AvailableSeats = table.Column<int>(type: "int", nullable: false),
-                    BasePrice = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
-                    DepartureDate = table.Column<DateTime>(type: "datetime2", nullable: false),
+                    Price = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
+                    DepDate = table.Column<DateTime>(type: "datetime2", nullable: false),
                     Period = table.Column<int>(type: "int", nullable: false),
-                    Status = table.Column<int>(type: "int", nullable: false),
+                    TripStatus = table.Column<int>(type: "int", nullable: false),
                     CompanyId = table.Column<int>(type: "int", nullable: false),
                     BusId = table.Column<int>(type: "int", nullable: false)
                 },
@@ -343,10 +429,10 @@ namespace Darb.Api.Migrations
                 });
 
             migrationBuilder.CreateTable(
-                name: "TripSchedules",
+                name: "TripRoutes",
                 columns: table => new
                 {
-                    TripScheduleId = table.Column<int>(type: "int", nullable: false)
+                    TripRouteId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     TripId = table.Column<int>(type: "int", nullable: false),
                     StationId = table.Column<int>(type: "int", nullable: false),
@@ -355,15 +441,15 @@ namespace Darb.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_TripSchedules", x => x.TripScheduleId);
+                    table.PrimaryKey("PK_TripRoutes", x => x.TripRouteId);
                     table.ForeignKey(
-                        name: "FK_TripSchedules_Stations_StationId",
+                        name: "FK_TripRoutes_Stations_StationId",
                         column: x => x.StationId,
                         principalTable: "Stations",
                         principalColumn: "StationId",
                         onDelete: ReferentialAction.Restrict);
                     table.ForeignKey(
-                        name: "FK_TripSchedules_Trips_TripId",
+                        name: "FK_TripRoutes_Trips_TripId",
                         column: x => x.TripId,
                         principalTable: "Trips",
                         principalColumn: "TripId");
@@ -375,8 +461,8 @@ namespace Darb.Api.Migrations
                 {
                     BookingId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
-                    PassengerId = table.Column<int>(type: "int", nullable: false),
-                    TripScheduleId = table.Column<int>(type: "int", nullable: false),
+                    CustomerId = table.Column<int>(type: "int", nullable: false),
+                    TripRouteId = table.Column<int>(type: "int", nullable: false),
                     ReservedSeatsCount = table.Column<int>(type: "int", nullable: false),
                     TotalAmount = table.Column<decimal>(type: "decimal(18,2)", nullable: false),
                     ReceiptImagePath = table.Column<string>(type: "nvarchar(max)", nullable: true),
@@ -387,23 +473,44 @@ namespace Darb.Api.Migrations
                 {
                     table.PrimaryKey("PK_Bookings", x => x.BookingId);
                     table.ForeignKey(
-                        name: "FK_Bookings_Passengers_PassengerId",
-                        column: x => x.PassengerId,
-                        principalTable: "Passengers",
-                        principalColumn: "PassengerId");
+                        name: "FK_Bookings_Customers_CustomerId",
+                        column: x => x.CustomerId,
+                        principalTable: "Customers",
+                        principalColumn: "CustomerId");
                     table.ForeignKey(
-                        name: "FK_Bookings_TripSchedules_TripScheduleId",
-                        column: x => x.TripScheduleId,
-                        principalTable: "TripSchedules",
-                        principalColumn: "TripScheduleId",
+                        name: "FK_Bookings_TripRoutes_TripRouteId",
+                        column: x => x.TripRouteId,
+                        principalTable: "TripRoutes",
+                        principalColumn: "TripRouteId",
                         onDelete: ReferentialAction.Restrict);
                 });
 
             migrationBuilder.CreateTable(
-                name: "PassengerDetails",
+                name: "ETickets",
                 columns: table => new
                 {
-                    PassengerDetailsId = table.Column<int>(type: "int", nullable: false)
+                    Id = table.Column<int>(type: "int", nullable: false)
+                        .Annotation("SqlServer:Identity", "1, 1"),
+                    BookingId = table.Column<int>(type: "int", nullable: false),
+                    TicketCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
+                    Status = table.Column<int>(type: "int", nullable: false)
+                },
+                constraints: table =>
+                {
+                    table.PrimaryKey("PK_ETickets", x => x.Id);
+                    table.ForeignKey(
+                        name: "FK_ETickets_Bookings_BookingId",
+                        column: x => x.BookingId,
+                        principalTable: "Bookings",
+                        principalColumn: "BookingId",
+                        onDelete: ReferentialAction.Cascade);
+                });
+
+            migrationBuilder.CreateTable(
+                name: "Passenger",
+                columns: table => new
+                {
+                    PassengerId = table.Column<int>(type: "int", nullable: false)
                         .Annotation("SqlServer:Identity", "1, 1"),
                     BookingId = table.Column<int>(type: "int", nullable: false),
                     FullName = table.Column<string>(type: "nvarchar(100)", maxLength: 100, nullable: false),
@@ -414,33 +521,12 @@ namespace Darb.Api.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_PassengerDetails", x => x.PassengerDetailsId);
+                    table.PrimaryKey("PK_Passenger", x => x.PassengerId);
                     table.ForeignKey(
-                        name: "FK_PassengerDetails_Bookings_BookingId",
+                        name: "FK_Passenger_Bookings_BookingId",
                         column: x => x.BookingId,
                         principalTable: "Bookings",
                         principalColumn: "BookingId",
-                        onDelete: ReferentialAction.Cascade);
-                });
-
-            migrationBuilder.CreateTable(
-                name: "ETickets",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("SqlServer:Identity", "1, 1"),
-                    PassengerDetailId = table.Column<int>(type: "int", nullable: false),
-                    TicketCode = table.Column<string>(type: "nvarchar(max)", nullable: true),
-                    Status = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_ETickets", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_ETickets_PassengerDetails_PassengerDetailId",
-                        column: x => x.PassengerDetailId,
-                        principalTable: "PassengerDetails",
-                        principalColumn: "PassengerDetailsId",
                         onDelete: ReferentialAction.Cascade);
                 });
 
@@ -460,14 +546,14 @@ namespace Darb.Api.Migrations
                 column: "CompanyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_PassengerId",
+                name: "IX_Bookings_CustomerId",
                 table: "Bookings",
-                column: "PassengerId");
+                column: "CustomerId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_Bookings_TripScheduleId",
+                name: "IX_Bookings_TripRouteId",
                 table: "Bookings",
-                column: "TripScheduleId");
+                column: "TripRouteId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Buses_CompanyId",
@@ -492,27 +578,57 @@ namespace Darb.Api.Migrations
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_ETickets_PassengerDetailId",
-                table: "ETickets",
-                column: "PassengerDetailId",
-                unique: true);
+                name: "IX_CompanySubscription_CompanyId",
+                table: "CompanySubscription",
+                column: "CompanyId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_PassengerDetails_BookingId",
-                table: "PassengerDetails",
-                column: "BookingId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Passengers_Phone",
-                table: "Passengers",
+                name: "IX_Customers_Phone",
+                table: "Customers",
                 column: "Phone",
                 unique: true);
 
             migrationBuilder.CreateIndex(
-                name: "IX_Passengers_UserId",
-                table: "Passengers",
+                name: "IX_Customers_UserId",
+                table: "Customers",
                 column: "UserId",
                 unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_DeviceTokens_UserId",
+                table: "DeviceTokens",
+                column: "UserId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_ETickets_BookingId",
+                table: "ETickets",
+                column: "BookingId",
+                unique: true);
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_ReceiverId",
+                table: "Notifications",
+                column: "ReceiverId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Notifications_SenderCompanyId",
+                table: "Notifications",
+                column: "SenderCompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Passenger_BookingId",
+                table: "Passenger",
+                column: "BookingId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Review_CompanyId",
+                table: "Review",
+                column: "CompanyId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_Review_CustomerId",
+                table: "Review",
+                column: "CustomerId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_Stations_CityId",
@@ -528,11 +644,6 @@ namespace Darb.Api.Migrations
                 name: "IX_Stations_GovernorateId",
                 table: "Stations",
                 column: "GovernorateId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_Subscriptions_CompanyId",
-                table: "Subscriptions",
-                column: "CompanyId");
 
             migrationBuilder.CreateIndex(
                 name: "IX_TripFares_CompanyId",
@@ -555,6 +666,16 @@ namespace Darb.Api.Migrations
                 column: "ToGovId");
 
             migrationBuilder.CreateIndex(
+                name: "IX_TripRoutes_StationId",
+                table: "TripRoutes",
+                column: "StationId");
+
+            migrationBuilder.CreateIndex(
+                name: "IX_TripRoutes_TripId",
+                table: "TripRoutes",
+                column: "TripId");
+
+            migrationBuilder.CreateIndex(
                 name: "IX_Trips_BusId",
                 table: "Trips",
                 column: "BusId");
@@ -575,16 +696,6 @@ namespace Darb.Api.Migrations
                 column: "StartGoveId");
 
             migrationBuilder.CreateIndex(
-                name: "IX_TripSchedules_StationId",
-                table: "TripSchedules",
-                column: "StationId");
-
-            migrationBuilder.CreateIndex(
-                name: "IX_TripSchedules_TripId",
-                table: "TripSchedules",
-                column: "TripId");
-
-            migrationBuilder.CreateIndex(
                 name: "IX_Users_Email",
                 table: "Users",
                 column: "Email",
@@ -602,10 +713,22 @@ namespace Darb.Api.Migrations
                 name: "BankAccounts");
 
             migrationBuilder.DropTable(
+                name: "CompanySubscription");
+
+            migrationBuilder.DropTable(
+                name: "DeviceTokens");
+
+            migrationBuilder.DropTable(
                 name: "ETickets");
 
             migrationBuilder.DropTable(
-                name: "Subscriptions");
+                name: "Notifications");
+
+            migrationBuilder.DropTable(
+                name: "Passenger");
+
+            migrationBuilder.DropTable(
+                name: "Review");
 
             migrationBuilder.DropTable(
                 name: "TripFares");
@@ -614,16 +737,13 @@ namespace Darb.Api.Migrations
                 name: "Banks");
 
             migrationBuilder.DropTable(
-                name: "PassengerDetails");
-
-            migrationBuilder.DropTable(
                 name: "Bookings");
 
             migrationBuilder.DropTable(
-                name: "Passengers");
+                name: "Customers");
 
             migrationBuilder.DropTable(
-                name: "TripSchedules");
+                name: "TripRoutes");
 
             migrationBuilder.DropTable(
                 name: "Stations");
