@@ -28,9 +28,10 @@ namespace Darb.Api.Services.Implementations
     private readonly IRepository<Company> _companyRepo;
     private readonly ApplicationDbContext _context;
     private readonly IImageService _imageService;
+    private readonly INotificationService _notificationService;
 
-    // Base URL for external links and images (injected via Options Pattern)
-    private readonly string _baseUrl;
+        // Base URL for external links and images (injected via Options Pattern)
+        private readonly string _baseUrl;
 
     public CustomerService(
         IRepository<Governorate> govRepo,
@@ -46,6 +47,7 @@ namespace Darb.Api.Services.Implementations
       _context = context;
       _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
       _imageService = imageService;
+
     }
 
     #region Home Page Data Retrieval Logic
@@ -754,6 +756,45 @@ namespace Darb.Api.Services.Implementations
       }
     }
 
-    #endregion
-  }
+        #endregion
+
+        public async Task<ResponseDto> RequestBookingCancellationAsync(int bookingId, int customerId)
+        {
+            try
+            {
+                // 1. جلب الحجز والتحقق من وجوده وتبعيته للعميل الحالي
+                var booking = await _context.Bookings
+                    .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
+
+                if (booking == null)
+                    return ResponseDto.FailureResponse("الحجز غير موجود أو لا تملك صلاحية الوصول إليه.");
+
+                // 2. التحقق الصارم من أن الحجز مؤكد مسبقاً (Confirmed)
+                if (booking.Status != BookingStatus.Confirmed)
+                {
+                    return booking.Status switch
+                    {
+                        BookingStatus.AwaitingCancellation => ResponseDto.FailureResponse("تم إرسال طلب إلغاء لهذا الحجز مسبقاً وهو قيد المراجعة حالياً."),
+                        BookingStatus.Cancelled => ResponseDto.FailureResponse("هذا الحجز ملغي بالفعل."),
+                        BookingStatus.PendingAttachment => ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار إرفاق سند الدفع."),
+                        BookingStatus.AwaitingConfirmation => ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار تأكيد الدفع والقبول من الإدارة."),
+                        _ => ResponseDto.FailureResponse("عذراً، لا يمكن تقديم طلب إلغاء لهذا الحجز إلا إذا كانت حالته مؤكدة.")
+                    };
+                }
+
+                // 3. تحديث الحالة إلى انتظار الإلغاء وحفظ التغييرات
+                booking.Status = BookingStatus.AwaitingCancellation;
+
+                _context.Bookings.Update(booking);
+                await _context.SaveChangesAsync();
+
+                return ResponseDto.SuccessResponse("تم تقديم طلب إلغاء الحجز بنجاح، وهو قيد المراجعة والتدقيق من قبل الشركة الناقلة.", booking.BookingId);
+            }
+            catch (Exception ex)
+            {
+                // تسجيل الخطأ داخلياً وإرجاع رسالة فشل منسقة
+                return ResponseDto.FailureResponse($"فشل في معالجة طلب الإلغاء: {ex.Message}");
+            }
+        }
+    }
 }

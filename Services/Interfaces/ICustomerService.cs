@@ -23,6 +23,7 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetBookingStatusesAsync();
         Task<ResponseDto> GetBookingsByStatusAsync(int customerId, BookingStatus status);
         Task<ResponseDto> GetBookingDetailsAsync(int bookingId, int customerId);
+        Task<ResponseDto> RequestBookingCancellationAsync(int bookingId, int customerId);
 
         #region Review Management Methods
 

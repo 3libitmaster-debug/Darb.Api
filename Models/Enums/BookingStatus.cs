@@ -17,6 +17,14 @@ namespace Darb.Api.Models.Enums
         Cancelled = 3,
 
         [Display(Name = "„ﬂ „·")]
-        Completed = 4
+        Completed = 4,
+
+        [Display(Name = "„—›Ê÷")]
+        Rejected =5,
+
+        [Display(Name = "›Ì «‰ Ÿ«— «·«·€«¡")]
+        AwaitingCancellation = 6
+
+
     }
 }

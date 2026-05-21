@@ -1,6 +1,7 @@
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.company;
 using Darb.Api.DTOs.company.TripRoute;
 using Darb.Api.DTOs.TripFare;
@@ -55,7 +56,7 @@ namespace Darb.Api.Services.Interfaces
     Task<ResponseDto> ToggleBusMaintenanceStatusAsync(int busId, int companyId);
         #endregion
 
-        #region Station Management
+    #region Station Management
         // Retrieves all stations owned by the company.
         Task<ResponseDto> GetAllCompanyStationsAsync(int companyId);
 
@@ -78,10 +79,17 @@ namespace Darb.Api.Services.Interfaces
     Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId);
     Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId);
     Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId);
-    #endregion
+    Task<ResponseDto> GetTripBookingsAsync(int tripId, int companyId);
+    Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId);
+    Task<ResponseDto> GetPendingCompanyBookingsAsync(int companyId);
+    Task<ResponseDto> GetBookingPassengersAsync(int bookingId, int companyId);
 
-    #region BankAccount Management
-    Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
+        
+
+        #endregion
+
+        #region BankAccount Management
+        Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
     Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId);
     Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId);
     Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId);

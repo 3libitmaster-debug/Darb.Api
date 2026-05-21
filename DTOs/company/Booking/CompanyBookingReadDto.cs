@@ -5,9 +5,11 @@ namespace Darb.Api.DTOs.Booking
   public class CompanyBookingReadDto
   {
     public int BookingId { get; set; }
-    public string PassengerName { get; set; } = string.Empty;
-    public string PhoneNumber { get; set; } = string.Empty;
+
+    public string CustomerName { get; set; } = string.Empty;
+
     public int TripId { get; set; }
+
     public int TripRouteId { get; set; }
     public string StartGovernorate { get; set; } = string.Empty;
     public string EndGovernorate { get; set; } = string.Empty;

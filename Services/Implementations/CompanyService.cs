@@ -1,5 +1,6 @@
-﻿using Darb.Api.Dtos;
+using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.Trip;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.TripFare;
@@ -11,10 +12,12 @@ using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Darb.Api.Models.Enums;
 using Darb.Api.DTOs.company;
 using Darb.Api.Enums;
 using Darb.Api.DTOs.company.TripRoute;
+using Darb.Api.DTOs.company.Booking;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -26,6 +29,7 @@ namespace Darb.Api.Services.Implementations
     private readonly ApplicationDbContext _context;
     private readonly IQrCodeService _qrCodeService;
     private readonly IImageService _imageService;
+    private readonly string _baseUrl;
 
     public CompanyService(
         IRepository<Trip> tripRepository,
@@ -33,7 +37,8 @@ namespace Darb.Api.Services.Implementations
         IRepository<Station> stationRepository,
         ApplicationDbContext context,
         IQrCodeService qrCodeService,
-        IImageService imageService)
+        IImageService imageService,
+        IOptions<ApiSettings> apiOptions)
     {
       _tripRepository = tripRepository;
       _busRepository = busRepository;
@@ -41,6 +46,7 @@ namespace Darb.Api.Services.Implementations
       _context = context;
       _qrCodeService = qrCodeService;
       _imageService = imageService;
+      _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
     }
 
 
@@ -751,8 +757,6 @@ namespace Darb.Api.Services.Implementations
             var bookingList = bookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
             {
                 BookingId = b.BookingId,
-                PassengerName = b.Customer?.FullName ?? "غير محدد",
-                PhoneNumber = b.Customer?.Phone ?? "غير محدد",
                 TripId = b.TripRoute?.TripId ?? 0,
                 TripRouteId = b.TripRouteId,
                 StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
@@ -760,7 +764,7 @@ namespace Darb.Api.Services.Implementations
                 DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
                 ReservedSeatsCount = b.ReservedSeatsCount,
                 TotalAmount = b.TotalAmount,
-                ReceiptImagePath = b.ReceiptImagePath,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
                 Status = b.Status.ToString(),
                 BookingAt = b.BookingAt
             }).ToList();
@@ -790,8 +794,6 @@ namespace Darb.Api.Services.Implementations
             var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
             {
                 BookingId = booking.BookingId,
-                PassengerName = booking.Customer?.FullName ?? "غير محدد",
-                PhoneNumber = booking.Customer?.Phone ?? "غير محدد",
                 TripId = booking.TripRoute?.TripId ?? 0,
                 TripRouteId = booking.TripRouteId,
                 StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
@@ -799,7 +801,7 @@ namespace Darb.Api.Services.Implementations
                 DepartureDate = booking.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
                 ReservedSeatsCount = booking.ReservedSeatsCount,
                 TotalAmount = booking.TotalAmount,
-                ReceiptImagePath = booking.ReceiptImagePath,
+                ReceiptImagePath = !string.IsNullOrEmpty(booking.ReceiptImagePath) ? _baseUrl + booking.ReceiptImagePath : null,
                 Status = booking.Status.ToString(),
                 BookingAt = booking.BookingAt,
                 TicketCode = booking.ETicket?.TicketCode,
@@ -942,6 +944,135 @@ namespace Darb.Api.Services.Implementations
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
         }
+
+        public async Task<ResponseDto> GetTripBookingsAsync(int tripId, int companyId)
+        {
+            // 1. Verify that the trip exists and belongs to the company
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
+            if (trip == null)
+            {
+                return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+            }
+
+            // 2. Fetch only confirmed bookings for this trip
+            var bookings = await _context.Bookings
+                .Include(b => b.Customer)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Station)
+                        .ThenInclude(s => s!.City) // <-- السطر المضاف لربط جدول المدن
+                .Where(b => b.TripRoute != null && b.TripRoute.TripId == tripId && b.Status == BookingStatus.Confirmed)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            // 3. Map to DTO
+            var bookingList = bookings.Select(b => new TripBookingReadDto
+            {
+                CustomerId = b.CustomerId,
+                CustomerName = b.Customer?.FullName ?? "غير محدد",
+                ReservedSeatsCount = b.ReservedSeatsCount,
+                TotalAmount = b.TotalAmount,
+                StationName = b.TripRoute?.Station?.City?.Name ?? "غير محدد", // تم إضافة الـ ? بعد City للحماية
+                BookingAt = b.BookingAt,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز مؤكد للرحلة بنجاح.", bookingList);
+        }
+        #endregion
+
+        #region Booking Management Logic - New Endpoints Implementation
+
+        public async Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
+
+            if (booking.Status == BookingStatus.Rejected)
+                return ResponseDto.FailureResponse("هذا الحجز مرفوض بالفعل.");
+
+            // تحديث حالة الحجز إلى مرفوض
+            booking.Status = BookingStatus.Rejected;
+
+            // إذا كان هناك تذكرة مرتبطة بالحجز، نقوم بتحويل حالتها إلى غير صالحة للسلامة والأمان
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
+            {
+                ticket.Status = ETicketStatus.UnValid;
+            }
+
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم رفض الحجز وتحديث حالته بنجاح.");
+        }
+
+        public async Task<ResponseDto> GetPendingCompanyBookingsAsync(int companyId)
+        {
+            // جلب الحجوزات التي حالتها بانتظار التأكيد وفلترتها حسب الشركة
+            var pendingBookings = await _context.Bookings
+                .Include(b => b.Customer)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
+                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId && b.Status == BookingStatus.AwaitingConfirmation)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            var bookingList = pendingBookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
+            {
+                BookingId = b.BookingId,
+                TripId = b.TripRoute?.TripId ?? 0,
+                TripRouteId = b.TripRouteId,
+                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
+                ReservedSeatsCount = b.ReservedSeatsCount,
+                TotalAmount = b.TotalAmount,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
+                Status = b.Status.ToString(),
+                BookingAt = b.BookingAt
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز بانتظار التأكيد بنجاح.", bookingList);
+        }
+
+        public async Task<ResponseDto> GetBookingPassengersAsync(int bookingId, int companyId)
+        {
+            // التحقق أولاً من أن الحجز يتبع لرحلة تخص هذه الشركة لحماية البيانات
+            var bookingCheck = await _context.Bookings
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (bookingCheck == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول لبيانات ركابه.");
+            }
+
+            // جلب الركاب المرتبطين بهذا الحجز مع تفاصيلهم الكاملة
+            var passengers = await _context.Passenger
+                .Where(p => p.BookingId == bookingId)
+                .ToListAsync();
+
+            var passengerList = passengers.Select(p => new CompanyDetailedPassengerDto
+            {
+                PassengerId = p.PassengerId,
+                FullName = p.FullName,
+                NationalId = p.NationalId ?? "غير متوفر",
+                PhoneNumber = p.PhoneNumber, // تأكد من مطابقة المسميات البرمجية في مودل Passenger لديك
+                Address = p.Address,
+                BirthDate = p.BirthDate
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع بيانات ({passengerList.Count}) راكب بنجاح.", passengerList);
+        }
+
         #endregion
 
         #region BankAccount Management Logic

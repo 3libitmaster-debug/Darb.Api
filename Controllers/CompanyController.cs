@@ -1,6 +1,7 @@
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.company;
 using Darb.Api.DTOs.company.TripRoute;
 using Darb.Api.DTOs.TripFare;
@@ -372,7 +373,7 @@ namespace Darb.Api.Controllers
 
         #endregion
 
-        #region Booking Management Endpoints
+    #region Booking Management Endpoints
 
         [HttpGet("trip/bookings")]
     [SwaggerOperation(Summary = "Get All Bookings", Description = "Retrieves a comprehensive list of all bookings for trips owned by the authenticated company.")]
@@ -429,11 +430,61 @@ namespace Darb.Api.Controllers
       return response.Success ? Ok(response) : BadRequest(response);
     }
 
-    #endregion
+    [HttpGet("trips/{tripId}/bookings")]
+    [SwaggerOperation(
+        Summary = "Get All Confirmed Bookings of a Specific Trip",
+        Description = "Retrieves all confirmed bookings for a specific trip belonging to the authenticated company, returning customer info, passenger count, total amount, station address, booking date, and payment slip.")]
+    public async Task<IActionResult> GetTripBookings(int tripId)
+    {
+      int companyId = User.GetCompanyId();
 
-    #region BankAccount Management Endpoints
+      if (companyId == 0)
+      {
+        return Unauthorized(ResponseDto.FailureResponse("عذراً، لم يتم العثور على بيانات تعريف الشركة في رمز التحقق."));
+      }
 
-    [HttpGet("bank/accounts")]
+      var response = await _companyService.GetTripBookingsAsync(tripId, companyId);
+      return response.Success ? Ok(response) : BadRequest(response);
+    }
+
+        [HttpPost("trip/bookings/{id}/reject")]
+        [SwaggerOperation(Summary = "Reject a Booking", Description = "Rejects a specific booking by changing its status to Rejected.")]
+        public async Task<IActionResult> RejectBooking(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.RejectCompanyBookingAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpGet("trip/bookings/pending")]
+        [SwaggerOperation(Summary = "Get Pending Bookings", Description = "Retrieves a list of all bookings that are awaiting confirmation for the authenticated company.")]
+        public async Task<IActionResult> GetPendingBookings()
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.GetPendingCompanyBookingsAsync(companyId);
+            return Ok(response);
+        }
+
+        [HttpGet("trip/bookings/{id}/passengers")]
+        [SwaggerOperation(Summary = "Get Booking Passengers Details", Description = "Retrieves full detailed information for all passengers associated with a specific booking.")]
+        public async Task<IActionResult> GetBookingPassengers(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.GetBookingPassengersAsync(id, companyId);
+            return response.Success ? Ok(response) : NotFound(response);
+        }
+
+        #endregion
+
+        #region BankAccount Management Endpoints
+
+        [HttpGet("bank/accounts")]
     [SwaggerOperation(Summary = "Get All Bank Accounts", Description = "Retrieves a list of all bank accounts for the authenticated company.")]
     public async Task<IActionResult> GetBankAccounts()
         => Ok(await _companyService.GetAllBankAccountsAsync(User.GetCompanyId()));

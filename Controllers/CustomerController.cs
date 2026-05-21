@@ -5,6 +5,7 @@ using Darb.Api.DTOs.passengerDtos.homePageDtos;
 using Darb.Api.DTOs.passengerDtos.settings;
 using Darb.Api.Extensions;
 using Darb.Api.Models.Enums;
+using Darb.Api.Services.Implementations;
 using Darb.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -212,6 +213,27 @@ namespace Darb.Api.Controllers
 
             return Ok(response);
         }
+
+        [Authorize(Roles = "Customer")]
+        [HttpPut("bookings/{bookingId}/request-cancellation")]
+        [SwaggerOperation(
+            Summary = "Request Booking Cancellation",
+            Description = "Changes booking status to AwaitingCancellation if it was previously Confirmed.")]
+        public async Task<IActionResult> RequestBookingCancellation(int bookingId)
+        {
+            // استخراج معرف العميل الحالي من الـ Claims الخاصة بالـ JWT Token بشكل آمن
+            // استبدل .GetUserId() بالامتداد (Extension Method) المعتمد في مشروعك
+            int customerId = User.GetPassengerId();
+
+            // استدعاء الخدمة لمعالجة الطلب
+            var result = await _passengerService.RequestBookingCancellationAsync(bookingId, customerId);
+
+            if (!result.Success)
+                return BadRequest(result); // إرجاع 400 في حال عدم مطابقة الشروط أو خطأ بالبيانات
+
+            return Ok(result); // إرجاع 200 بنجاح العملية متضمناً الـ ResponseDto الموحد
+        }
+    
 
 
         
