@@ -375,7 +375,7 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم استرجاع بيانات محطة التوقف بنجاح.", dto);
         }
 
-        public async Task<ResponseDto> AddTripRoutesAsync(int tripId, List<AddTripRouteDto> routes, int companyId)
+        public async Task<ResponseDto> AddTripRouteAsync(int tripId, AddTripRouteDto route, int companyId)
         {
             // 1. التحقق من وجود الرحلة وملكية الشركة لها
             var trip = await _context.Trips
@@ -384,39 +384,31 @@ namespace Darb.Api.Services.Implementations
             if (trip == null)
                 return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
 
-            if (routes == null || !routes.Any())
-                return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
+            if (route == null)
+                return ResponseDto.FailureResponse("يجب تحديد بيانات التوجيه والمحطة ووقت الانطلاق.");
 
             // 2. جلب التسعيرات المتاحة لهذا المسار
-            var tripFares = await _context.TripFares
-                .Where(tf => tf.CompanyId == companyId &&
-                             tf.FromGovId == trip.StartGoveId &&
-                             tf.ToGovId == trip.EndGoveId)
-                .ToListAsync();
+            var matchingFare = await _context.TripFares
+                .FirstOrDefaultAsync(tf => tf.CompanyId == companyId &&
+                                         tf.FromGovId == trip.StartGoveId &&
+                                         tf.ToGovId == trip.EndGoveId &&
+                                         tf.StationId == route.StationId);
 
-            var schedules = new List<TripRoute>();
-            foreach (var routeDto in routes)
+            if (matchingFare == null)
+                return ResponseDto.FailureResponse($"المحطة رقم {route.StationId} غير مرتبطة بهذا المسار.");
+
+            var tripRoute = new TripRoute
             {
-                var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
-                if (matchingFare == null)
-                {
-                    return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
-                }
+                TripId = tripId,
+                StationId = route.StationId,
+                DepartureTime = route.DepartureTime ?? TimeOnly.MinValue,
+                SeatFare = matchingFare.Price
+            };
 
-                schedules.Add(new TripRoute
-                {
-                    TripId = tripId,
-                    StationId = routeDto.StationId,
-                    DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
-                    SeatFare = matchingFare.Price
-                });
-            }
-
-            // 3. إضافة الجداول لقاعدة البيانات
-            await _context.TripRoutes.AddRangeAsync(schedules);
+            await _context.TripRoutes.AddAsync(tripRoute);
             await _context.SaveChangesAsync();
 
-            return ResponseDto.SuccessResponse("تم إضافة مسارات الرحلة بنجاح.");
+            return ResponseDto.SuccessResponse("تم إضافة محطة التوقف للرحلة بنجاح.");
         }
 
         public async Task<ResponseDto> UpdateTripRouteAsync(int scheduleId, UpdateTripRouteDto dto, int companyId)
@@ -431,9 +423,6 @@ namespace Darb.Api.Services.Implementations
             {
                 if (dto.DepartureTime.HasValue)
                     ts.DepartureTime = dto.DepartureTime.Value;
-
-                if (dto.SeatFare.HasValue)
-                    ts.SeatFare = dto.SeatFare.Value;
 
                 await _context.SaveChangesAsync();
                 return ResponseDto.SuccessResponse("تم تحديث بيانات محطة التوقف بنجاح.");

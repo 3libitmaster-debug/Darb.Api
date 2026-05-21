@@ -129,26 +129,26 @@ namespace Darb.Api.Controllers
 
         [HttpPost("trips/{id}/routes")]
         [SwaggerOperation(
-        Summary = "Add Routes to Trip",
-        Description = "Adds a list of station stops and departure times to an existing trip.")]
-        public async Task<IActionResult> AddTripRoutes(int id, [FromBody] List<AddTripRouteDto> routes)
+        Summary = "Add Route to Trip",
+        Description = "Adds a single station stop and departure time to an existing trip.")]
+        public async Task<IActionResult> AddTripRoute(int id, [FromBody] AddTripRouteDto route)
         {
-            int companyId = User.GetCompanyId();
+          int companyId = User.GetCompanyId();
 
-            if (companyId == 0)
-                return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة مفقودة."));
+          if (companyId == 0)
+            return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة مفقودة."));
 
-            var response = await _companyService.AddTripRoutesAsync(id, routes, companyId);
+          var response = await _companyService.AddTripRouteAsync(id, route, companyId);
 
-            if (!response.Success)
-                return BadRequest(response);
+          if (!response.Success)
+            return BadRequest(response);
 
-            return Ok(response);
+          return Ok(response);
         }
 
         [HttpPut("trips/routes/{id}")]
         [SwaggerOperation(Summary = "Update Trip Route", Description = "Modifies an existing station stop's time or fare.")]
-        public async Task<IActionResult> UpdateTripRoute(int id, [FromQuery] UpdateTripRouteDto dto)
+        public async Task<IActionResult> UpdateTripRoute(int id, [FromBody] UpdateTripRouteDto dto)
             => Ok(await _companyService.UpdateTripRouteAsync(id, dto, User.GetCompanyId()));
 
         [HttpDelete("trips/routes/{id}")]

@@ -31,7 +31,7 @@ namespace Darb.Api.Services.Interfaces
 
         Task<ResponseDto> GetAllTripRoutesAsync(int tripId, int companyId);
         Task<ResponseDto> GetTripRouteByIdAsync(int scheduleId, int companyId);
-        Task<ResponseDto> AddTripRoutesAsync(int tripId, List<AddTripRouteDto> routes, int companyId);
+        Task<ResponseDto> AddTripRouteAsync(int tripId, AddTripRouteDto route, int companyId);
         Task<ResponseDto> UpdateTripRouteAsync(int scheduleId, UpdateTripRouteDto dto, int companyId);
         Task<ResponseDto> DeleteTripRouteAsync(int scheduleId, int companyId);
         #endregion
