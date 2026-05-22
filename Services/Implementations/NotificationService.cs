@@ -16,7 +16,7 @@ namespace Darb.Api.Services.Implementations
 {
     public class NotificationService : INotificationService
     {
-        #region Fields & Constructor
+       
 
         private readonly ApplicationDbContext _context;
         private readonly ILogger<NotificationService> _logger;
@@ -27,7 +27,7 @@ namespace Darb.Api.Services.Implementations
             _logger = logger;
         }
 
-        #endregion
+     
 
         #region Device Token Management
 

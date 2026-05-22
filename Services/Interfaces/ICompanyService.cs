@@ -74,21 +74,14 @@ namespace Darb.Api.Services.Interfaces
     #endregion
 
     #region Booking Management
-    Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId);
-    Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId);
-    Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId);
     Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId);
-    Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId);
     Task<ResponseDto> GetTripBookingsAsync(int tripId, int companyId);
     Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId);
     Task<ResponseDto> GetPendingCompanyBookingsAsync(int companyId);
     Task<ResponseDto> GetBookingPassengersAsync(int bookingId, int companyId);
+    #endregion
 
-        
-
-        #endregion
-
-        #region BankAccount Management
+    #region BankAccount Management
         Task<ResponseDto> GetAllBankAccountsAsync(int companyId);
     Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId);
     Task<ResponseDto> CreateBankAccountAsync(BankAccountCreateDto dto, int companyId);

@@ -30,8 +30,8 @@ namespace Darb.Api.Services.Implementations
     private readonly IImageService _imageService;
     private readonly INotificationService _notificationService;
 
-        // Base URL for external links and images (injected via Options Pattern)
-        private readonly string _baseUrl;
+    // Base URL for external links and images (injected via Options Pattern)
+    private readonly string _baseUrl;
 
     public CustomerService(
         IRepository<Governorate> govRepo,
@@ -198,7 +198,7 @@ namespace Darb.Api.Services.Implementations
     }
     #endregion
 
-    #region Company Stations Retrieval Logic
+    #region Company Trip Stations Retrieval Logic
     /// <summary>
     /// Retrieves all stations for a specific trip by its TripId.
     /// </summary>
@@ -440,8 +440,6 @@ namespace Darb.Api.Services.Implementations
     #endregion
 
     #region My Bookings Retrieval Logic
-
-
     public async Task<ResponseDto> GetBookingStatusesAsync()
     {
       try
@@ -569,7 +567,7 @@ namespace Darb.Api.Services.Implementations
           TicketStatus = booking.ETicket != null ? booking.ETicket.Status.ToString() : "N/A",
 
           // تحويل قائمة الركاب بناءً على كيان Passenger الخاص بك
-          Customers = booking.Customers.Select(p => new PassengerItemDto
+          Customers = booking.Passengers.Select(p => new PassengerItemDto
           {
             FullName = p.FullName,
             NationalId = p.NationalId,
@@ -584,11 +582,9 @@ namespace Darb.Api.Services.Implementations
         return ResponseDto.FailureResponse($"خطأ أثناء جلب تفاصيل الحجز: {ex.Message}");
       }
     }
-
-
     #endregion
 
-    #region CRUD Reviews Logic (Refactored with Specific DTOs)
+    #region CRUD Reviews Logic 
 
     /// <summary>
     /// Retrieves a specific review by its unique ID and returns it as a ReviewReturnDto.
@@ -756,45 +752,60 @@ namespace Darb.Api.Services.Implementations
       }
     }
 
-        #endregion
+    #endregion
 
-        public async Task<ResponseDto> RequestBookingCancellationAsync(int bookingId, int customerId)
+    #region Request Booking Cancellation Logic
+    public async Task<ResponseDto> RequestBookingCancellationAsync(int bookingId, int customerId)
+    {
+      try
+      {
+        // 1. Retrieve the booking and strictly verify ownership
+        var booking = await _context.Bookings
+            .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
+
+        if (booking == null)
         {
-            try
-            {
-                // 1. جلب الحجز والتحقق من وجوده وتبعيته للعميل الحالي
-                var booking = await _context.Bookings
-                    .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.CustomerId == customerId);
-
-                if (booking == null)
-                    return ResponseDto.FailureResponse("الحجز غير موجود أو لا تملك صلاحية الوصول إليه.");
-
-                // 2. التحقق الصارم من أن الحجز مؤكد مسبقاً (Confirmed)
-                if (booking.Status != BookingStatus.Confirmed)
-                {
-                    return booking.Status switch
-                    {
-                        BookingStatus.AwaitingCancellation => ResponseDto.FailureResponse("تم إرسال طلب إلغاء لهذا الحجز مسبقاً وهو قيد المراجعة حالياً."),
-                        BookingStatus.Cancelled => ResponseDto.FailureResponse("هذا الحجز ملغي بالفعل."),
-                        BookingStatus.PendingAttachment => ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار إرفاق سند الدفع."),
-                        BookingStatus.AwaitingConfirmation => ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار تأكيد الدفع والقبول من الإدارة."),
-                        _ => ResponseDto.FailureResponse("عذراً، لا يمكن تقديم طلب إلغاء لهذا الحجز إلا إذا كانت حالته مؤكدة.")
-                    };
-                }
-
-                // 3. تحديث الحالة إلى انتظار الإلغاء وحفظ التغييرات
-                booking.Status = BookingStatus.AwaitingCancellation;
-
-                _context.Bookings.Update(booking);
-                await _context.SaveChangesAsync();
-
-                return ResponseDto.SuccessResponse("تم تقديم طلب إلغاء الحجز بنجاح، وهو قيد المراجعة والتدقيق من قبل الشركة الناقلة.", booking.BookingId);
-            }
-            catch (Exception ex)
-            {
-                // تسجيل الخطأ داخلياً وإرجاع رسالة فشل منسقة
-                return ResponseDto.FailureResponse($"فشل في معالجة طلب الإلغاء: {ex.Message}");
-            }
+          return ResponseDto.FailureResponse("الحجز غير موجود أو لا تملك صلاحية الوصول إليه.");
         }
+
+        // 2. Strict validation using traditional pattern to ensure the booking is Confirmed
+        if (booking.Status != BookingStatus.Confirmed)
+        {
+          if (booking.Status == BookingStatus.AwaitingCancellation)
+          {
+            return ResponseDto.FailureResponse("تم إرسال طلب إلغاء لهذا الحجز مسبقاً وهو قيد المراجعة حالياً.");
+          }
+          if (booking.Status == BookingStatus.Cancelled)
+          {
+            return ResponseDto.FailureResponse("هذا الحجز ملغي بالفعل.");
+          }
+          if (booking.Status == BookingStatus.PendingAttachment)
+          {
+            return ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار إرفاق سند الدفع.");
+          }
+          if (booking.Status == BookingStatus.AwaitingConfirmation)
+          {
+            return ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار تأكيد الدفع والقبول من الإدارة.");
+          }
+
+          return ResponseDto.FailureResponse("عذراً، لا يمكن تقديم طلب إلغاء لهذا الحجز إلا إذا كانت حالته مؤكدة.");
+        }
+
+        // 3. Update status to awaiting cancellation and persist changes
+        booking.Status = BookingStatus.AwaitingCancellation;
+
+        _context.Bookings.Update(booking);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم تقديم طلب إلغاء الحجز بنجاح، وهو قيد المراجعة والتدقيق من قبل الشركة الناقلة.", booking.BookingId);
+      }
+      catch (Exception ex)
+      {
+        // Log the exception details internally if needed and return standard failure response
+        return ResponseDto.FailureResponse($"فشل في معالجة طلب الإلغاء: {ex.Message}");
+      }
     }
+
+    #endregion
+  }
 }

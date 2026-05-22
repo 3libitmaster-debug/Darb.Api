@@ -234,7 +234,7 @@ namespace darbWebApp.Data
 
       // --- Booking Relationships (Prevent multiple cascade paths) ---
       modelBuilder.Entity<Booking>()
-          .HasOne(b => b.Customer)
+          .HasOne(b => b.Customers)
           .WithMany()
           .HasForeignKey(b => b.CustomerId)
           .OnDelete(DeleteBehavior.NoAction);

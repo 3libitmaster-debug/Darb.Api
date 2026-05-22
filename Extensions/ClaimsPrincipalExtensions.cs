@@ -19,7 +19,7 @@ public static class ClaimsPrincipalExtensions
         return int.TryParse(claim, out int id) ? id : 0;
     }
 
-    public static int GetPassengerId(this ClaimsPrincipal User)
+    public static int GetCustomerId(this ClaimsPrincipal User)
     {
 
         var claim = User.FindFirst("CustomerId")?.Value;

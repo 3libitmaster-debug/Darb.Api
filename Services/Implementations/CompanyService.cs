@@ -21,33 +21,39 @@ using Darb.Api.DTOs.company.Booking;
 
 namespace Darb.Api.Services.Implementations
 {
-  public class CompanyService : ICompanyService
-  {
-    private readonly IRepository<Trip> _tripRepository;
-    private readonly IRepository<Bus> _busRepository;
-    private readonly IRepository<Station> _stationRepository;
-    private readonly ApplicationDbContext _context;
-    private readonly IQrCodeService _qrCodeService;
-    private readonly IImageService _imageService;
-    private readonly string _baseUrl;
-
-    public CompanyService(
-        IRepository<Trip> tripRepository,
-        IRepository<Bus> busRepository,
-        IRepository<Station> stationRepository,
-        ApplicationDbContext context,
-        IQrCodeService qrCodeService,
-        IImageService imageService,
-        IOptions<ApiSettings> apiOptions)
+    public class CompanyService : ICompanyService
     {
-      _tripRepository = tripRepository;
-      _busRepository = busRepository;
-      _stationRepository = stationRepository;
-      _context = context;
-      _qrCodeService = qrCodeService;
-      _imageService = imageService;
-      _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
-    }
+        private readonly IRepository<Trip> _tripRepository;
+        private readonly IRepository<Bus> _busRepository;
+        private readonly IRepository<Station> _stationRepository;
+        private readonly ApplicationDbContext _context;
+        private readonly IQrCodeService _qrCodeService;
+        private readonly IImageService _imageService;
+        private readonly INotificationService _notificationService; // 1. إضافة الحقل الخاص بالخدمة
+        private readonly string _baseUrl;
+
+        public CompanyService(
+            IRepository<Trip> tripRepository,
+            IRepository<Bus> busRepository,
+            IRepository<Station> stationRepository,
+            ApplicationDbContext context,
+            IQrCodeService qrCodeService,
+            IImageService imageService,
+            INotificationService notificationService, // 2. تمرير الخدمة في المشيّد
+            IOptions<ApiSettings> apiOptions)
+        {
+            _tripRepository = tripRepository;
+            _busRepository = busRepository;
+            _stationRepository = stationRepository;
+            _context = context;
+            _qrCodeService = qrCodeService;
+            _imageService = imageService;
+            _notificationService = notificationService; // 3. إسناد القيمة للحقل
+            _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
+        }
+
+    
+
 
 
         #region Trip Management Logic
@@ -740,191 +746,46 @@ namespace Darb.Api.Services.Implementations
 
         #region Booking Management Logic
 
-        public async Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId)
-        {
-            var bookings = await _context.Bookings
-                .Include(b => b.Customer)
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.StartGovernate)
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.EndGovernate)
-                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId)
-                .OrderByDescending(b => b.BookingAt)
-                .ToListAsync();
+       
 
-            var bookingList = bookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
-            {
-                BookingId = b.BookingId,
-                TripId = b.TripRoute?.TripId ?? 0,
-                TripRouteId = b.TripRouteId,
-                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
-                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
-                ReservedSeatsCount = b.ReservedSeatsCount,
-                TotalAmount = b.TotalAmount,
-                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
-                Status = b.Status.ToString(),
-                BookingAt = b.BookingAt
-            }).ToList();
+       
 
-            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز بنجاح.", bookingList);
-        }
-
-        public async Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.Customer)
-                .Include(b => b.Customers)
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.StartGovernate)
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.EndGovernate)
-                .Include(b => b.ETicket)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
-
-            if (booking == null)
-            {
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول إليه.");
-            }
-
-            var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
-            {
-                BookingId = booking.BookingId,
-                TripId = booking.TripRoute?.TripId ?? 0,
-                TripRouteId = booking.TripRouteId,
-                StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
-                EndGovernorate = booking.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = booking.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
-                ReservedSeatsCount = booking.ReservedSeatsCount,
-                TotalAmount = booking.TotalAmount,
-                ReceiptImagePath = !string.IsNullOrEmpty(booking.ReceiptImagePath) ? _baseUrl + booking.ReceiptImagePath : null,
-                Status = booking.Status.ToString(),
-                BookingAt = booking.BookingAt,
-                TicketCode = booking.ETicket?.TicketCode,
-                Customers = booking.Customers.Select(p => new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
-                {
-                    PassengerDetailId = p.PassengerId,
-                    FullName = p.FullName,
-                    NationalId = p.NationalId ?? "غير متوفر",
-                }).ToList()
-            };
-
-            return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الحجز بنجاح.", bookingDto);
-        }
-
-        public async Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.Customers)
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
-
-            if (booking == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
-
-            if (booking.Status == dto.Status)
-                return ResponseDto.FailureResponse("حالة الحجز الحالية مطابقة للحالة المطلوبة.");
-
-            booking.Status = dto.Status;
-
-            if (dto.Status == BookingStatus.Confirmed)
-            {
-                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
-                string payload = $"BookingId:{booking.BookingId}|TripRouteId:{booking.TripRouteId}";
-                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
-
-                if (existingTicket == null)
-                {
-                    var ticket = new ETicket
-                    {
-                        BookingId = booking.BookingId,
-                        TicketCode = qrBase64,
-                        Status = Darb.Api.Models.Enums.ETicketStatus.Valid
-                    };
-                    await _context.ETickets.AddAsync(ticket);
-                }
-                else
-                {
-                    existingTicket.TicketCode = qrBase64;
-                    existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.Valid;
-                }
-            }
-            else if (dto.Status == BookingStatus.Cancelled)
-            {
-                var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
-                if (ticket != null)
-                {
-                    ticket.Status = ETicketStatus.UnValid;
-                }
-            }
-
-            await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse("تم تأكيد تحديث حالة الحجز بنجاح.");
-        }
-
-        public async Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
-
-            if (booking == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
-
-            if (booking.Status == BookingStatus.Confirmed)
-            {
-                return ResponseDto.FailureResponse("لا يمكن حذف حجز مؤكد. الرجاء تغيير حالته إلى ملغى أولاً إذا لزم الأمر.");
-            }
-
-            // Must remove related customers and their etickets before deleting booking. Or rely on cascade delete.
-            // Explicit delete for safety
-            var customers = await _context.Passenger.Where(pd => pd.BookingId == bookingId).ToListAsync();
-            if (customers.Any())
-            {
-                _context.Passenger.RemoveRange(customers);
-            }
-
-            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
-            if (ticket != null)
-            {
-                _context.ETickets.Remove(ticket);
-            }
-
-            _context.Bookings.Remove(booking);
-            await _context.SaveChangesAsync();
-
-            return ResponseDto.SuccessResponse("تم حذف الحجز نهائياً من النظام.");
-        }
-
+        
+        
         public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
         {
+            // 1. Retrieve the booking with chained Includes to fetch Customers AND their underlying User accounts
             var booking = await _context.Bookings
                 .Include(b => b.Customers)
+                    .ThenInclude(c => c.User) // IMPORTANT: Chained Include to load the User entity containing the true UserId
                 .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
 
+            // 2. Validate booking existence and authorization
             if (booking == null)
                 return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
 
+            // 3. Prevent re-confirming an already confirmed booking
             if (booking.Status == BookingStatus.Confirmed)
                 return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
 
+            // 4. Update booking status to Confirmed
             booking.Status = BookingStatus.Confirmed;
 
+            // 5. Check if an E-Ticket already exists for this booking to handle or reuse it
             var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
             int eticketId = existingTicket?.Id ?? 0;
-            int TripRouteId = booking.TripRouteId;
+            int tripRouteId = booking.TripRouteId;
 
-            string payload = $"TripRouteId:{TripRouteId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}";
+            // 6. Generate a secure, Base64-encoded QR Code payload with the current booking metadata
+            string payload = $"TripRouteId:{tripRouteId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}";
             string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
 
+            // 7. Insert a new ticket or update the existing ticket details accordingly
             if (existingTicket == null)
             {
                 var ticket = new ETicket
@@ -941,7 +802,41 @@ namespace Darb.Api.Services.Implementations
                 existingTicket.Status = ETicketStatus.Valid;
             }
 
+            // 8. Commit structural database changes before proceeding to dispatch external notifications
             await _context.SaveChangesAsync();
+
+            #region Automated Customer Notification Dispatch
+
+            try
+            {
+                // Enforce safe access by checking both Customers and their navigated User entity
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    // Now safely accessing the loaded UserId from the relational chain
+                    int receiverUserId = booking.Customers.User.UserId;
+
+                    string notificationTitle = "تم تأكيد حجزك بنجاح! 🎉";
+                    string notificationBody = $"عزيزي المسافر، تم تأكيد حجزك للرحلة رقم {booking.TripRouteId}. يمكنك الآن استعراض تذكرتك الإلكترونية داخل التطبيق.";
+
+                    // Dispatch notification asynchronously via the persistent Firebase FCM service layer
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Enforce fault tolerance: failures in Firebase FCM delivery should not abort the successful database state
+                // _logger.LogError(ex, "Automated booking confirmation push notification delivery failed.");
+            }
+
+            #endregion
+
             return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
         }
 
@@ -956,7 +851,7 @@ namespace Darb.Api.Services.Implementations
 
             // 2. Fetch only confirmed bookings for this trip
             var bookings = await _context.Bookings
-                .Include(b => b.Customer)
+                .Include(b => b.Customers)
                 .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Station)
                         .ThenInclude(s => s!.City) // <-- السطر المضاف لربط جدول المدن
@@ -968,7 +863,7 @@ namespace Darb.Api.Services.Implementations
             var bookingList = bookings.Select(b => new TripBookingReadDto
             {
                 CustomerId = b.CustomerId,
-                CustomerName = b.Customer?.FullName ?? "غير محدد",
+                CustomerName = b.Customers?.FullName ?? "غير محدد",
                 ReservedSeatsCount = b.ReservedSeatsCount,
                 TotalAmount = b.TotalAmount,
                 StationName = b.TripRoute?.Station?.City?.Name ?? "غير محدد", // تم إضافة الـ ? بعد City للحماية
@@ -978,34 +873,79 @@ namespace Darb.Api.Services.Implementations
 
             return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز مؤكد للرحلة بنجاح.", bookingList);
         }
-        #endregion
-
-        #region Booking Management Logic - New Endpoints Implementation
 
         public async Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId)
         {
+            // 1. Retrieve the booking along with its passenger collection and deep relational trip data
             var booking = await _context.Bookings
+                .Include(b => b.Customers) // Collection of Passengers
+                    .ThenInclude(p => p.User) // Chained include for the user account (to get UserId)
                 .Include(b => b.TripRoute)
-                    .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+                    .ThenInclude(tr => tr!.Trip) // Accessing the core Trip entity
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
 
+            // 2. Validate booking existence and company ownership authorization
             if (booking == null)
                 return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
 
+            // 3. Check if the booking is already rejected to avoid redundant processing
             if (booking.Status == BookingStatus.Rejected)
                 return ResponseDto.FailureResponse("هذا الحجز مرفوض بالفعل.");
 
-            // تحديث حالة الحجز إلى مرفوض
+            // 4. Update booking status to Rejected
             booking.Status = BookingStatus.Rejected;
 
-            // إذا كان هناك تذكرة مرتبطة بالحجز، نقوم بتحويل حالتها إلى غير صالحة للسلامة والأمان
+            // 5. Restore the reserved seats back to the core Trip capacity (Matching Darb Background Service pattern)
+            if (booking.TripRoute?.Trip != null)
+            {
+                // Restoring the specific count of reserved seats back to the Trip's available seats
+                booking.TripRoute.Trip.AvailableSeats += booking.ReservedSeatsCount;
+            }
+
+            // 6. Invalidate any associated E-Ticket for security and validation integrity
             var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
             if (ticket != null)
             {
                 ticket.Status = ETicketStatus.UnValid;
             }
 
+            // 7. Commit state changes to the database before launching external communication threads
             await _context.SaveChangesAsync();
+
+            #region Automated Customer Cancellation Notification Dispatch
+
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    // Now safely accessing the loaded UserId from the relational chain
+                    int receiverUserId = booking.Customers.User.UserId;
+
+                    string notificationTitle = "تنبيه: تم رفض حجزك ⚠️";
+                    string notificationBody = $"نعتذر منك، لقد تم رفض حجزك للرحلة رقم {booking.TripRouteId} من قبل شركة النقل. للمزيد من التفاصيل يرجى مراجعة التطبيق.";
+
+                    // Dispatch notification asynchronously via the persistent Firebase FCM service layer
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Maintain fault isolation: do not revert the database status if Firebase messaging encounters an issue
+                // _logger.LogError(ex, "Automated booking rejection push notification delivery failed.");
+            }
+
+            #endregion
+
             return ResponseDto.SuccessResponse("تم رفض الحجز وتحديث حالته بنجاح.");
         }
 
@@ -1013,7 +953,7 @@ namespace Darb.Api.Services.Implementations
         {
             // جلب الحجوزات التي حالتها بانتظار التأكيد وفلترتها حسب الشركة
             var pendingBookings = await _context.Bookings
-                .Include(b => b.Customer)
+                .Include(b => b.Customers)
                 .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.StartGovernate)

@@ -375,61 +375,6 @@ namespace Darb.Api.Controllers
 
     #region Booking Management Endpoints
 
-        [HttpGet("trip/bookings")]
-    [SwaggerOperation(Summary = "Get All Bookings", Description = "Retrieves a comprehensive list of all bookings for trips owned by the authenticated company.")]
-    public async Task<IActionResult> GetBookings()
-    {
-      int companyId = User.GetCompanyId();
-      if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
-
-      var response = await _companyService.GetAllCompanyBookingsAsync(companyId);
-      return Ok(response);
-    }
-
-    [HttpGet("trip/bookings/{id}")]
-    [SwaggerOperation(Summary = "Get Booking By ID", Description = "Retrieves detailed information about a specific booking and its customers.")]
-    public async Task<IActionResult> GetBooking(int id)
-    {
-      int companyId = User.GetCompanyId();
-      if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
-
-      var response = await _companyService.GetCompanyBookingByIdAsync(id, companyId);
-      return response.Success ? Ok(response) : NotFound(response);
-    }
-
-    [HttpPut("trip/bookings/{id}/status")]
-    [SwaggerOperation(Summary = "Update Booking Status", Description = "Modifies the status of a booking (e.g. to Confirmed). Confirming generates ETickets.")]
-    public async Task<IActionResult> UpdateBookingStatus(int id, [FromBody] Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto)
-    {
-      int companyId = User.GetCompanyId();
-      if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
-
-      var response = await _companyService.UpdateCompanyBookingStatusAsync(id, dto, companyId);
-      return response.Success ? Ok(response) : BadRequest(response);
-    }
-
-    [HttpPost("trip/bookings/{id}/click")]
-    [SwaggerOperation(Summary = "Confirm a Booking (Click)", Description = "Confirms a specific booking by its ID and generates QR code tickets.")]
-    public async Task<IActionResult> ConfirmBookingClick(int id)
-    {
-      int companyId = User.GetCompanyId();
-      if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
-
-      var response = await _companyService.ConfirmCompanyBookingClickAsync(id, companyId);
-      return response.Success ? Ok(response) : BadRequest(response);
-    }
-
-    [HttpDelete("trip/bookings/{id}")]
-    [SwaggerOperation(Summary = "Delete Booking", Description = "Permanently removes a booking from the system. Confirmed bookings must be cancelled first.")]
-    public async Task<IActionResult> DeleteBooking(int id)
-    {
-      int companyId = User.GetCompanyId();
-      if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
-
-      var response = await _companyService.DeleteCompanyBookingAsync(id, companyId);
-      return response.Success ? Ok(response) : BadRequest(response);
-    }
-
     [HttpGet("trips/{tripId}/bookings")]
     [SwaggerOperation(
         Summary = "Get All Confirmed Bookings of a Specific Trip",
@@ -446,6 +391,16 @@ namespace Darb.Api.Controllers
       var response = await _companyService.GetTripBookingsAsync(tripId, companyId);
       return response.Success ? Ok(response) : BadRequest(response);
     }
+        [HttpPost("trip/bookings/{id}/confirm")]
+        [SwaggerOperation(Summary = "Confirm a Booking ", Description = "Confirms a specific booking by its ID and generates QR code tickets.")]
+        public async Task<IActionResult> ConfirmBookingClick(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.ConfirmCompanyBookingClickAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
 
         [HttpPost("trip/bookings/{id}/reject")]
         [SwaggerOperation(Summary = "Reject a Booking", Description = "Rejects a specific booking by changing its status to Rejected.")]
@@ -482,7 +437,7 @@ namespace Darb.Api.Controllers
 
         #endregion
 
-        #region BankAccount Management Endpoints
+    #region BankAccount Management Endpoints
 
         [HttpGet("bank/accounts")]
     [SwaggerOperation(Summary = "Get All Bank Accounts", Description = "Retrieves a list of all bank accounts for the authenticated company.")]

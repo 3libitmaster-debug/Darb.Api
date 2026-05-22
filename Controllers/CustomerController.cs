@@ -17,10 +17,10 @@ namespace Darb.Api.Controllers
     [ApiController]
     public class CustomerController : ControllerBase
     {
-        private readonly ICustomerService _passengerService;
+        private readonly ICustomerService _customerService;
         public CustomerController(ICustomerService passengerService)
         {
-            _passengerService = passengerService;
+            _customerService = passengerService;
         }
 
 
@@ -30,7 +30,7 @@ namespace Darb.Api.Controllers
           Summary = "Get Home Page Data",
           Description = "Retrieves ads and search card data (Governorates, Companies, and Periods) for the mobile app home screen.")]
         public async Task<IActionResult> GetHomePage()
-          => Ok(await _passengerService.GetHomePageDataAsync());
+          => Ok(await _customerService.GetHomePageDataAsync());
 
         [HttpGet("home/search/card")]
         [SwaggerOperation(
@@ -38,7 +38,7 @@ namespace Darb.Api.Controllers
             Description = "Retrieves only the search card data (Governorates, Companies, and Periods) for the mobile app.")]
         public async Task<IActionResult> GetSearchCard()
         {
-            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            var homePageResult = await _customerService.GetHomePageDataAsync();
             if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
                 return Ok(homePageDto.SearchCard);
             return Ok(null);
@@ -50,7 +50,7 @@ namespace Darb.Api.Controllers
             Description = "Retrieves only the ads cards data for the mobile app.")]
         public async Task<IActionResult> GetAdsCards()
         {
-            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            var homePageResult = await _customerService.GetHomePageDataAsync();
             if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
                 return Ok(homePageDto.AdCards);
             return Ok(null);
@@ -62,7 +62,7 @@ namespace Darb.Api.Controllers
             Description = "Returns a list of companies with their name and logo for avatar display.")]
         public async Task<IActionResult> GetCompaniesAvatar()
         {
-            var homePageResult = await _passengerService.GetHomePageDataAsync();
+            var homePageResult = await _customerService.GetHomePageDataAsync();
             if (homePageResult.Data is Darb.Api.DTOs.passengerDtos.homePageDtos.HomePageDto homePageDto)
                 return Ok(homePageDto.SearchCard.Companies);
             return Ok(null);
@@ -73,7 +73,7 @@ namespace Darb.Api.Controllers
             Summary = "Search for Trips ",
             Description = "Filters scheduled trips based on optional criteria: From/To Governorates, Company, Period, and Travel Date. If no filters are provided, it returns all scheduled trips.")]
         public async Task<IActionResult> SearchTrips([FromBody] TripSearchQueryDto query)
-            => Ok(await _passengerService.SearchTripsAsync(query));
+            => Ok(await _customerService.SearchTripsAsync(query));
 
 
         [HttpGet("trip/stations/{tripId}")]
@@ -81,14 +81,14 @@ namespace Darb.Api.Controllers
             Summary = "Get trip stations",
             Description = "Retrieves all stations for a specific trip")]
         public async Task<IActionResult> GetStations(int tripId)
-            => Ok(await _passengerService.GetTripStationsAsync(tripId));
+            => Ok(await _customerService.GetTripStationsAsync(tripId));
 
         [HttpGet("bank/users/{companyId}")]
         [SwaggerOperation(
             Summary = "Get Company Bank Users",
             Description = "Retrieves all bank users for a specific company.")]
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
-            => Ok(await _passengerService.GetCompanyBankAccountsAsync(companyId));
+            => Ok(await _customerService.GetCompanyBankAccountsAsync(companyId));
 
         [HttpGet("settings/profile")]
         [Authorize(Roles = "Customer")]
@@ -99,8 +99,8 @@ namespace Darb.Api.Controllers
         {
             try
             {
-                int customerId = User.GetPassengerId();
-                var response = await _passengerService.GetProfileAsync(customerId);
+                int customerId = User.GetCustomerId();
+                var response = await _customerService.GetProfileAsync(customerId);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -123,8 +123,8 @@ namespace Darb.Api.Controllers
         {
             try
             {
-                int userId = User.GetPassengerId();
-                var response = await _passengerService.BookTripAsync(userId, request);
+                int userId = User.GetCustomerId();
+                var response = await _customerService.BookTripAsync(userId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -147,8 +147,8 @@ namespace Darb.Api.Controllers
         {
             try
             {
-                int userId = User.GetPassengerId();
-                var response = await _passengerService.UploadReceiptAsync(userId, request);
+                int userId = User.GetCustomerId();
+                var response = await _customerService.UploadReceiptAsync(userId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -168,7 +168,7 @@ namespace Darb.Api.Controllers
         Description = "Returns a lookup list of booking status IDs and their Arabic descriptions.")]
         public async Task<IActionResult> GetBookingStatuses()
         {
-            var response = await _passengerService.GetBookingStatusesAsync();
+            var response = await _customerService.GetBookingStatusesAsync();
             return Ok(response);
         }
 
@@ -179,8 +179,8 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Get Customer Bookings by StatusId.")]
         public async Task<IActionResult> GetBookingsByStatus(BookingStatus status) 
         {
-            int customerId = User.GetPassengerId();
-            var response = await _passengerService.GetBookingsByStatusAsync(customerId, status);
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.GetBookingsByStatusAsync(customerId, status);
 
             return Ok(response);
         }
@@ -200,10 +200,10 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetBookingDetails(int bookingId)
         {
             // استخراج معرف المسافر من الـ Claims الموجودة في الـ Token
-            int customerId = User.GetPassengerId();
+            int customerId = User.GetCustomerId();
 
             // استدعاء الخدمة لجلب البيانات
-            var response = await _passengerService.GetBookingDetailsAsync(bookingId, customerId);
+            var response = await _customerService.GetBookingDetailsAsync(bookingId, customerId);
 
             if (!response.Success)
             {
@@ -223,10 +223,10 @@ namespace Darb.Api.Controllers
         {
             // استخراج معرف العميل الحالي من الـ Claims الخاصة بالـ JWT Token بشكل آمن
             // استبدل .GetUserId() بالامتداد (Extension Method) المعتمد في مشروعك
-            int customerId = User.GetPassengerId();
+            int customerId = User.GetCustomerId();
 
             // استدعاء الخدمة لمعالجة الطلب
-            var result = await _passengerService.RequestBookingCancellationAsync(bookingId, customerId);
+            var result = await _customerService.RequestBookingCancellationAsync(bookingId, customerId);
 
             if (!result.Success)
                 return BadRequest(result); // إرجاع 400 في حال عدم مطابقة الشروط أو خطأ بالبيانات
@@ -247,7 +247,7 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Get Review By ID")]
         public async Task<IActionResult> GetReviewById(int reviewId)
         {
-            var response = await _passengerService.GetReviewByIdAsync(reviewId);
+            var response = await _customerService.GetReviewByIdAsync(reviewId);
 
             if (!response.Success)
                 return NotFound(response);
@@ -266,14 +266,14 @@ namespace Darb.Api.Controllers
         {
             try
             {
-                int customerId = User.GetPassengerId();
+                int customerId = User.GetCustomerId();
 
                 if (!ModelState.IsValid)
                 {
                     return BadRequest(ResponseDto.FailureResponse("بيانات التقييم غير مكتملة أو غير صالحة."));
                 }
 
-                var response = await _passengerService.AddReviewAsync(customerId, request);
+                var response = await _customerService.AddReviewAsync(customerId, request);
 
                 if (!response.Success)
                     return BadRequest(response);
@@ -294,8 +294,8 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Get My Reviews")]
         public async Task<IActionResult> GetMyReviews()
         {
-            int customerId = User.GetPassengerId();
-            var response = await _passengerService.GetPassengerReviewsAsync(customerId);
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.GetPassengerReviewsAsync(customerId);
             return Ok(response);
         }
 
@@ -308,10 +308,10 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Update Review")]
         public async Task<IActionResult> UpdateReview(int reviewId, [FromBody] UpdateReviewDto request) // تم التعديل هنا لحل الخطأ CS1503
         {
-            int customerId = User.GetPassengerId();
+            int customerId = User.GetCustomerId();
 
             // الآن المتغير 'request' من نوع UpdateReviewDto سيتوافق تماماً مع توقيع الميثود في الخدمة
-            var response = await _passengerService.UpdateReviewAsync(customerId, reviewId, request);
+            var response = await _customerService.UpdateReviewAsync(customerId, reviewId, request);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }
@@ -324,8 +324,8 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(Summary = "Delete Review")]
         public async Task<IActionResult> DeleteReview(int reviewId)
         {
-            int customerId = User.GetPassengerId();
-            var response = await _passengerService.DeleteReviewAsync(customerId, reviewId);
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.DeleteReviewAsync(customerId, reviewId);
 
             return response.Success ? Ok(response) : BadRequest(response);
         }
