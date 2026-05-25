@@ -594,42 +594,6 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم حذف سجل الحافلة من النظام بشكل نهائي.");
         }
 
-        /// <summary>
-        /// Toggles the operational status of a bus between Available and UnderMaintenance while enforcing strict ownership.
-        /// </summary>
-        public async Task<ResponseDto> ToggleBusMaintenanceStatusAsync(int busId, int companyId)
-        {
-            // Security Context Check: Fetch the bus ensuring it belongs entirely to the authenticated company
-            var bus = await _context.Buses
-                .FirstOrDefaultAsync(b => b.BusId == busId && b.CompanyId == companyId);
-
-            if (bus == null)
-                return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على الحافلة المطلوبة، أو قد لا تملك صلاحية الوصول إليها.");
-
-            // State Machine Toggle: Switch states dynamically between Available and UnderMaintenance
-            if (bus.BusStatus == BusStatus.Available)
-            {
-                bus.BusStatus = BusStatus.UnderMaintenance;
-            }
-            else if (bus.BusStatus == BusStatus.UnderMaintenance)
-            {
-                bus.BusStatus = BusStatus.Available;
-            }
-            else
-            {
-                // Business Rule Guard: Prevent automated toggling if the bus is in a critical state (e.g., OutOfService)
-                return ResponseDto.FailureResponse($"عذراً، لا يمكن تغيير حالة الحافلة تلقائياً نظراً لأن حالتها الحالية هي: {bus.BusStatus}");
-            }
-
-            // Persisting the state change via Generic Repository update lifecycle pattern
-            _busRepository.Update(bus);
-            await _context.SaveChangesAsync();
-
-            // Constructing localized dynamic success response message based on the new status
-            string statusArabic = bus.BusStatus == BusStatus.Available ? "جاهزة للخدمة ومتاحة" : "في الصيانة حالياً";
-            return ResponseDto.SuccessResponse($"تم تحديث حالة الحافلة التشغيلية بنجاح، الحالة الجديدة الآن: {statusArabic}");
-        }
-
         #endregion
 
         #region Station Management Logic
@@ -746,12 +710,6 @@ namespace Darb.Api.Services.Implementations
 
         #region Booking Management Logic
 
-       
-
-       
-
-        
-        
         public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
         {
             // 1. Retrieve the booking with chained Includes to fetch Customers AND their underlying User accounts

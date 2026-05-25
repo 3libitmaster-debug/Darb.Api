@@ -24,6 +24,8 @@ namespace Darb.Api.Models
 
         public double AverageRating { get; set; }
 
+        public bool isAccepted { get; set; } = false;
+
         public int UserId { get; set; }
         [Required]
         [ForeignKey("UserId")]

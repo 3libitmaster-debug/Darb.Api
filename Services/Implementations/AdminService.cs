@@ -563,6 +563,7 @@ namespace Darb.Api.Services.Implementations
         {
             var companies = await _context.Companies
                 .Include(c => c.User)
+                .Where(c => c.isAccepted == true)
                 .ToListAsync();
 
             var dtos = companies.Select(c => new CompanyResponseDto
@@ -787,12 +788,12 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("الاشتراك غير موجود.");
 
             if (sub.Status != SubscriptionStatus.Pending)
-                return ResponseDto.FailureResponse("لا يمكن قبول اشتراك وهو ليس in حالة معلقة.");
+                return ResponseDto.FailureResponse("لا يمكن قبول اشتراك وهو ليس في حالة معلقة.");
 
             sub.Status = SubscriptionStatus.Approved;
 
             // Set SubscriptionDate to now and calculate ExpiryDate based on the selected plan
-            sub.SubscriptionDate = DateTime.UtcNow;
+            sub.SubscriptionDate = DateHelper.GetYemenTime();
             if (sub.PlanType == SubscriptionPlans.Monthly)
             {
                 sub.ExpiryDate = sub.SubscriptionDate.AddMonths(1);
@@ -809,6 +810,7 @@ namespace Darb.Api.Services.Implementations
             if (sub.Company != null && sub.Company.User != null && !sub.Company.User.IsActive)
             {
                 sub.Company.User.IsActive = true;
+                sub.Company.isAccepted = true; // Mark the company as accepted in the system
             }
 
             await _context.SaveChangesAsync();

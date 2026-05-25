@@ -53,7 +53,6 @@ namespace Darb.Api.Services.Interfaces
     // Removes a bus from the fleet, ensuring it has no active trip history.
     Task<ResponseDto> DeleteBusAsync(int busId, int companyId);
 
-    Task<ResponseDto> ToggleBusMaintenanceStatusAsync(int busId, int companyId);
         #endregion
 
     #region Station Management

@@ -246,34 +246,7 @@ namespace Darb.Api.Controllers
 
       return Ok(response);
     }
-
-        [HttpPatch("buses/{id}/toggle-maintenance")]
-        [SwaggerOperation(
-    Summary = "Toggle Bus Maintenance Status",
-    Description = "Quickly switches a bus operational status from 'Available' to 'UnderMaintenance' and vice-versa. Strict company security context applies.")]
-        public async Task<IActionResult> ToggleBusMaintenance(int id)
-        {
-            // Extracting validated company identification from the security bearer token claims
-            int companyId = User.GetCompanyId();
-
-            if (companyId == 0)
-            {
-                return Unauthorized(ResponseDto.FailureResponse("خطأ أمني: بيانات تعريف الشركة غير صالحة أو مفقودة في رمز الأمان الخاص بك."));
-            }
-
-            // Invoking the underlying service layer handler
-            var response = await _companyService.ToggleBusMaintenanceStatusAsync(id, companyId);
-
-            // Adapting HTTP response wrappers contextually based on internal business execution rules
-            if (!response.Success)
-            {
-                return BadRequest(response);
-            }
-
-            return Ok(response);
-        }
-
-        #endregion
+    #endregion
 
     #region Station Management Endpoints
 

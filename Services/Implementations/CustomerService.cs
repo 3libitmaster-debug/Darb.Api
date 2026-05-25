@@ -89,7 +89,7 @@ namespace Darb.Api.Services.Implementations
         // 3. FETCH COMPANIES FOR SEARCH FILTERS
         // Appends the Base Server URL to the company logos for mobile display.
         var companies = await _companyRepo.GetAllAsync();
-        homePageData.SearchCard.Companies = companies.Select(c => new SimpleCompanyDto
+        homePageData.SearchCard.Companies = companies.Where(c => c.isAccepted == true).Select(c => new SimpleCompanyDto
         {
           CompanyId = c.CompanyId,
           Name = c.Name,

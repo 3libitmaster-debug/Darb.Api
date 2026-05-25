@@ -83,10 +83,10 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> GetStations(int tripId)
             => Ok(await _customerService.GetTripStationsAsync(tripId));
 
-        [HttpGet("bank/users/{companyId}")]
+        [HttpGet("bank/accounts/{companyId}")]
         [SwaggerOperation(
-            Summary = "Get Company Bank Users",
-            Description = "Retrieves all bank users for a specific company.")]
+            Summary = "Get Company Bank Accounts",
+            Description = "Retrieves all bank accounts for a specific company.")]
         public async Task<IActionResult> GetCompanyBankAccounts(int companyId)
             => Ok(await _customerService.GetCompanyBankAccountsAsync(companyId));
 
