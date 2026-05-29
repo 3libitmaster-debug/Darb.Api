@@ -7,56 +7,43 @@ using System.ComponentModel.DataAnnotations.Schema;
 
 namespace Darb.Api.Models
 {
-    public enum BookingStatus
-    {
-        // 0: Pending (Waiting for receipt upload)
-        PendingAttachment = 0,
-
-        // 1: Awaiting Confirmation (Receipt uploaded)
-        AwaitingConfirmation = 1,
-
-        // 2: Confirmed (Receipt accepted)
-        Confirmed = 2,
-
-        // 3: Cancelled
-        Cancelled = 3,
-
-        Completed = 4
-    }
-
-    public class Booking
-    {
-        [Key]
-        public int BookingId { get; set; }
 
 
-        // --- Foreign Keys ---
+  public class Booking
+  {
+    [Key]
+    public int BookingId { get; set; }
 
-        [Required]
-        public int PassengerId { get; set; }
 
-        [ForeignKey("PassengerId")]
-        public virtual Passenger? Passenger { get; set; }
+    // --- Foreign Keys ---
 
-        [Required]
-        public int TripScheduleId { get; set; }
+    [Required]
+    public int CustomerId { get; set; }
 
-        [ForeignKey("TripScheduleId")]
-        public virtual TripSchedule? TripSchedule { get; set; } 
+    [ForeignKey("CustomerId")]
+    public virtual Customer? Customers { get; set; }
 
-        public virtual ICollection<PassengerDetails> Passengers { get; set; } = new List<PassengerDetails>();
+    [Required]
+    public int TripRouteId { get; set; }
 
-        public int ReservedSeatsCount { get; set; } 
+    [ForeignKey("TripRouteId")]
+    public virtual TripRoute? TripRoute { get; set; }
 
-        public decimal TotalAmount { get; set; }
-        
-        public string? ReceiptImagePath { get; set; }
+    public virtual ICollection<Passenger> Passengers { get; set; } = new List<Passenger>();
 
-        [Required]
-        public BookingStatus Status { get; set; } 
+    public int ReservedSeatsCount { get; set; }
 
-        public DateTime BookingAt { get; set; } 
-    }
+    public decimal TotalAmount { get; set; }
 
-   
+    public string? ReceiptImagePath { get; set; }
+
+    [Required]
+    public BookingStatus Status { get; set; }
+
+    public DateTime BookingAt { get; set; }
+
+    public virtual ETicket? ETicket { get; set; }
+  }
+
+
 }

@@ -1,19 +1,19 @@
-ï»¿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using Darb.Api.Models;
 
 namespace Darb.Api.Dtos
 {
     public class CreateBusDto
     {
-        [Required(ErrorMessage = "Ø±Ù‚Ù… Ø§Ù„Ù„ÙˆØ­Ø© Ù…Ø·Ù„ÙˆØ¨.")]
-        [StringLength(20, ErrorMessage = "Ø±Ù‚Ù… Ø§Ù„Ù„ÙˆØ­Ø© Ø·ÙˆÙŠÙ„ Ø¬Ø¯Ø§Ù‹.")]
+        [Required(ErrorMessage = "ÑŞã ÇááæÍÉ ãØáæÈ.")]
+        [StringLength(20, ErrorMessage = "ÑŞã ÇááæÍÉ Øæíá ÌÏÇğ.")]
         public string ?PlateNumber { get; set; }
 
-        [Required(ErrorMessage = "Ù…ÙˆØ¯ÙŠÙ„ Ø§Ù„Ø­Ø§ÙÙ„Ø© Ù…Ø·Ù„ÙˆØ¨.")]
+        [Required(ErrorMessage = "ãæÏíá ÇáÍÇİáÉ ãØáæÈ.")]
         public string ?Model { get; set; }
 
-        [Required(ErrorMessage = "Ø³Ø¹Ø© Ø§Ù„Ø­Ø§ÙÙ„Ø© (Ø¹Ø¯Ø¯ Ø§Ù„Ù…Ù‚Ø§Ø¹Ø¯) Ù…Ø·Ù„ÙˆØ¨Ø©.")]
-        [Range(5, 100, ErrorMessage = "ÙŠØ¬Ø¨ Ø£Ù† ØªÙƒÙˆÙ† Ø§Ù„Ø³Ø¹Ø© Ø¨ÙŠÙ† 5 Ùˆ 100 Ù…Ù‚Ø¹Ø¯.")]
+        [Required(ErrorMessage = "ÓÚÉ ÇáÍÇİáÉ (ÚÏÏ ÇáãŞÇÚÏ) ãØáæÈÉ.")]
+        [Range(5, 100, ErrorMessage = "íÌÈ Ãä Êßæä ÇáÓÚÉ Èíä 5 æ 100 ãŞÚÏ.")]
         public int Capacity { get; set; }
     }
 }

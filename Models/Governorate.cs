@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Models
+namespace Darb.Api.Models
 {
     public class Governorate
     {

@@ -108,35 +108,50 @@ DTOs/company/TripFare/
  CreateTripFareDto.cs
  TripFareReadDto.cs
  UpdateTripFareDto.cs
-DTOs/company/TripSchedule/
- AddTripScheduleDto.cs
- TripScheduleReadDto.cs
- UpdateTripScheduleDto.cs
-DTOs/customer/Booking/
- BankAccountsDropDownListDto.cs
- BookingRequestDto.cs
- PassengerDetailDto.cs
- TripScheduleResponseDto.cs
- UploadReceiptDto.cs
-DTOs/customer/homePage/
- AdCardDto.cs
- HomePageDto.cs
- PeriodDto.cs
- SearchCardDto.cs
- SimpleCompanyDto.cs
- SimpleGovernorateDto.cs
- TripSearchQueryDto.cs
- TripSearchResultDto.cs
-DTOs/customer/MyBookings/
- MyBookingDto.cs
- MyTicketDto.cs
-DTOs/customer/settings/PassengerProfileDto.cs
-Extensions/ClaimsPrincipalExtensions.cs
+DTOs/company/TripRoute/
+ AddTripRouteDto.cs
+ TripRouteReadDto.cs
+ UpdateTripRouteDto.cs
+DTOs/passenger/
+ AddReviewDto.cs
+ Booking/
+  BankAccountsDropDownListDto.cs
+  BookingRequestDto.cs
+  PassengerDetailDto.cs
+  TripRouteResponseDto.cs
+  UploadReceiptDto.cs
+ homePage/
+  AdCardDto.cs
+  HomePageDto.cs
+  PeriodDto.cs
+  SearchCardDto.cs
+  SimpleCompanyDto.cs
+  SimpleGovernorateDto.cs
+  TripSearchQueryDto.cs
+  TripSearchResultDto.cs
+ MyBookings/
+  BookingByStatusDto.cs
+  BookingDetailsDto.cs
+  BookingStatusDto.cs
+  MyBookingDto.cs
+ ReviewResponseDto.cs
+ settings/PassengerProfileDto.cs
+ UpdateReviewDto.cs
+Extensions/
+ ClaimsPrincipalExtensions.cs
+ EnumExtensions.cs
+ TimeOnlyJsonConverter.cs
 Migrations/
  20260421160523_IntialMigration.cs
  20260421160523_IntialMigration.Designer.cs
  20260422035221_AutoMigration_20260422.cs
  20260422035221_AutoMigration_20260422.Designer.cs
+ 20260505135928_refactorTicket-BookingRealtionship.cs
+ 20260505135928_refactorTicket-BookingRealtionship.Designer.cs
+ 20260513201445_addReviewModel.cs
+ 20260513201445_addReviewModel.Designer.cs
+ 20260513222054_addAverageRatingField.cs
+ 20260513222054_addAverageRatingField.Designer.cs
  ApplicationDbContextModelSnapshot.cs
 Models/
  Account.cs
@@ -149,6 +164,7 @@ Models/
  Company.cs
  CompanySubscription.cs
  Enums/
+  BookingStatus.cs
   ETicketStatus.cs
   Periods.cs
   SubscriptionPlans.cs
@@ -157,10 +173,11 @@ Models/
  Governorate.cs
  Passenger.cs
  PassengerDetails.cs
+ Review.cs
  Station.cs
  Trip.cs
  TripFare.cs
- TripSchedule.cs
+ TripRoute.cs
 obj/Debug/net9.0/
  .NETCoreApp,Version=v9.0.AssemblyAttributes.cs
  Darb.Api.AssemblyInfo.cs

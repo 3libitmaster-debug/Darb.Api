@@ -1,5 +1,3 @@
-using Darb.Api.DTOs.companyDtos.Trip;
-using Darb.Api.Models;
 using Darb.Api.Models.Enums;
 using System.ComponentModel.DataAnnotations;
 
@@ -22,9 +20,6 @@ public class CreateTripDto
 
     [Required(ErrorMessage = "Bus selection is required.")]
     public int BusId { get; set; }
-
-    [Required(ErrorMessage = "Routes are required.")]
-    public List<RouteRequestDto> Routes { get; set; } = new List<RouteRequestDto>();
 }
 
    

@@ -1,4 +1,4 @@
-ï»¿using Darb.Api.Services.Interfaces;
+using Darb.Api.Services.Interfaces;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
 using SixLabors.ImageSharp;
@@ -9,7 +9,7 @@ namespace Darb.Api.Services.Implemention
     public class ImageService : IImageService
     {
         private readonly IWebHostEnvironment _environment;
-        // Ø­ØµØ± Ø§Ù„Ø§Ù…ØªØ¯Ø§Ø¯Ø§Øª Ø§Ù„Ù…Ø³Ù…ÙˆØ­ Ø¨Ù‡Ø§ Ù„Ù„ØµÙˆØ± ÙÙ‚Ø·
+        // ÍÕÑ ÇáÇãÊÏÇÏÇÊ ÇáãÓãæÍ ÈåÇ ááÕæÑ İŞØ
         private readonly string[] _allowedImageExtensions = { ".jpg", ".jpeg", ".png", ".webp", ".bmp" };
 
         public ImageService(IWebHostEnvironment environment)
@@ -30,14 +30,14 @@ namespace Darb.Api.Services.Implemention
 
         public async Task<string?> SaveImageAsync(IFormFile? file, string folderName)
         {
-            // Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† ÙˆØ¬ÙˆØ¯ Ø§Ù„Ù…Ù„Ù
+            // ÇáÊÍŞŞ ãä æÌæÏ Çáãáİ
             if (file == null || file.Length == 0) return null;
 
-            // 1. Ø§Ù„ØªØ­Ù‚Ù‚ Ù…Ù† Ù†ÙˆØ¹ Ø§Ù„Ù…Ù„Ù (ØµÙˆØ± ÙÙ‚Ø·)
+            // 1. ÇáÊÍŞŞ ãä äæÚ Çáãáİ (ÕæÑ İŞØ)
             var extension = Path.GetExtension(file.FileName).ToLower();
             if (!_allowedImageExtensions.Contains(extension))
             {
-                return null; // Ø³ÙŠØªÙ… Ø±ÙØ¶ Ø£ÙŠ Ù…Ù„Ù Ù„ÙŠØ³ ØµÙˆØ±Ø©
+                return null; // ÓíÊã ÑİÖ Ãí ãáİ áíÓ ÕæÑÉ
             }
 
             try
@@ -47,14 +47,14 @@ namespace Darb.Api.Services.Implemention
 
                 if (!Directory.Exists(uploadsFolder)) Directory.CreateDirectory(uploadsFolder);
 
-                // 2. ØªØ­ÙˆÙŠÙ„ Ø§Ù„Ø§Ù…ØªØ¯Ø§Ø¯ Ø¯Ø§Ø¦Ù…Ø§Ù‹ Ø¥Ù„Ù‰ .webp
+                // 2. ÊÍæíá ÇáÇãÊÏÇÏ ÏÇÆãÇğ Åáì .webp
                 string fileName = $"{Guid.NewGuid()}.webp";
                 string filePath = Path.Combine(uploadsFolder, fileName);
 
-                // 3. Ø¹Ù…Ù„ÙŠØ© Ø§Ù„ØªØ­ÙˆÙŠÙ„ (Optimization to WebP)
+                // 3. ÚãáíÉ ÇáÊÍæíá (Optimization to WebP)
                 using (var image = await Image.LoadAsync(file.OpenReadStream()))
                 {
-                    // Ø­ÙØ¸ Ø§Ù„ØµÙˆØ±Ø© Ø¨ØµÙŠØºØ© WebP Ù…Ø¹ Ø¬ÙˆØ¯Ø© 75% (ØªÙˆØ§Ø²Ù† Ù…Ø«Ø§Ù„ÙŠ Ø¨ÙŠÙ† Ø§Ù„Ø­Ø¬Ù… ÙˆØ§Ù„ÙˆØ¶ÙˆØ­)
+                    // ÍİÙ ÇáÕæÑÉ ÈÕíÛÉ WebP ãÚ ÌæÏÉ 75% (ÊæÇÒä ãËÇáí Èíä ÇáÍÌã æÇáæÖæÍ)
                     await image.SaveAsync(filePath, new WebpEncoder { Quality = 75 });
                 }
 

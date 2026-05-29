@@ -22,7 +22,7 @@ namespace Darb.Api.Controllers
 
       
         [HttpPost("login")]
-        [SwaggerOperation(Summary = "User Login", Description = "Authenticates users (Admin/Company/Passenger) and returns a JWT token.")]
+        [SwaggerOperation(Summary = "User Login", Description = "Authenticates users (Admin/Company/Customer) and returns a JWT token.")]
         public async Task<IActionResult> Login([FromBody] LoginDto dto)
         {
             if (!ModelState.IsValid)
@@ -70,10 +70,10 @@ namespace Darb.Api.Controllers
         }
 
      
-        [HttpPost("register/passengers")]
+        [HttpPost("register/customers")]
         [SwaggerOperation(
-            Summary = "Register New Passenger",
-            Description = "Creates a new passenger account. Checks for duplicate email and phone before saving."
+            Summary = "Register New Customer",
+            Description = "Creates a new customer user. Checks for duplicate email and phone before saving."
         )]
         public async Task<IActionResult> RegisterPassenger([FromBody] RegisterPassengerDto dto)
         {
@@ -116,6 +116,33 @@ namespace Darb.Api.Controllers
             return Ok(result);
         }
 
-   
+        [HttpPost("forget-password")]
+        [SwaggerOperation(Summary = "Forget Password", Description = "Sends an OTP to the user's email to initiate password reset.")]
+        public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("«·»Ì«‰«  «·„œŒ·… €Ì— ’ÕÌÕ….", ModelState));
+
+            var result = await _authService.ForgetPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
+        [HttpPost("reset-password")]
+        [SwaggerOperation(Summary = "Reset Password", Description = "Verifies the OTP and updates the user's password.")]
+        public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(ResponseDto.FailureResponse("«·»Ì«‰«  «·„œŒ·… €Ì— ’ÕÌÕ….", ModelState));
+
+            var result = await _authService.ResetPasswordAsync(dto);
+            if (!result.Success)
+                return BadRequest(result);
+
+            return Ok(result);
+        }
+
     }
 }

@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Repository.Interfaces;
+namespace Darb.Api.Repository.Interfaces;
 
 public interface IRepository<T> where T : class
 {

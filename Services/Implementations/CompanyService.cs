@@ -1,16 +1,23 @@
 using Darb.Api.Dtos;
 using Darb.Api.DTOs.Base;
+using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.Trip;
 using Darb.Api.DTOs.BankAccount;
 using Darb.Api.DTOs.TripFare;
-using Darb.Api.DTOs.TripSchedule;
+using Darb.Api.DTOs.TripRoute;
+using Darb.Api.Extensions;
 using Darb.Api.Helpers;
 using Darb.Api.Models;
 using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Interfaces;
 using darbWebApp.Data;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 using Darb.Api.Models.Enums;
+using Darb.Api.DTOs.company;
+using Darb.Api.Enums;
+using Darb.Api.DTOs.company.TripRoute;
+using Darb.Api.DTOs.company.Booking;
 
 namespace Darb.Api.Services.Implementations
 {
@@ -21,32 +28,43 @@ namespace Darb.Api.Services.Implementations
         private readonly IRepository<Station> _stationRepository;
         private readonly ApplicationDbContext _context;
         private readonly IQrCodeService _qrCodeService;
-   
+        private readonly IImageService _imageService;
+        private readonly INotificationService _notificationService; // 1. إضافة الحقل الخاص بالخدمة
+        private readonly string _baseUrl;
+
         public CompanyService(
             IRepository<Trip> tripRepository,
             IRepository<Bus> busRepository,
             IRepository<Station> stationRepository,
             ApplicationDbContext context,
-            IQrCodeService qrCodeService)
+            IQrCodeService qrCodeService,
+            IImageService imageService,
+            INotificationService notificationService, // 2. تمرير الخدمة في المشيّد
+            IOptions<ApiSettings> apiOptions)
         {
             _tripRepository = tripRepository;
             _busRepository = busRepository;
             _stationRepository = stationRepository;
             _context = context;
             _qrCodeService = qrCodeService;
+            _imageService = imageService;
+            _notificationService = notificationService; // 3. إسناد القيمة للحقل
+            _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
         }
+
+    
+
 
 
         #region Trip Management Logic
 
-        #region Get All Company Trips Endpoint
+        
         /// <summary>
         /// Retrieves all trips owned by the authenticated company with related data.
         /// </summary>
         public async Task<ResponseDto> GetAllCompanyTripsAsync(int companyId)
         {
             // STEP 1: Data Retrieval
-            // Fetch trips with related Bus and Governorate entities for the specified company.
             var trips = await _context.Trips
                 .Include(t => t.Bus)
                 .Include(t => t.StartGovernate)
@@ -57,18 +75,33 @@ namespace Darb.Api.Services.Implementations
             bool hasChanges = false;
 
             // STEP 2: Use Yemen Local Time for comparison
-            // Ensuring the system logic follows Yemen's Time Zone (UTC+3) via DateHelper.
             DateTime currentYemenTime = DateHelper.GetYemenTime();
 
             // STEP 3: Real-time Status Synchronization Logic
             foreach (var trip in trips)
             {
-                /* Logic C: Capacity-based Status Update
-                   If a 'Scheduled' trip is fully booked (0 available seats).
-                */
+                if (trip.TripStatus == TripStatus.cancelled)
+                {
+                    continue;
+                }
+
+                // Check if trip time has passed
+                if (trip.TripStatus != TripStatus.completed && trip.DepDate <= currentYemenTime)
+                {
+                    trip.TripStatus = TripStatus.completed;
+                    hasChanges = true;
+                    continue;
+                }
+
+                // Capacity-based updates
                 if (trip.TripStatus == TripStatus.scheduled && trip.AvailableSeats <= 0)
                 {
                     trip.TripStatus = TripStatus.Fulled;
+                    hasChanges = true;
+                }
+                else if (trip.TripStatus == TripStatus.Fulled && trip.AvailableSeats > 0)
+                {
+                    trip.TripStatus = TripStatus.scheduled;
                     hasChanges = true;
                 }
             }
@@ -79,7 +112,7 @@ namespace Darb.Api.Services.Implementations
                 await _context.SaveChangesAsync();
             }
 
-            // STEP 5: Map to DTOs for the final response.
+            // STEP 5: Map to DTOs for the final response (With Arabic Status Names)
             var tripList = trips
                 .OrderByDescending(t => t.DepDate)
                 .Select(t => new TripReadDto
@@ -89,17 +122,16 @@ namespace Darb.Api.Services.Implementations
                     EndGoveName = t.EndGovernate?.Name ?? "N/A",
                     Price = t.Price,
                     DepartureDate = t.DepDate,
-                    Status = t.TripStatus.ToString(),
+                    Status = t.TripStatus.GetDisplayName(),
                     AvailableSeats = t.AvailableSeats,
                     BusId = t.BusId
                 }).ToList();
 
-
             return ResponseDto.SuccessResponse($"تم العثور على ({tripList.Count}) رحلة بنجاح.", tripList);
         }
-        #endregion
+        
 
-        #region Get Trip By ID Endpoint
+        
         /// <summary>
         /// Retrieves specific trip details after ensuring the company owns the trip.
         /// </summary>
@@ -114,7 +146,7 @@ namespace Darb.Api.Services.Implementations
                 .FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
 
             if (trip == null)
-                return ResponseDto.FailureResponse("نعتذر، لم يتم العثور على الرحلة المطلوبة أو قد لا تتوفر صلاحية الوصول إليها.");
+                return ResponseDto.FailureResponse("لم يتم العثور على الرحلة.");
 
             // Real-time Status Synchronization Logic
             bool statusUpdated = false;
@@ -145,54 +177,38 @@ namespace Darb.Api.Services.Implementations
                 BusId = trip.BusId
             };
 
-            return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الرحلة .", tripDto);
+            return ResponseDto.SuccessResponse("تم ارجاع بيانات الرحلة", tripDto);
         }
-        #endregion
+        
 
-        #region Create New Trip Endpoint
+        
         /// <summary>
         /// Validates bus ownership and availability before creating a new scheduled trip.
         /// </summary>
         public async Task<ResponseDto> createTripAsync(CreateTripDto tripDto, int companyId)
         {
-            // 1. التحقق من أن البيانات لم تصل فارغة (لتجنب أخطاء التاريخ الافتراضي)
+            // 1. التحقق من أن البيانات لم تصل فارغة
             if (tripDto == null || tripDto.StartGoveId == 0)
             {
-                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح. تأكد من إرسال البيانات بدون غلاف 'tripDto' خارجي.");
+                return ResponseDto.FailureResponse("عذراً، لم يتم استلام بيانات الرحلة بشكل صحيح.");
             }
 
             var nowYemen = DateHelper.GetYemenTime();
 
-            // 2. التحقق من منطقية التاريخ (مع كشف التاريخ المستلم في رسالة الخطأ للتصحيح)
+            // 2. التحقق من منطقية التاريخ
             if (tripDto.DepartureDate.Date < nowYemen.Date)
             {
-                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي. تاريخ اليوم: ({nowYemen:yyyy-MM-dd})");
+                return ResponseDto.FailureResponse($"عذراً، تاريخ الرحلة ({tripDto.DepartureDate:yyyy-MM-dd}) لا يمكن أن يكون في الماضي.");
             }
 
-            // 3. التحقق من الوقت إذا كانت الرحلة اليوم
-            if (tripDto.DepartureDate.Date == nowYemen.Date)
-            {
-                var currentTime = TimeOnly.FromDateTime(nowYemen);
-                if (tripDto.Routes.Any(r => r.DepartureTime <= currentTime))
-                {
-                    return ResponseDto.FailureResponse("لا يمكن جدولة رحلة لوقت قد مضى اليوم.");
-                }
-            }
-
-            // 4. التحقق من الحافلة وملكية الشركة لها
+            // 3. التحقق من الحافلة وملكية الشركة لها
             var bus = await _context.Buses
                 .FirstOrDefaultAsync(b => b.BusId == tripDto.BusId && b.CompanyId == companyId);
 
             if (bus == null)
                 return ResponseDto.FailureResponse("الحافلة المختارة غير موجودة أو غير مسجلة لشركتكم.");
 
-            if (bus.BusStatus != BusStatus.Available)
-                return ResponseDto.FailureResponse("الحافلة المختارة غير متاحة حالياً.");
-
-            if (tripDto.Routes == null || !tripDto.Routes.Any())
-                return ResponseDto.FailureResponse("يجب تحديد مسارات الرحلة وأوقاتها.");
-
-            // 5. جلب التسعيرات والتحقق من المسار
+            // 4. جلب التسعيرات والتحقق من المسار للحصول على السعر الأساسي
             var tripFares = await _context.TripFares
                 .Where(tf => tf.CompanyId == companyId &&
                              tf.FromGovId == tripDto.StartGoveId &&
@@ -206,66 +222,30 @@ namespace Darb.Api.Services.Implementations
             if (primaryFare == null)
                 return ResponseDto.FailureResponse("يجب تحديد السعر الرئيسي للمسار (Main Station) في الإعدادات.");
 
-            var strategy = _context.Database.CreateExecutionStrategy();
-            return await strategy.ExecuteAsync(async () =>
+            // 5. إنشاء الكائن الرئيسي للرحلة
+            var trip = new Trip
             {
-                using var transaction = await _context.Database.BeginTransactionAsync();
-                try
-                {
-                    // 6. إنشاء الكائن الرئيسي للرحلة
-                    var trip = new Trip
-                    {
-                        BusId = tripDto.BusId,
-                        CompanyId = companyId,
-                        StartGoveId = tripDto.StartGoveId,
-                        EndGoveId = tripDto.EndGoveId,
-                        DepDate = tripDto.DepartureDate,
-                        Price = primaryFare.Price,
-                        TripStatus = TripStatus.scheduled,
-                        AvailableSeats = bus.BusCapacity,
-                        Period = tripDto.Period
-                    };
+                BusId = tripDto.BusId,
+                CompanyId = companyId,
+                StartGoveId = tripDto.StartGoveId,
+                EndGoveId = tripDto.EndGoveId,
+                DepDate = tripDto.DepartureDate,
+                Price = primaryFare.Price,
+                TripStatus = TripStatus.scheduled,
+                AvailableSeats = bus.BusCapacity,
+                Period = tripDto.Period
+            };
 
-                    await _context.Trips.AddAsync(trip);
-                    await _context.SaveChangesAsync();
+            await _context.Trips.AddAsync(trip);
+            await _context.SaveChangesAsync();
 
-                    // 7. إضافة جدول المحطات (Schedules) بشكل جماعي لزيادة الأداء
-                    var schedules = new List<TripSchedule>();
-                    foreach (var routeDto in tripDto.Routes)
-                    {
-                        var matchingFare = tripFares.FirstOrDefault(tf => tf.StationId == routeDto.StationId);
-                        if (matchingFare == null)
-                        {
-                            await transaction.RollbackAsync();
-                            return ResponseDto.FailureResponse($"المحطة رقم {routeDto.StationId} غير مرتبطة بهذا المسار.");
-                        }
-
-                        schedules.Add(new TripSchedule
-                        {
-                            TripId = trip.TripId,
-                            StationId = routeDto.StationId,
-                            DepartureTime = routeDto.DepartureTime ?? TimeOnly.MinValue,
-                            SeatFare = matchingFare.Price
-                        });
-                    }
-
-                    await _context.TripSchedules.AddRangeAsync(schedules);
-                    await _context.SaveChangesAsync();
-                    await transaction.CommitAsync();
-
-                    return ResponseDto.SuccessResponse("تم إنشاء وجدولة الرحلة بنجاح.", new { tripId = trip.TripId });
-                }
-                catch (Exception ex)
-                {
-                    await transaction.RollbackAsync();
-                    return ResponseDto.FailureResponse($"خطأ تقني: {ex.InnerException?.Message ?? ex.Message}");
-                }
-            });
-        
+            return ResponseDto.SuccessResponse("تم إنشاء الرحلة بنجاح. يمكنك الآن إضافة المسارات.", new { tripId = trip.TripId });
         }
-        #endregion
 
-        #region Update Trip Details Endpoint
+       
+       
+
+        
         /// <summary>
         /// Performs partial updates on a trip while protecting historical completed data.
         /// </summary>
@@ -307,9 +287,7 @@ namespace Darb.Api.Services.Implementations
 
             try
             {
-
                 await _context.SaveChangesAsync();
-
 
                 var resultDto = new TripDto { TripId = trip.TripId, BasePrice = trip.Price, Status = trip.TripStatus.ToString() };
                 return ResponseDto.SuccessResponse("تم تحديث بيانات الرحلة والمسارات التابعة لها بنجاح وفق التعديلات الجديدة.", resultDto);
@@ -320,9 +298,9 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse($"حدث خطأ أثناء محاولة تحديث البيانات في قاعدة البيانات: {realError}");
             }
         }
-        #endregion
+       
 
-        #region Delete Trip Endpoint
+        
         /// <summary>
         /// Permanently removes a trip from the database after verifying status.
         /// </summary>
@@ -341,14 +319,14 @@ namespace Darb.Api.Services.Implementations
             // --- NEW: Booking Check ---
             // Check if there are any bookings associated with this trip's routes
             var hasBookings = await _context.Bookings
-                .AnyAsync(b => _context.TripSchedules.Where(tr => tr.TripId == tripId).Select(tr => tr.TripScheduleId).Contains(b.TripScheduleId));
+                .AnyAsync(b => _context.TripRoutes.Where(tr => tr.TripId == tripId).Select(tr => tr.TripRouteId).Contains(b.TripRouteId));
 
             if (hasBookings)
-                return ResponseDto.FailureResponse("لا يمكن حذف هذه الرحلة لوجود حجوزات فعالة مرتبطة بمساراتها.");
-            // ------------------------
+                return ResponseDto.FailureResponse("لا يمكن حذف هذه الرحلة لوجود حجزاًت فعالة مرتبطة بمساراتها.");
+            
 
-            var relatedSchedules = await _context.TripSchedules.Where(tr => tr.TripId == tripId).ToListAsync();
-            _context.TripSchedules.RemoveRange(relatedSchedules);
+            var relatedSchedules = await _context.TripRoutes.Where(tr => tr.TripId == tripId).ToListAsync();
+            _context.TripRoutes.RemoveRange(relatedSchedules);
 
             _context.Trips.Remove(trip);
             await _context.SaveChangesAsync();
@@ -356,6 +334,134 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم حذف سجل الرحلة من النظام بنجاح.");
         }
         #endregion
+
+        #region Trip Routes Management
+
+        public async Task<ResponseDto> GetAllTripRoutesAsync(int tripId, int companyId)
+        {
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
+
+            if (trip == null) return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+            var schedules = await _context.TripRoutes
+                .Include(ts => ts.Station)
+                    .ThenInclude(s => s!.City)
+                .Where(ts => ts.TripId == tripId)
+                .Select(ts => new TripRouteReadDto
+                {
+                    TripRouteId = ts.TripRouteId,
+                    TripId = ts.TripId,
+                    StationId = ts.StationId,
+                    StationName = ts.Station != null ? ts.Station.Address : "غير متوفر",
+                    CityName = ts.Station != null && ts.Station.City != null ? ts.Station.City.Name : "غير متوفر",
+                    DepartureTime = ts.DepartureTime,
+                    SeatFare = ts.SeatFare
+                })
+                .ToListAsync();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({schedules.Count}) محطات توقف للرحلة بنجاح.", schedules);
+        }
+
+        public async Task<ResponseDto> GetTripRouteByIdAsync(int scheduleId, int companyId)
+        {
+            var ts = await _context.TripRoutes
+                .Include(ts => ts.Trip)
+                .Include(ts => ts.Station)
+                    .ThenInclude(s => s!.City)
+                .FirstOrDefaultAsync(t => t.TripRouteId == scheduleId && t.Trip!.CompanyId == companyId);
+
+            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+            var dto = new TripRouteReadDto
+            {
+                TripRouteId = ts.TripRouteId,
+                TripId = ts.TripId,
+                StationId = ts.StationId,
+                StationName = ts.Station?.Address ?? "غير متوفر",
+                CityName = ts.Station?.City?.Name ?? "غير متوفر",
+                DepartureTime = ts.DepartureTime,
+                SeatFare = ts.SeatFare
+            };
+
+            return ResponseDto.SuccessResponse("تم استرجاع بيانات محطة التوقف بنجاح.", dto);
+        }
+
+        public async Task<ResponseDto> AddTripRouteAsync(int tripId, AddTripRouteDto route, int companyId)
+        {
+            // 1. التحقق من وجود الرحلة وملكية الشركة لها
+            var trip = await _context.Trips
+                .FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
+
+            if (trip == null)
+                return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+            if (route == null)
+                return ResponseDto.FailureResponse("يجب تحديد بيانات التوجيه والمحطة ووقت الانطلاق.");
+
+            // 2. جلب التسعيرات المتاحة لهذا المسار
+            var matchingFare = await _context.TripFares
+                .FirstOrDefaultAsync(tf => tf.CompanyId == companyId &&
+                                         tf.FromGovId == trip.StartGoveId &&
+                                         tf.ToGovId == trip.EndGoveId &&
+                                         tf.StationId == route.StationId);
+
+            if (matchingFare == null)
+                return ResponseDto.FailureResponse($"المحطة رقم {route.StationId} غير مرتبطة بهذا المسار.");
+
+            var tripRoute = new TripRoute
+            {
+                TripId = tripId,
+                StationId = route.StationId,
+                DepartureTime = route.DepartureTime ?? TimeOnly.MinValue,
+                SeatFare = matchingFare.Price
+            };
+
+            await _context.TripRoutes.AddAsync(tripRoute);
+            await _context.SaveChangesAsync();
+
+            return ResponseDto.SuccessResponse("تم إضافة محطة التوقف للرحلة بنجاح.");
+        }
+
+        public async Task<ResponseDto> UpdateTripRouteAsync(int scheduleId, UpdateTripRouteDto dto, int companyId)
+        {
+            var ts = await _context.TripRoutes
+                .Include(ts => ts.Trip)
+                .FirstOrDefaultAsync(t => t.TripRouteId == scheduleId && t.Trip!.CompanyId == companyId);
+
+            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة.");
+
+            try
+            {
+                if (dto.DepartureTime.HasValue)
+                    ts.DepartureTime = dto.DepartureTime.Value;
+
+                await _context.SaveChangesAsync();
+                return ResponseDto.SuccessResponse("تم تحديث بيانات محطة التوقف بنجاح.");
+            }
+            catch (FormatException ex)
+            {
+                return ResponseDto.FailureResponse(ex.Message);
+            }
+        }
+
+        public async Task<ResponseDto> DeleteTripRouteAsync(int scheduleId, int companyId)
+        {
+            var ts = await _context.TripRoutes
+                .Include(ts => ts.Trip)
+                .FirstOrDefaultAsync(t => t.TripRouteId == scheduleId && t.Trip!.CompanyId == companyId);
+
+            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة.");
+
+            // Check if there are bookings for this schedule before deletion
+            bool hasBookings = await _context.Bookings.AnyAsync(b => b.TripRouteId == scheduleId);
+            if (hasBookings)
+                return ResponseDto.FailureResponse("لا يمكن حذف هذه المحطة لوجود حجوزات مؤكدة مرتبطة بها.");
+
+            _context.TripRoutes.Remove(ts);
+            await _context.SaveChangesAsync();
+            return ResponseDto.SuccessResponse("تم حذف محطة التوقف من الرحلة بنجاح.");
+        }
 
         #endregion
 
@@ -375,8 +481,8 @@ namespace Darb.Api.Services.Implementations
             var busList = buses.Select(b => new BusReadDto
             {
                 BusId = b.BusId,
-                PlateNumber = b.PlateNumber ?? "غير محدد",
-                Model = b.Model ?? "غير محدد",
+                PlateNumber = b.PlateNumber ?? "",
+                Model = b.Model ?? "",
                 Capacity = b.BusCapacity,
                 Status = b.BusStatus.ToString() // Converts Enum to String for the client
             }).ToList();
@@ -542,7 +648,6 @@ namespace Darb.Api.Services.Implementations
         {
             var station = new Darb.Api.Models.Station
             {
-
                 Address = stationDto.Address,
                 CityId = stationDto.CityId,
                 GovernorateId = stationDto.GovernorateId,
@@ -578,7 +683,8 @@ namespace Darb.Api.Services.Implementations
             return ResponseDto.SuccessResponse("تم تحديث بيانات المحطة بنجاح.");
         }
 
-        public async Task<ResponseDto> DeleteStationAsync(int stationId, int companyId)
+     
+       public async Task<ResponseDto> DeleteStationAsync(int stationId, int companyId)
         {
             var station = await _context.Stations
                 .FirstOrDefaultAsync(s => s.StationId == stationId && s.CompanyId == companyId);
@@ -586,9 +692,15 @@ namespace Darb.Api.Services.Implementations
             if (station == null)
                 return ResponseDto.FailureResponse("عذراً، المحطة المراد حذفها غير موجودة.");
 
-            // Optionally, check if the station is linked to any active trips, if needed.
+            // Check if the station is linked to any active trips (To prevent foreign key constraint error)
+            bool isLinkedToTrips = await _context.TripFares
+                .AnyAsync(t => t.StationId == stationId );
 
-            _stationRepository.Delete(station);
+            if (isLinkedToTrips)
+                return ResponseDto.FailureResponse("لا يمكن حذف هذه المحطة لارتباطها برحلات مسجلة في النظام.");
+
+            // استخدام الـ Context مباشرة للحذف لتوحيد السياق مع سطر الجلب العلوي
+            _context.Stations.Remove(station);
             await _context.SaveChangesAsync();
 
             return ResponseDto.SuccessResponse("تم حذف بيانات المحطة بنجاح.");
@@ -598,235 +710,547 @@ namespace Darb.Api.Services.Implementations
 
         #region Booking Management Logic
 
-        public async Task<ResponseDto> GetAllCompanyBookingsAsync(int companyId)
+        public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
         {
-            var bookings = await _context.Bookings
-                .Include(b => b.Passenger)
-                .Include(b => b.TripSchedule)
+            // 1. Retrieve the booking with chained Includes to fetch Customers AND their underlying User accounts
+            var booking = await _context.Bookings
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User) // IMPORTANT: Chained Include to load the User entity containing the true UserId
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
+
+            // 2. Validate booking existence and authorization
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
+
+            // 3. Prevent re-confirming an already confirmed booking
+            if (booking.Status == BookingStatus.Confirmed)
+                return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
+
+            // 4. Update booking status to Confirmed
+            booking.Status = BookingStatus.Confirmed;
+
+            // 5. Check if an E-Ticket already exists for this booking to handle or reuse it
+            var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
+            int tripRouteId = booking.TripRouteId;
+
+            if (existingTicket == null)
+            {
+                existingTicket = new ETicket
+                {
+                    BookingId = booking.BookingId,
+                    TicketCode = string.Empty,
+                    Status = ETicketStatus.Valid
+                };
+                await _context.ETickets.AddAsync(existingTicket);
+                await _context.SaveChangesAsync(); // Generates the ID
+            }
+            else
+            {
+                existingTicket.Status = ETicketStatus.Valid;
+            }
+
+            int eticketId = existingTicket.Id;
+
+            // 6. Generate a secure, Base64-encoded QR Code payload with the current booking metadata
+            string payload = $"TripRouteId:{tripRouteId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}";
+            string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
+
+            // Update the ticket code
+            existingTicket.TicketCode = qrBase64;
+
+            // 8. Commit structural database changes before proceeding to dispatch external notifications
+            await _context.SaveChangesAsync();
+
+            #region Automated Customer Notification Dispatch
+
+            try
+            {
+                // Enforce safe access by checking both Customers and their navigated User entity
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    // Now safely accessing the loaded UserId from the relational chain
+                    int receiverUserId = booking.Customers.User.UserId;
+
+                    string notificationTitle = "تم تأكيد حجزك بنجاح! 🎉";
+                    string notificationBody = $"عزيزي المسافر، تم تأكيد حجزك للرحلة رقم {booking.TripRouteId}. يمكنك الآن استعراض تذكرتك الإلكترونية داخل التطبيق.";
+
+                    // Dispatch notification asynchronously via the persistent Firebase FCM service layer
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Enforce fault tolerance: failures in Firebase FCM delivery should not abort the successful database state
+                // _logger.LogError(ex, "Automated booking confirmation push notification delivery failed.");
+            }
+
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
+        }
+
+        public async Task<ResponseDto> ScanBookingTicketAsync(string qrCode, int companyId)
+        {
+            int bookingId = 0;
+            int tripRouteId = 0;
+            int eticketId = 0;
+
+            // Check if the input is the decoded payload
+            if (!string.IsNullOrEmpty(qrCode) && qrCode.Contains("|") && qrCode.Contains("BookingId:"))
+            {
+                var parts = qrCode.Split('|');
+                foreach (var part in parts)
+                {
+                    var kv = part.Split(':');
+                    if (kv.Length == 2)
+                    {
+                        var key = kv[0].Trim();
+                        var val = kv[1].Trim();
+                        if (key.Equals("BookingId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out bookingId);
+                        }
+                        else if (key.Equals("TripRouteId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out tripRouteId);
+                        }
+                        else if (key.Equals("ETicketId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out eticketId);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Try to find the ticket directly by its base64 code (if the raw base64 was passed)
+                var ticket = await _context.ETickets
+                    .FirstOrDefaultAsync(t => t.TicketCode == qrCode);
+                if (ticket != null)
+                {
+                    bookingId = ticket.BookingId;
+                }
+            }
+
+            if (bookingId == 0)
+            {
+                return ResponseDto.FailureResponse("عذراً، رمز الاستجابة السريعة غير صالح أو لا يحتوي على بيانات حجز صحيحة.");
+            }
+
+            var booking = await _context.Bookings
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.Passengers)
+                .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.StartGovernate)
-                .Include(b => b.TripSchedule)
+                .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
                         .ThenInclude(t => t!.EndGovernate)
-                .Where(b => b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId)
+                .Include(b => b.ETicket)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز المرتبط بهذا الرمز.");
+            }
+
+            // Verify company ownership
+            if (booking.TripRoute?.Trip == null || booking.TripRoute.Trip.CompanyId != companyId)
+            {
+                return ResponseDto.FailureResponse("عذراً، لا تملك الصلاحية لاستعراض تفاصيل هذا الحجز.");
+            }
+
+            if (booking.ETicket == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لا توجد تذكرة إلكترونية صادرة لهذا الحجز.");
+            }
+
+            // Check if ticket is already scanned/used (UnValid)
+            if (booking.ETicket.Status == ETicketStatus.UnValid || booking.ETicket.Status == ETicketStatus.Expired)
+            {
+                return ResponseDto.FailureResponse("عذراً، هذه التذكرة غير صالحة أو تم استخدامها ومسحها مسبقاً.");
+            }
+
+            // Update ticket status to Expired and booking status to Completed
+            booking.ETicket.Status = ETicketStatus.Expired;
+            booking.Status = BookingStatus.Completed;
+
+            await _context.SaveChangesAsync();
+
+            var dto = new CompanyScannedBookingDto
+            {
+                BookingId = booking.BookingId,
+                TripId = booking.TripRoute?.TripId ?? 0,
+                TripRouteId = booking.TripRouteId,
+                StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = booking.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = booking.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
+                DepartureTime = booking.TripRoute?.DepartureTime.ToString("hh:mm tt") ?? string.Empty,
+                Passengers = booking.Passengers.Select(p => new BookingPassengerReadDto
+                {
+                    PassengerId = p.PassengerId,
+                    FullName = p.FullName,
+                    BirthDate = p.BirthDate,
+                    NationalId = p.NationalId,
+                    PhoneNumber = p.PhoneNumber,
+                    Address = p.Address
+                }).ToList()
+            };
+
+            return ResponseDto.SuccessResponse("تم مسح التذكرة وتحديث حالة الحجز إلى مكتمل بنجاح.", dto);
+        }
+
+        public async Task<ResponseDto> GetCancellationCompanyBookingsAsync(int companyId)
+        {
+            var cancellationBookings = await _context.Bookings
+                .Include(b => b.Customers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
+                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId && b.Status == BookingStatus.AwaitingCancellation)
                 .OrderByDescending(b => b.BookingAt)
                 .ToListAsync();
 
-            var bookingList = bookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
+            var bookingList = cancellationBookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
             {
                 BookingId = b.BookingId,
-                PassengerName = b.Passenger?.FullName ?? "غير محدد",
-                PhoneNumber = b.Passenger?.Phone ?? "غير محدد",
-                TripId = b.TripSchedule?.TripId ?? 0,
-                TripScheduleId = b.TripScheduleId,
-                StartGovernorate = b.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
-                EndGovernorate = b.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = b.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
+                TripId = b.TripRoute?.TripId ?? 0,
+                TripRouteId = b.TripRouteId,
+                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
                 ReservedSeatsCount = b.ReservedSeatsCount,
                 TotalAmount = b.TotalAmount,
-                ReceiptImagePath = b.ReceiptImagePath,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
                 Status = b.Status.ToString(),
                 BookingAt = b.BookingAt
             }).ToList();
 
-            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز بنجاح.", bookingList);
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) طلب إلغاء حجز بنجاح.", bookingList);
         }
 
-        public async Task<ResponseDto> GetCompanyBookingByIdAsync(int bookingId, int companyId)
+        public async Task<ResponseDto> AcceptCompanyBookingCancellationAsync(int bookingId, int companyId)
         {
             var booking = await _context.Bookings
-                .Include(b => b.Passenger)
-                .Include(b => b.Passengers)
-                .Include(b => b.TripSchedule)
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.StartGovernate)
-                .Include(b => b.TripSchedule)
-                    .ThenInclude(tr => tr!.Trip)
-                        .ThenInclude(t => t!.EndGovernate)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
 
             if (booking == null)
-            {
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول إليه.");
-            }
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا تملك صلاحية الوصول إليه.");
 
-            var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
-            var eTickets = await _context.ETickets
-                .Where(e => passengerDetailIds.Contains(e.PassengerDetailId))
-                .ToListAsync();
+            if (booking.Status != BookingStatus.AwaitingCancellation)
+                return ResponseDto.FailureResponse("عذراً، هذا الحجز ليس قيد انتظار الإلغاء.");
 
-            var bookingDto = new Darb.Api.DTOs.Booking.CompanyBookingDetailsDto
+            // Update booking status to Cancelled
+            booking.Status = BookingStatus.Cancelled;
+
+            // Restore the reserved seats back to the core Trip capacity
+            if (booking.TripRoute?.Trip != null)
             {
-                BookingId = booking.BookingId,
-                PassengerName = booking.Passenger?.FullName ?? "غير محدد",
-                PhoneNumber = booking.Passenger?.Phone ?? "غير محدد",
-                TripId = booking.TripSchedule?.TripId ?? 0,
-                TripScheduleId = booking.TripScheduleId,
-                StartGovernorate = booking.TripSchedule?.Trip?.StartGovernate?.Name ?? "غير محدد",
-                EndGovernorate = booking.TripSchedule?.Trip?.EndGovernate?.Name ?? "غير محدد",
-                DepartureDate = booking.TripSchedule?.Trip?.DepDate ?? DateTime.MinValue,
-                ReservedSeatsCount = booking.ReservedSeatsCount,
-                TotalAmount = booking.TotalAmount,
-                ReceiptImagePath = booking.ReceiptImagePath,
-                Status = booking.Status.ToString(),
-                BookingAt = booking.BookingAt,
-                Passengers = booking.Passengers.Select(p =>
+                booking.TripRoute.Trip.AvailableSeats += booking.ReservedSeatsCount;
+                if (booking.TripRoute.Trip.TripStatus == TripStatus.Fulled)
                 {
-                    var ticket = eTickets.FirstOrDefault(e => e.PassengerDetailId == p.PassengerDetailsId);
-                    return new Darb.Api.DTOs.Booking.CompanyPassengerDetailDto
-                    {
-                        PassengerDetailId = p.PassengerDetailsId,
-                        FullName = p.FullName,
-                        NationalId = p.NationalId ?? "غير متوفر",
-                        TicketCode = ticket?.TicketCode
-                    };
-                }).ToList()
-            };
-
-            return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الحجز بنجاح.", bookingDto);
-        }
-
-        public async Task<ResponseDto> UpdateCompanyBookingStatusAsync(int bookingId, Darb.Api.DTOs.Booking.CompanyUpdateBookingStatusDto dto, int companyId)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.Passengers)
-                .Include(b => b.TripSchedule)
-                    .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
-
-            if (booking == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
-
-            if (booking.Status == dto.Status)
-                return ResponseDto.FailureResponse("حالة الحجز الحالية مطابقة للحالة المطلوبة.");
-
-            booking.Status = dto.Status;
-
-            if (dto.Status == BookingStatus.Confirmed)
-            {
-                foreach (var passenger in booking.Passengers)
-                {
-                    var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                    string payload = $"BookingId:{booking.BookingId}|PassengerId:{passenger.PassengerDetailsId}";
-                    string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
-
-                    if (existingTicket == null)
-                    {
-                        var ticket = new ETicket
-                        {
-                            PassengerDetailId = passenger.PassengerDetailsId,
-                            TicketCode = qrBase64,
-                            Status = Darb.Api.Models.Enums.ETicketStatus.Valid
-                        };
-                        await _context.ETickets.AddAsync(ticket);
-                    }
-                    else
-                    {
-                        existingTicket.TicketCode = qrBase64;
-                        existingTicket.Status = Darb.Api.Models.Enums.ETicketStatus.UnValid;
-                    }
-                }
-            }
-            else if (dto.Status == BookingStatus.Cancelled)
-            {
-                var passengerDetailIds = booking.Passengers.Select(p => p.PassengerDetailsId).ToList();
-                var eTickets = await _context.ETickets.Where(e => passengerDetailIds.Contains(e.PassengerDetailId)).ToListAsync();
-                foreach (var ticket in eTickets)
-                {
-                    ticket.Status = ETicketStatus.UnValid;
+                    booking.TripRoute.Trip.TripStatus = TripStatus.scheduled;
                 }
             }
 
-            await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse("تم تأكيد تحديث حالة الحجز بنجاح.");
-        }
-
-        public async Task<ResponseDto> DeleteCompanyBookingAsync(int bookingId, int companyId)
-        {
-            var booking = await _context.Bookings
-                .Include(b => b.TripSchedule)
-                    .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
-
-            if (booking == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
-
-            if (booking.Status == BookingStatus.Confirmed)
+            // Invalidate the E-Ticket
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
             {
-                return ResponseDto.FailureResponse("لا يمكن حذف حجز مؤكد. الرجاء تغيير حالته إلى ملغى أولاً إذا لزم الأمر.");
+                ticket.Status = ETicketStatus.UnValid;
             }
 
-            // Must remove related passengers and their etickets before deleting booking. Or rely on cascade delete.
-            // Explicit delete for safety
-            var passengers = await _context.PassengerDetails.Where(pd => pd.BookingId == bookingId).ToListAsync();
-            if (passengers.Any())
-            {
-                var passengerIds = passengers.Select(p => p.PassengerDetailsId).ToList();
-                var etickets = await _context.ETickets.Where(e => passengerIds.Contains(e.PassengerDetailId)).ToListAsync();
-                _context.ETickets.RemoveRange(etickets);
-                _context.PassengerDetails.RemoveRange(passengers);
-            }
-
-            _context.Bookings.Remove(booking);
             await _context.SaveChangesAsync();
 
-            return ResponseDto.SuccessResponse("تم حذف الحجز نهائياً من النظام.");
+            #region Automated Customer Notification Dispatch
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    int receiverUserId = booking.Customers.User.UserId;
+                    string notificationTitle = "تم قبول طلب إلغاء حجزك 🔴";
+                    string notificationBody = $"عزيزي المسافر، تم قبول طلب إلغاء حجزك للرحلة رقم {booking.TripRouteId} بنجاح وتم إلغاء تذكرتك.";
+
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception)
+            {
+                // Maintain fault isolation
+            }
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم قبول طلب إلغاء الحجز وإلغاء التذكرة بنجاح.");
         }
 
-        public async Task<ResponseDto> ConfirmCompanyBookingClickAsync(int bookingId, int companyId)
+        public async Task<ResponseDto> RejectCompanyBookingCancellationAsync(int bookingId, int companyId)
         {
             var booking = await _context.Bookings
-                .Include(b => b.Passengers)
-                .Include(b => b.TripSchedule)
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.TripRoute)
                     .ThenInclude(tr => tr!.Trip)
-                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripSchedule != null && b.TripSchedule.Trip != null && b.TripSchedule.Trip.CompanyId == companyId);
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
 
             if (booking == null)
-                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز، أو لا تملك الصلاحية لتأكيده.");
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا تملك صلاحية الوصول إليه.");
 
-            if (booking.Status == BookingStatus.Confirmed)
-                return ResponseDto.FailureResponse("هذا الحجز تم تأكيده مسبقاً.");
+            if (booking.Status != BookingStatus.AwaitingCancellation)
+                return ResponseDto.FailureResponse("عذراً، هذا الحجز ليس قيد انتظار الإلغاء.");
 
+            // Reject the cancellation by setting the status back to Confirmed
             booking.Status = BookingStatus.Confirmed;
 
-            foreach (var passenger in booking.Passengers)
+            // Ensure the associated E-Ticket remains Valid
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
             {
-                var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.PassengerDetailId == passenger.PassengerDetailsId);
-                int eticketId = existingTicket?.Id ?? 0; // 0 if not created yet
-                int tripScheduleId = booking.TripScheduleId;
-
-                // If ticket does not exist, we will create it and get the id after SaveChanges, but for QR, use 0 for new
-
-                string payload = $"TripScheduleId:{tripScheduleId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}|PassengerDetailsId:{passenger.PassengerDetailsId}";
-                string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
-
-                if (existingTicket == null)
-                {
-                    var ticket = new ETicket
-                    {
-                        PassengerDetailId = passenger.PassengerDetailsId,
-                        TicketCode = qrBase64,
-                        Status = ETicketStatus.Valid
-                    };
-                    await _context.ETickets.AddAsync(ticket);
-                }
-                else
-                {
-                    existingTicket.TicketCode = qrBase64;
-                    existingTicket.Status = ETicketStatus.Valid;
-                }
+                ticket.Status = ETicketStatus.Valid;
             }
 
             await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
+
+            #region Automated Customer Notification Dispatch
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    int receiverUserId = booking.Customers.User.UserId;
+                    string notificationTitle = "تم رفض طلب إلغاء حجزك 🟢";
+                    string notificationBody = $"عزيزي المسافر، تم رفض طلب إلغاء حجزك للرحلة رقم {booking.TripRouteId}. حجزك وتذكرتك لا يزالان ساريي المفعول.";
+
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception)
+            {
+                // Maintain fault isolation
+            }
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم رفض طلب إلغاء الحجز وإبقاء التذكرة سارية بنجاح.");
         }
+
+        public async Task<ResponseDto> GetTripBookingsAsync(int tripId, int companyId)
+        {
+            // 1. Verify that the trip exists and belongs to the company
+            var trip = await _context.Trips.FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
+            if (trip == null)
+            {
+                return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
+            }
+
+            // 2. Fetch only confirmed bookings for this trip
+            var bookings = await _context.Bookings
+                .Include(b => b.Customers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Station)
+                        .ThenInclude(s => s!.City) // <-- السطر المضاف لربط جدول المدن
+                .Where(b => b.TripRoute != null && b.TripRoute.TripId == tripId && b.Status == BookingStatus.Confirmed)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            // 3. Map to DTO
+            var bookingList = bookings.Select(b => new TripBookingReadDto
+            {
+                CustomerId = b.CustomerId,
+                CustomerName = b.Customers?.FullName ?? "غير محدد",
+                ReservedSeatsCount = b.ReservedSeatsCount,
+                TotalAmount = b.TotalAmount,
+                StationName = b.TripRoute?.Station?.City?.Name ?? "غير محدد", // تم إضافة الـ ? بعد City للحماية
+                BookingAt = b.BookingAt,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز مؤكد للرحلة بنجاح.", bookingList);
+        }
+
+        public async Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId)
+        {
+            // 1. Retrieve the booking along with its passenger collection and deep relational trip data
+            var booking = await _context.Bookings
+                .Include(b => b.Customers) // Collection of Passengers
+                    .ThenInclude(p => p.User) // Chained include for the user account (to get UserId)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip) // Accessing the core Trip entity
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
+
+            // 2. Validate booking existence and company ownership authorization
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية.");
+
+            // 3. Check if the booking is already rejected to avoid redundant processing
+            if (booking.Status == BookingStatus.Rejected)
+                return ResponseDto.FailureResponse("هذا الحجز مرفوض بالفعل.");
+
+            // 4. Update booking status to Rejected
+            booking.Status = BookingStatus.Rejected;
+
+            // 5. Restore the reserved seats back to the core Trip capacity (Matching Darb Background Service pattern)
+            if (booking.TripRoute?.Trip != null)
+            {
+                // Restoring the specific count of reserved seats back to the Trip's available seats
+                booking.TripRoute.Trip.AvailableSeats += booking.ReservedSeatsCount;
+            }
+
+            // 6. Invalidate any associated E-Ticket for security and validation integrity
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
+            {
+                ticket.Status = ETicketStatus.UnValid;
+            }
+
+            // 7. Commit state changes to the database before launching external communication threads
+            await _context.SaveChangesAsync();
+
+            #region Automated Customer Cancellation Notification Dispatch
+
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    // Now safely accessing the loaded UserId from the relational chain
+                    int receiverUserId = booking.Customers.User.UserId;
+
+                    string notificationTitle = "تنبيه: تم رفض حجزك ⚠️";
+                    string notificationBody = $"نعتذر منك، لقد تم رفض حجزك للرحلة رقم {booking.TripRouteId} من قبل شركة النقل. للمزيد من التفاصيل يرجى مراجعة التطبيق.";
+
+                    // Dispatch notification asynchronously via the persistent Firebase FCM service layer
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception ex)
+            {
+                // Maintain fault isolation: do not revert the database status if Firebase messaging encounters an issue
+                // _logger.LogError(ex, "Automated booking rejection push notification delivery failed.");
+            }
+
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم رفض الحجز وتحديث حالته بنجاح.");
+        }
+
+        public async Task<ResponseDto> GetPendingCompanyBookingsAsync(int companyId)
+        {
+            // جلب الحجوزات التي حالتها بانتظار التأكيد وفلترتها حسب الشركة
+            var pendingBookings = await _context.Bookings
+                .Include(b => b.Customers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
+                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId && b.Status == BookingStatus.AwaitingConfirmation)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            var bookingList = pendingBookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
+            {
+                BookingId = b.BookingId,
+                TripId = b.TripRoute?.TripId ?? 0,
+                TripRouteId = b.TripRouteId,
+                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
+                ReservedSeatsCount = b.ReservedSeatsCount,
+                TotalAmount = b.TotalAmount,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
+                Status = b.Status.ToString(),
+                BookingAt = b.BookingAt
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) حجز بانتظار التأكيد بنجاح.", bookingList);
+        }
+
+        public async Task<ResponseDto> GetBookingPassengersAsync(int bookingId, int companyId)
+        {
+            // التحقق أولاً من أن الحجز يتبع لرحلة تخص هذه الشركة لحماية البيانات
+            var bookingCheck = await _context.Bookings
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId && b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId);
+
+            if (bookingCheck == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا توجد صلاحية للوصول لبيانات ركابه.");
+            }
+
+            // جلب الركاب المرتبطين بهذا الحجز مع تفاصيلهم الكاملة
+            var passengers = await _context.Passenger
+                .Where(p => p.BookingId == bookingId)
+                .ToListAsync();
+
+            var passengerList = passengers.Select(p => new CompanyDetailedPassengerDto
+            {
+                PassengerId = p.PassengerId,
+                FullName = p.FullName,
+                NationalId = p.NationalId ?? "غير متوفر",
+                PhoneNumber = p.PhoneNumber, // تأكد من مطابقة المسميات البرمجية في مودل Passenger لديك
+                Address = p.Address,
+                BirthDate = p.BirthDate
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع بيانات ({passengerList.Count}) راكب بنجاح.", passengerList);
+        }
+
         #endregion
 
         #region BankAccount Management Logic
 
         public async Task<ResponseDto> GetAllBankAccountsAsync(int companyId)
         {
-            var accounts = await _context.BankAccounts
+            var users = await _context.BankAccounts
                 .Include(ba => ba.Bank)
                 .Where(ba => ba.CompanyId == companyId)
                 .Select(ba => new BankAccountReadDto
@@ -838,7 +1262,7 @@ namespace Darb.Api.Services.Implementations
                     BankName = ba.Bank != null ? ba.Bank.BankName : "غير متوفر",
                     CompanyId = ba.CompanyId
                 }).ToListAsync();
-            return ResponseDto.SuccessResponse($"تم استرجاع ({accounts.Count}) حساب بنكي بنجاح.", accounts);
+            return ResponseDto.SuccessResponse($"تم استرجاع ({users.Count}) حساب بنكي بنجاح.", users);
         }
 
         public async Task<ResponseDto> GetBankAccountByIdAsync(int bankAccountId, int companyId)
@@ -866,31 +1290,31 @@ namespace Darb.Api.Services.Implementations
             var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId);
             if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود في النظام.");
 
-            var account = new BankAccount
+            var user = new BankAccount
             {
                 AccountNumber = dto.AccountNumber,
                 HolderName = dto.AccountHolderName,
                 BankId = dto.BankId,
                 CompanyId = companyId
             };
-            await _context.BankAccounts.AddAsync(account);
+            await _context.BankAccounts.AddAsync(user);
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم إضافة الحساب البنكي بنجاح.");
         }
 
         public async Task<ResponseDto> UpdateBankAccountAsync(int bankAccountId, BankAccountUpdateDto dto, int companyId)
         {
-            var account = await _context.BankAccounts
+            var user = await _context.BankAccounts
                 .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
-            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+            if (user == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
 
-            if (!string.IsNullOrEmpty(dto.AccountNumber)) account.AccountNumber = dto.AccountNumber;
-            if (!string.IsNullOrEmpty(dto.AccountHolderName)) account.HolderName = dto.AccountHolderName;
+            if (!string.IsNullOrEmpty(dto.AccountNumber)) user.AccountNumber = dto.AccountNumber;
+            if (!string.IsNullOrEmpty(dto.AccountHolderName)) user.HolderName = dto.AccountHolderName;
             if (dto.BankId.HasValue)
             {
                 var bankExists = await _context.Banks.AnyAsync(b => b.BankId == dto.BankId.Value);
                 if (!bankExists) return ResponseDto.FailureResponse("البنك المختار غير موجود.");
-                account.BankId = dto.BankId.Value;
+                user.BankId = dto.BankId.Value;
             }
 
             await _context.SaveChangesAsync();
@@ -899,11 +1323,11 @@ namespace Darb.Api.Services.Implementations
 
         public async Task<ResponseDto> DeleteBankAccountAsync(int bankAccountId, int companyId)
         {
-            var account = await _context.BankAccounts
+            var user = await _context.BankAccounts
                 .FirstOrDefaultAsync(b => b.BankAccountId == bankAccountId && b.CompanyId == companyId);
-            if (account == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
+            if (user == null) return ResponseDto.FailureResponse("الحساب غير موجود.");
 
-            _context.BankAccounts.Remove(account);
+            _context.BankAccounts.Remove(user);
             await _context.SaveChangesAsync();
             return ResponseDto.SuccessResponse("تم حذف الحساب البنكي بنجاح.");
         }
@@ -924,11 +1348,11 @@ namespace Darb.Api.Services.Implementations
                 {
                     TripFareId = tf.TripFareId,
                     FromGovId = tf.FromGovId,
-                    FromGovernorateName = tf.FromGovernorate != null ? tf.FromGovernorate.Name : "غير متوفر",
+                    FromGovernorateName = tf.FromGovernorate != null ? tf.FromGovernorate.Name : "",
                     ToGovId = tf.ToGovId,
-                    ToGovernorateName = tf.ToGovernorate != null ? tf.ToGovernorate.Name : "غير متوفر",
+                    ToGovernorateName = tf.ToGovernorate != null ? tf.ToGovernorate.Name : "",
                     StationId = tf.StationId,
-                    CityName = tf.Station != null && tf.Station.City != null ? tf.Station.City.Name : "غير متوفر",
+                    CityName = tf.Station != null && tf.Station.City != null ? tf.Station.City.Name : "",
                     Price = tf.Price,
                     IsMainStation = tf.IsMainStation,
                     CompanyId = tf.CompanyId
@@ -975,12 +1399,12 @@ namespace Darb.Api.Services.Implementations
                 return ResponseDto.FailureResponse("المحطة المختارة غير موجودة أو لا تتبع للشركة.");
 
             // Check if exact same mapping already exists
-            bool exists = await _context.TripFares.AnyAsync(tf => 
-                tf.CompanyId == companyId && 
-                tf.FromGovId == dto.FromGovId && 
-                tf.ToGovId == dto.ToGovId && 
+            bool exists = await _context.TripFares.AnyAsync(tf =>
+                tf.CompanyId == companyId &&
+                tf.FromGovId == dto.FromGovId &&
+                tf.ToGovId == dto.ToGovId &&
                 tf.StationId == dto.StationId);
-            
+
             if (exists) return ResponseDto.FailureResponse("يوجد تسعيرة مسبقة لهذه الوجهة والمحطة.");
 
             var tripFare = new TripFare
@@ -1003,7 +1427,7 @@ namespace Darb.Api.Services.Implementations
         {
             var tf = await _context.TripFares
                 .FirstOrDefaultAsync(t => t.TripFareId == tripFareId && t.CompanyId == companyId);
-            
+
             if (tf == null) return ResponseDto.FailureResponse("التسعيرة غير موجودة.");
 
             if (dto.Price.HasValue) tf.Price = dto.Price.Value;
@@ -1028,144 +1452,100 @@ namespace Darb.Api.Services.Implementations
 
         #endregion
 
-        #region Trip Schedule Management
+        #region Subscription Management
 
-        public async Task<ResponseDto> GetAllTripSchedulesAsync(int tripId, int companyId)
+        /// <summary>
+        /// Returns all available subscription plans as a list of { Id, Name }.
+        /// Uses EnumExtensions.GetDisplayName() to retrieve the [Display] attribute Arabic name.
+        /// </summary>
+        public Task<ResponseDto> GetSubscriptionPlansAsync()
         {
-            var trip = await _context.Trips
-                .FirstOrDefaultAsync(t => t.TripId == tripId && t.CompanyId == companyId);
-
-            if (trip == null) return ResponseDto.FailureResponse("الرحلة غير موجودة أو لا تملك صلاحية الوصول إليها.");
-
-            var schedules = await _context.TripSchedules
-                .Include(ts => ts.Station)
-                    .ThenInclude(s => s!.City)
-                .Where(ts => ts.TripId == tripId)
-                .Select(ts => new TripScheduleReadDto
+            // Map each enum value to an object with its integer ID and Arabic display name
+            var plans = Enum.GetValues<SubscriptionPlans>()
+                .Select(p => new
                 {
-                    TripScheduleId = ts.TripScheduleId,
-                    TripId = ts.TripId,
-                    StationId = ts.StationId,
-                    StationName = ts.Station != null ? ts.Station.Address : "غير متوفر",
-                    CityName = ts.Station != null && ts.Station.City != null ? ts.Station.City.Name : "غير متوفر",
-                    DepartureTime = ts.DepartureTime,
-                    SeatFare = ts.SeatFare
+                    Id = (int)p,
+                    Name = p.GetDisplayName()
                 })
-                .ToListAsync();
+                .ToList();
 
-            return ResponseDto.SuccessResponse($"تم استرجاع ({schedules.Count}) محطات توقف للرحلة بنجاح.", schedules);
+            return Task.FromResult(ResponseDto.SuccessResponse("تم استرجاع أنواع الاشتراك بنجاح.", plans));
         }
 
-        public async Task<ResponseDto> GetTripScheduleByIdAsync(int scheduleId, int companyId)
+        /// <summary>
+        /// Handles a subscription renewal request from a company.
+        /// Validates and uploads the payment slip, then creates a Pending record for admin review.
+        /// </summary>
+        public async Task<ResponseDto> RenewSubscriptionAsync(SubscriptionRenewalDto dto)
         {
-            var ts = await _context.TripSchedules
-                .Include(ts => ts.Trip)
-                .Include(ts => ts.Station)
-                    .ThenInclude(s => s!.City)
-                .FirstOrDefaultAsync(t => t.TripScheduleId == scheduleId && t.Trip!.CompanyId == companyId);
+            // 1. Find the company profile by linking the provided email through the associated User account
+            var company = await _context.Companies
+                .Include(c => c.User)
+                .FirstOrDefaultAsync(c => c.User != null && c.User.Email == dto.Email.Trim());
 
-            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة أو لا تملك صلاحية الوصول إليها.");
+            // Validate that the company and its corresponding user record exist
+            if (company == null || company.User == null)
+                return ResponseDto.FailureResponse("No transport company registered with this email address.");
 
-            var dto = new TripScheduleReadDto
+            // 2. Anti-Spam Check: Prevent submitting multiple duplicate pending requests
+            bool hasPendingRequest = await _context.CompanySubscription
+                .AnyAsync(cs => cs.CompanyId == company.CompanyId &&
+                                cs.Status == SubscriptionStatus.Pending &&
+                                cs.RequestType == RequestType.Renewal);
+
+            if (hasPendingRequest)
+                return ResponseDto.FailureResponse("You already have a renewal request pending review. Please wait for admin approval.");
+
+            // Validate that the file attachment is not null
+            if (dto.PaymentSlip == null)
+                return ResponseDto.FailureResponse("Please upload and attach the payment slip file.");
+
+            // 3. Upload the uploaded payment receipt via ImageService to the designated physical folder
+            string? paymentSlipPath = await _imageService.SaveImageAsync(dto.PaymentSlip, "PaymentSlips");
+            if (string.IsNullOrEmpty(paymentSlipPath))
+                return ResponseDto.FailureResponse("An error occurred while uploading the payment slip image.");
+
+            // Fetch current timestamp synchronized to Yemen Timezone (UTC+3)
+            var yemenNow = DateHelper.GetYemenTime();
+
+            // 4. Smart Expiry Logic: Retrieve the latest subscription record to evaluate remaining time
+            var latestSub = await _context.CompanySubscription
+                .Where(cs => cs.CompanyId == company.CompanyId)
+                .OrderByDescending(cs => cs.ExpiryDate)
+                .FirstOrDefaultAsync();
+
+            // If the user profile is active and the latest subscription is still valid (early renewal), cumulative extension applies.
+            // Otherwise (account blocked/expired), calculation baseline drops back to the current date.
+            DateTime baseStartDate = (company.User.IsActive && latestSub != null && latestSub.ExpiryDate > yemenNow)
+                ? latestSub.ExpiryDate
+                : yemenNow;
+
+            // Compute the target expiry date based on the chosen contract tier plan
+            DateTime expiryDate = dto.PlanType == SubscriptionPlans.Monthly
+                ? baseStartDate.AddDays(30)
+                : baseStartDate.AddYears(1);
+
+            // 5. Structure and map the new pending contract record
+            var subscription = new CompanySubscription
             {
-                TripScheduleId = ts.TripScheduleId,
-                TripId = ts.TripId,
-                StationId = ts.StationId,
-                StationName = ts.Station?.Address ?? "غير متوفر",
-                CityName = ts.Station?.City?.Name ?? "غير متوفر",
-                DepartureTime = ts.DepartureTime,
-                SeatFare = ts.SeatFare
+                CompanyId = company.CompanyId,
+                PlanType = dto.PlanType,
+                PaymentSlip = paymentSlipPath,
+                SubscriptionDate = yemenNow,   // Request created timestamp
+                ExpiryDate = expiryDate,       // Future target coverage timeline
+                Status = SubscriptionStatus.Pending,
+                RequestType = RequestType.Renewal
             };
 
-            return ResponseDto.SuccessResponse("تم استرجاع بيانات محطة التوقف بنجاح.", dto);
-        }
-
-        public async Task<ResponseDto> AddTripScheduleAsync(AddTripScheduleDto dto, int companyId)
-        {
-            var trip = await _context.Trips
-                .FirstOrDefaultAsync(t => t.TripId == dto.TripId && t.CompanyId == companyId);
-
-            if (!await _context.Stations.AnyAsync(s => s.StationId == dto.StationId && s.CompanyId == companyId))
-                return ResponseDto.FailureResponse("المحطة المختارة غير موجودة أو لا تتبع لشركتكم.");
-
-            var matchingFare = await _context.TripFares
-                .FirstOrDefaultAsync(tf => tf.CompanyId == companyId && 
-                                         tf.FromGovId == trip.StartGoveId && 
-                                         tf.ToGovId == trip.EndGoveId && 
-                                         tf.StationId == dto.StationId);
-
-            if (matchingFare == null)
-                return ResponseDto.FailureResponse("لا توجد تسعيرة معرفة لهذه المحطة على مسار هذه الرحلة.");
-
-            try
-            {
-                var tripSchedule = new TripSchedule
-                {
-                    TripId = dto.TripId,
-                    StationId = dto.StationId,
-                    DepartureTime = dto.DepartureTime,
-                    SeatFare = matchingFare.Price
-                };
-
-                await _context.TripSchedules.AddAsync(tripSchedule);
-                await _context.SaveChangesAsync();
-                return ResponseDto.SuccessResponse("تمت إضافة محطة التوقف للرحلة بنجاح.");
-            }
-            catch (FormatException ex)
-            {
-                return ResponseDto.FailureResponse(ex.Message);
-            }
-            catch (Exception ex)
-            {
-                return ResponseDto.FailureResponse($"حدث خطأ غير متوقع: {ex.Message}");
-            }
-        }
-
-        public async Task<ResponseDto> UpdateTripScheduleAsync(int scheduleId, UpdateTripScheduleDto dto, int companyId)
-        {
-            var ts = await _context.TripSchedules
-                .Include(ts => ts.Trip)
-                .FirstOrDefaultAsync(t => t.TripScheduleId == scheduleId && t.Trip!.CompanyId == companyId);
-
-            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة.");
-
-            try
-            {
-                if (dto.DepartureTime.HasValue)
-                    ts.DepartureTime = dto.DepartureTime.Value;
-
-                if (dto.SeatFare.HasValue)
-                    ts.SeatFare = dto.SeatFare.Value;
-
-                await _context.SaveChangesAsync();
-                return ResponseDto.SuccessResponse("تم تحديث بيانات محطة التوقف بنجاح.");
-            }
-            catch (FormatException ex)
-            {
-                return ResponseDto.FailureResponse(ex.Message);
-            }
-        }
-
-        public async Task<ResponseDto> DeleteTripScheduleAsync(int scheduleId, int companyId)
-        {
-            var ts = await _context.TripSchedules
-                .Include(ts => ts.Trip)
-                .FirstOrDefaultAsync(t => t.TripScheduleId == scheduleId && t.Trip!.CompanyId == companyId);
-
-            if (ts == null) return ResponseDto.FailureResponse("محطة التوقف غير موجودة.");
-
-            // Check if there are bookings for this schedule
-            bool hasBookings = await _context.Bookings.AnyAsync(b => b.TripScheduleId == scheduleId);
-            if (hasBookings)
-            {
-                return ResponseDto.FailureResponse("لا يمكن حذف هذه المحطة لوجود حجوزات مؤكدة مرتبطة بها.");
-            }
-
-            _context.TripSchedules.Remove(ts);
+            // Commit and save changes transactionally into the SQL database state
+            await _context.CompanySubscription.AddAsync(subscription);
             await _context.SaveChangesAsync();
-            return ResponseDto.SuccessResponse("تم حذف محطة التوقف من الرحلة بنجاح.");
+
+            return ResponseDto.SuccessResponse("Your renewal request and payment receipt have been uploaded successfully. Administration will review it shortly.");
         }
 
-        #endregion
+      
     }
+    #endregion
 }
+

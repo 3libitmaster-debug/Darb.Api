@@ -1,34 +1,40 @@
-﻿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Reflection;
 
 namespace Darb.Api.Models
 {
+
+ 
     public class Passenger
     {
-        [Key]
+
         public int PassengerId { get; set; }
 
-        [Required,MaxLength(255)]
-        public string ?FullName { get; set; }
+        public int BookingId { get; set; }
+        [ForeignKey("BookingId")]
+        public virtual Booking? Booking { get; set; }
 
-        [Required,Column(TypeName = "date")]
-        public DateTime DateOfBirth { get; set; }
+        [Required(ErrorMessage = "Full name is required.")]
+        [StringLength(100, MinimumLength = 3, ErrorMessage = "Name must be between 3 and 100 characters.")]
+        public string FullName { get; set; } = string.Empty;
 
-        [Required,Phone]
-        public string ?Phone { get; set; }
+        [DataType(DataType.Date)]
+        [Display(Name = "Date of Birth")]
+        public DateTime? BirthDate { get; set; }
 
-        [Required,MaxLength(255)]
-        public string ?Address { get; set; }
+        [Required(ErrorMessage = "National ID is required.")]
+        [RegularExpression(@"^\d+$", ErrorMessage = "National ID must contain only digits.")]
+        public string NationalId { get; set; } = string.Empty;
 
-        [Required, MaxLength(11)]
-        public string ?NationalId { get; set; } 
+        [Required(ErrorMessage = "Phone Number is required.")]
+        [Phone(ErrorMessage = "Invalid phone number.")]
+        public string PhoneNumber { get; set; } = string.Empty;
 
-        [ForeignKey("AccountId")]
-        public int AccountId { get; set; }
-
-        [Required]
-        public Account ?Account { get; set; }
+        [StringLength(250, ErrorMessage = "Address cannot exceed 250 characters.")]
+        public string? Address { get; set; }
 
 
+   
     }
 }

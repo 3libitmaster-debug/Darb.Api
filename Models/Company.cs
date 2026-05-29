@@ -22,10 +22,14 @@ namespace Darb.Api.Models
         [Required]
         public string ?License { get; set; }
 
-        public int AccountId { get; set; }
+        public double AverageRating { get; set; }
+
+        public bool isAccepted { get; set; } = false;
+
+        public int UserId { get; set; }
         [Required]
-        [ForeignKey("AccountId")]
-        public Account ?Account { get; set; }
+        [ForeignKey("UserId")]
+        public User ?User { get; set; }
 
         public ICollection<CompanySubscription>? CompanySubscription { get; set; }
 
@@ -36,6 +40,8 @@ namespace Darb.Api.Models
         public ICollection<Station>? Station { get; set; }
         
         public ICollection<BankAccount>? BankAccounts { get; set; }
+
+        public ICollection<Review>? Review { get; set; }
 
     }
 }

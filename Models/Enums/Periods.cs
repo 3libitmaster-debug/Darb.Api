@@ -1,12 +1,12 @@
-ï»¿using System.ComponentModel.DataAnnotations;
+using System.ComponentModel.DataAnnotations;
 namespace Darb.Api.Models.Enums
 {
     public enum Periods
     {
-        [Display(Name = "ØµØ¨Ø§Ø­ÙŠ")]
+        [Display(Name = "ÕÈÇÍí")]
         Day = 0,
 
-        [Display(Name = "Ù…Ø³Ø§Ø¦ÙŠ")]
+        [Display(Name = "ãÓÇÆí")]
         Night = 1
     }
 }

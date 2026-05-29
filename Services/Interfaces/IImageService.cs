@@ -1,4 +1,4 @@
-﻿namespace Darb.Api.Services.Interfaces
+namespace Darb.Api.Services.Interfaces
 {
     public interface IImageService
     {
