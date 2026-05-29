@@ -20,7 +20,7 @@ namespace Darb.Api.Models.Enums
         Completed = 4,
 
         [Display(Name = "„—›Ê÷")]
-        Rejected =5,
+        Rejected = 5,
 
         [Display(Name = "›Ì «‰ Ÿ«— «·«·€«¡")]
         AwaitingCancellation = 6

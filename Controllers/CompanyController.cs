@@ -375,6 +375,17 @@ namespace Darb.Api.Controllers
             return response.Success ? Ok(response) : BadRequest(response);
         }
 
+        [HttpPost("trip/bookings/scan")]
+        [SwaggerOperation(Summary = "Scan a QR Code Ticket", Description = "Reads the scanned QR code payload and returns detailed booking and passenger information.")]
+        public async Task<IActionResult> ScanBookingTicket([FromQuery] string qrCode)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.ScanBookingTicketAsync(qrCode, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
         [HttpPost("trip/bookings/{id}/reject")]
         [SwaggerOperation(Summary = "Reject a Booking", Description = "Rejects a specific booking by changing its status to Rejected.")]
         public async Task<IActionResult> RejectBooking(int id)
@@ -395,6 +406,39 @@ namespace Darb.Api.Controllers
 
             var response = await _companyService.GetPendingCompanyBookingsAsync(companyId);
             return Ok(response);
+        }
+
+        [HttpGet("trip/bookings/cancellations")]
+        [SwaggerOperation(Summary = "Get Booking Cancellation Requests", Description = "Retrieves a list of all bookings that have requested cancellation for the authenticated company.")]
+        public async Task<IActionResult> GetCancellationBookings()
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.GetCancellationCompanyBookingsAsync(companyId);
+            return Ok(response);
+        }
+
+        [HttpPost("trip/bookings/{id}/cancellation/accept")]
+        [SwaggerOperation(Summary = "Accept Booking Cancellation Request", Description = "Accepts a booking cancellation request by changing its status to Cancelled and invalidating the ticket.")]
+        public async Task<IActionResult> AcceptBookingCancellation(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.AcceptCompanyBookingCancellationAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpPost("trip/bookings/{id}/cancellation/reject")]
+        [SwaggerOperation(Summary = "Reject Booking Cancellation Request", Description = "Rejects a booking cancellation request by keeping it Confirmed and maintaining ticket validity.")]
+        public async Task<IActionResult> RejectBookingCancellation(int id)
+        {
+            int companyId = User.GetCompanyId();
+            if (companyId == 0) return Unauthorized(ResponseDto.FailureResponse("عذراً، بيانات تعريف الشركة غير متوفرة."));
+
+            var response = await _companyService.RejectCompanyBookingCancellationAsync(id, companyId);
+            return response.Success ? Ok(response) : BadRequest(response);
         }
 
         [HttpGet("trip/bookings/{id}/passengers")]
@@ -471,6 +515,7 @@ namespace Darb.Api.Controllers
     #region Subscription Management Endpoints
 
     [HttpGet("subscriptions/plans")]
+    [AllowAnonymous]
     [SwaggerOperation(
         Summary = "Get Subscription Plans",
         Description = "Returns all available subscription plan types with their ID and Arabic display name (e.g. شهري, سنوي).")]
@@ -494,5 +539,6 @@ namespace Darb.Api.Controllers
     }
 
     #endregion
+
   }
 }

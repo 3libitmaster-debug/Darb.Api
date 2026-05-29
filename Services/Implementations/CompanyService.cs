@@ -736,29 +736,32 @@ namespace Darb.Api.Services.Implementations
 
             // 5. Check if an E-Ticket already exists for this booking to handle or reuse it
             var existingTicket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == booking.BookingId);
-            int eticketId = existingTicket?.Id ?? 0;
             int tripRouteId = booking.TripRouteId;
+
+            if (existingTicket == null)
+            {
+                existingTicket = new ETicket
+                {
+                    BookingId = booking.BookingId,
+                    TicketCode = string.Empty,
+                    Status = ETicketStatus.Valid
+                };
+                await _context.ETickets.AddAsync(existingTicket);
+                await _context.SaveChangesAsync(); // Generates the ID
+            }
+            else
+            {
+                existingTicket.Status = ETicketStatus.Valid;
+            }
+
+            int eticketId = existingTicket.Id;
 
             // 6. Generate a secure, Base64-encoded QR Code payload with the current booking metadata
             string payload = $"TripRouteId:{tripRouteId}|BookingId:{booking.BookingId}|ETicketId:{eticketId}";
             string qrBase64 = _qrCodeService.GenerateQrCodeBase64(payload);
 
-            // 7. Insert a new ticket or update the existing ticket details accordingly
-            if (existingTicket == null)
-            {
-                var ticket = new ETicket
-                {
-                    BookingId = booking.BookingId,
-                    TicketCode = qrBase64,
-                    Status = ETicketStatus.Valid
-                };
-                await _context.ETickets.AddAsync(ticket);
-            }
-            else
-            {
-                existingTicket.TicketCode = qrBase64;
-                existingTicket.Status = ETicketStatus.Valid;
-            }
+            // Update the ticket code
+            existingTicket.TicketCode = qrBase64;
 
             // 8. Commit structural database changes before proceeding to dispatch external notifications
             await _context.SaveChangesAsync();
@@ -796,6 +799,276 @@ namespace Darb.Api.Services.Implementations
             #endregion
 
             return ResponseDto.SuccessResponse("تم تأكيد الحجز بنجاح!");
+        }
+
+        public async Task<ResponseDto> ScanBookingTicketAsync(string qrCode, int companyId)
+        {
+            int bookingId = 0;
+            int tripRouteId = 0;
+            int eticketId = 0;
+
+            // Check if the input is the decoded payload
+            if (!string.IsNullOrEmpty(qrCode) && qrCode.Contains("|") && qrCode.Contains("BookingId:"))
+            {
+                var parts = qrCode.Split('|');
+                foreach (var part in parts)
+                {
+                    var kv = part.Split(':');
+                    if (kv.Length == 2)
+                    {
+                        var key = kv[0].Trim();
+                        var val = kv[1].Trim();
+                        if (key.Equals("BookingId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out bookingId);
+                        }
+                        else if (key.Equals("TripRouteId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out tripRouteId);
+                        }
+                        else if (key.Equals("ETicketId", StringComparison.OrdinalIgnoreCase))
+                        {
+                            int.TryParse(val, out eticketId);
+                        }
+                    }
+                }
+            }
+            else
+            {
+                // Try to find the ticket directly by its base64 code (if the raw base64 was passed)
+                var ticket = await _context.ETickets
+                    .FirstOrDefaultAsync(t => t.TicketCode == qrCode);
+                if (ticket != null)
+                {
+                    bookingId = ticket.BookingId;
+                }
+            }
+
+            if (bookingId == 0)
+            {
+                return ResponseDto.FailureResponse("عذراً، رمز الاستجابة السريعة غير صالح أو لا يحتوي على بيانات حجز صحيحة.");
+            }
+
+            var booking = await _context.Bookings
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.Passengers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
+                .Include(b => b.ETicket)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId);
+
+            if (booking == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز المرتبط بهذا الرمز.");
+            }
+
+            // Verify company ownership
+            if (booking.TripRoute?.Trip == null || booking.TripRoute.Trip.CompanyId != companyId)
+            {
+                return ResponseDto.FailureResponse("عذراً، لا تملك الصلاحية لاستعراض تفاصيل هذا الحجز.");
+            }
+
+            if (booking.ETicket == null)
+            {
+                return ResponseDto.FailureResponse("عذراً، لا توجد تذكرة إلكترونية صادرة لهذا الحجز.");
+            }
+
+            // Check if ticket is already scanned/used (UnValid)
+            if (booking.ETicket.Status == ETicketStatus.UnValid || booking.ETicket.Status == ETicketStatus.Expired)
+            {
+                return ResponseDto.FailureResponse("عذراً، هذه التذكرة غير صالحة أو تم استخدامها ومسحها مسبقاً.");
+            }
+
+            // Update ticket status to Expired and booking status to Completed
+            booking.ETicket.Status = ETicketStatus.Expired;
+            booking.Status = BookingStatus.Completed;
+
+            await _context.SaveChangesAsync();
+
+            var dto = new CompanyScannedBookingDto
+            {
+                BookingId = booking.BookingId,
+                TripId = booking.TripRoute?.TripId ?? 0,
+                TripRouteId = booking.TripRouteId,
+                StartGovernorate = booking.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = booking.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = booking.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
+                DepartureTime = booking.TripRoute?.DepartureTime.ToString("hh:mm tt") ?? string.Empty,
+                Passengers = booking.Passengers.Select(p => new BookingPassengerReadDto
+                {
+                    PassengerId = p.PassengerId,
+                    FullName = p.FullName,
+                    BirthDate = p.BirthDate,
+                    NationalId = p.NationalId,
+                    PhoneNumber = p.PhoneNumber,
+                    Address = p.Address
+                }).ToList()
+            };
+
+            return ResponseDto.SuccessResponse("تم مسح التذكرة وتحديث حالة الحجز إلى مكتمل بنجاح.", dto);
+        }
+
+        public async Task<ResponseDto> GetCancellationCompanyBookingsAsync(int companyId)
+        {
+            var cancellationBookings = await _context.Bookings
+                .Include(b => b.Customers)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.StartGovernate)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                        .ThenInclude(t => t!.EndGovernate)
+                .Where(b => b.TripRoute != null && b.TripRoute.Trip != null && b.TripRoute.Trip.CompanyId == companyId && b.Status == BookingStatus.AwaitingCancellation)
+                .OrderByDescending(b => b.BookingAt)
+                .ToListAsync();
+
+            var bookingList = cancellationBookings.Select(b => new Darb.Api.DTOs.Booking.CompanyBookingReadDto
+            {
+                BookingId = b.BookingId,
+                TripId = b.TripRoute?.TripId ?? 0,
+                TripRouteId = b.TripRouteId,
+                StartGovernorate = b.TripRoute?.Trip?.StartGovernate?.Name ?? "غير محدد",
+                EndGovernorate = b.TripRoute?.Trip?.EndGovernate?.Name ?? "غير محدد",
+                DepartureDate = b.TripRoute?.Trip?.DepDate ?? DateTime.MinValue,
+                ReservedSeatsCount = b.ReservedSeatsCount,
+                TotalAmount = b.TotalAmount,
+                ReceiptImagePath = !string.IsNullOrEmpty(b.ReceiptImagePath) ? _baseUrl + b.ReceiptImagePath : null,
+                Status = b.Status.ToString(),
+                BookingAt = b.BookingAt
+            }).ToList();
+
+            return ResponseDto.SuccessResponse($"تم استرجاع ({bookingList.Count}) طلب إلغاء حجز بنجاح.", bookingList);
+        }
+
+        public async Task<ResponseDto> AcceptCompanyBookingCancellationAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا تملك صلاحية الوصول إليه.");
+
+            if (booking.Status != BookingStatus.AwaitingCancellation)
+                return ResponseDto.FailureResponse("عذراً، هذا الحجز ليس قيد انتظار الإلغاء.");
+
+            // Update booking status to Cancelled
+            booking.Status = BookingStatus.Cancelled;
+
+            // Restore the reserved seats back to the core Trip capacity
+            if (booking.TripRoute?.Trip != null)
+            {
+                booking.TripRoute.Trip.AvailableSeats += booking.ReservedSeatsCount;
+                if (booking.TripRoute.Trip.TripStatus == TripStatus.Fulled)
+                {
+                    booking.TripRoute.Trip.TripStatus = TripStatus.scheduled;
+                }
+            }
+
+            // Invalidate the E-Ticket
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
+            {
+                ticket.Status = ETicketStatus.UnValid;
+            }
+
+            await _context.SaveChangesAsync();
+
+            #region Automated Customer Notification Dispatch
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    int receiverUserId = booking.Customers.User.UserId;
+                    string notificationTitle = "تم قبول طلب إلغاء حجزك 🔴";
+                    string notificationBody = $"عزيزي المسافر، تم قبول طلب إلغاء حجزك للرحلة رقم {booking.TripRouteId} بنجاح وتم إلغاء تذكرتك.";
+
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception)
+            {
+                // Maintain fault isolation
+            }
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم قبول طلب إلغاء الحجز وإلغاء التذكرة بنجاح.");
+        }
+
+        public async Task<ResponseDto> RejectCompanyBookingCancellationAsync(int bookingId, int companyId)
+        {
+            var booking = await _context.Bookings
+                .Include(b => b.Customers)
+                    .ThenInclude(c => c.User)
+                .Include(b => b.TripRoute)
+                    .ThenInclude(tr => tr!.Trip)
+                .FirstOrDefaultAsync(b => b.BookingId == bookingId &&
+                                          b.TripRoute != null &&
+                                          b.TripRoute.Trip != null &&
+                                          b.TripRoute.Trip.CompanyId == companyId);
+
+            if (booking == null)
+                return ResponseDto.FailureResponse("عذراً، لم يتم العثور على الحجز أو لا تملك صلاحية الوصول إليه.");
+
+            if (booking.Status != BookingStatus.AwaitingCancellation)
+                return ResponseDto.FailureResponse("عذراً، هذا الحجز ليس قيد انتظار الإلغاء.");
+
+            // Reject the cancellation by setting the status back to Confirmed
+            booking.Status = BookingStatus.Confirmed;
+
+            // Ensure the associated E-Ticket remains Valid
+            var ticket = await _context.ETickets.FirstOrDefaultAsync(e => e.BookingId == bookingId);
+            if (ticket != null)
+            {
+                ticket.Status = ETicketStatus.Valid;
+            }
+
+            await _context.SaveChangesAsync();
+
+            #region Automated Customer Notification Dispatch
+            try
+            {
+                if (booking.Customers != null && booking.Customers.User != null)
+                {
+                    int receiverUserId = booking.Customers.User.UserId;
+                    string notificationTitle = "تم رفض طلب إلغاء حجزك 🟢";
+                    string notificationBody = $"عزيزي المسافر، تم رفض طلب إلغاء حجزك للرحلة رقم {booking.TripRouteId}. حجزك وتذكرتك لا يزالان ساريي المفعول.";
+
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: receiverUserId,
+                        title: notificationTitle,
+                        body: notificationBody,
+                        category: NotificationCategory.Transaction,
+                        senderType: SenderRole.Company,
+                        senderCompanyId: companyId
+                    );
+                }
+            }
+            catch (Exception)
+            {
+                // Maintain fault isolation
+            }
+            #endregion
+
+            return ResponseDto.SuccessResponse("تم رفض طلب إلغاء الحجز وإبقاء التذكرة سارية بنجاح.");
         }
 
         public async Task<ResponseDto> GetTripBookingsAsync(int tripId, int companyId)

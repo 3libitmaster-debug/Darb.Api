@@ -78,6 +78,10 @@ namespace Darb.Api.Services.Interfaces
     Task<ResponseDto> RejectCompanyBookingAsync(int bookingId, int companyId);
     Task<ResponseDto> GetPendingCompanyBookingsAsync(int companyId);
     Task<ResponseDto> GetBookingPassengersAsync(int bookingId, int companyId);
+    Task<ResponseDto> ScanBookingTicketAsync(string qrCode, int companyId);
+    Task<ResponseDto> GetCancellationCompanyBookingsAsync(int companyId);
+    Task<ResponseDto> AcceptCompanyBookingCancellationAsync(int bookingId, int companyId);
+    Task<ResponseDto> RejectCompanyBookingCancellationAsync(int bookingId, int companyId);
     #endregion
 
     #region BankAccount Management
