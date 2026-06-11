@@ -1,4 +1,5 @@
 using Darb.Api.DTOs.admin.Company;
+using Darb.Api.DTOs.admin.Complaints;
 using Darb.Api.DTOs.admin.Customers;
 using Darb.Api.DTOs.adminDtos.Advertisement;
 using Darb.Api.DTOs.adminDtos.Bank;
@@ -68,5 +69,12 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetNewCompanyRegistrationRequestsAsync();
         Task<ResponseDto> AcceptSubscriptionAsync(int subscriptionId);
         Task<ResponseDto> RejectSubscriptionAsync(int subscriptionId);
+
+        #region Complaints Management
+        Task<ResponseDto> GetAllComplaintsAsync();
+        Task<ResponseDto> GetComplaintByIdAsync(int complaintId);
+        Task<ResponseDto> RespondToComplaintAsync(int complaintId, AdminRespondToComplaintDto dto);
+        Task<ResponseDto> DeleteComplaintAsync(int complaintId);
+        #endregion
     }
 }

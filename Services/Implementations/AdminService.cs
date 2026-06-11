@@ -865,5 +865,131 @@ namespace Darb.Api.Services.Implementations
         }
 
         #endregion
+
+        #region Complaints Management Logic
+
+        /// <summary>
+        /// جلب جميع الشكاوي مع بيانات العميل والشركة (للأدمن)
+        /// </summary>
+        public async Task<ResponseDto> GetAllComplaintsAsync()
+        {
+            try
+            {
+                var complaints = await _context.Complaints
+                    .Include(c => c.Customer)
+                    .Include(c => c.Company)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Select(c => new Darb.Api.DTOs.admin.Complaints.AdminComplaintResponseDto
+                    {
+                        ComplaintId = c.ComplaintId,
+                        CustomerId = c.CustomerId,
+                        CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
+                        ComplaintType = c.ComplaintType.ToString(),
+                        CompanyId = c.CompanyId,
+                        CompanyName = c.Company != null ? c.Company.Name : null,
+                        Title = c.Title,
+                        Description = c.Description,
+                        Status = c.Status.ToString(),
+                        CreatedAt = c.CreatedAt,
+                        AdminResponse = c.AdminResponse
+                    })
+                    .ToListAsync();
+
+                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى بنجاح.", complaints);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل استرجاع الشكاوي: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// جلب تفاصيل شكوى محددة بالمعرف (للأدمن)
+        /// </summary>
+        public async Task<ResponseDto> GetComplaintByIdAsync(int complaintId)
+        {
+            try
+            {
+                var complaint = await _context.Complaints
+                    .Include(c => c.Customer)
+                    .Include(c => c.Company)
+                    .Where(c => c.ComplaintId == complaintId)
+                    .Select(c => new Darb.Api.DTOs.admin.Complaints.AdminComplaintResponseDto
+                    {
+                        ComplaintId = c.ComplaintId,
+                        CustomerId = c.CustomerId,
+                        CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
+                        ComplaintType = c.ComplaintType.ToString(),
+                        CompanyId = c.CompanyId,
+                        CompanyName = c.Company != null ? c.Company.Name : null,
+                        Title = c.Title,
+                        Description = c.Description,
+                        Status = c.Status.ToString(),
+                        CreatedAt = c.CreatedAt,
+                        AdminResponse = c.AdminResponse
+                    })
+                    .FirstOrDefaultAsync();
+
+                if (complaint == null)
+                    return ResponseDto.FailureResponse("الشكوى غير موجودة.");
+
+                return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الشكوى بنجاح.", complaint);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل استرجاع الشكوى: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// الرد على شكوى وتحديث حالتها (للأدمن)
+        /// </summary>
+        public async Task<ResponseDto> RespondToComplaintAsync(int complaintId, Darb.Api.DTOs.admin.Complaints.AdminRespondToComplaintDto dto)
+        {
+            try
+            {
+                var complaint = await _context.Complaints.FindAsync(complaintId);
+
+                if (complaint == null)
+                    return ResponseDto.FailureResponse("الشكوى غير موجودة.");
+
+                complaint.AdminResponse = dto.AdminResponse;
+                complaint.Status = dto.Status;
+
+                _context.Complaints.Update(complaint);
+                await _context.SaveChangesAsync();
+
+                return ResponseDto.SuccessResponse("تم تحديث الشكوى والرد عليها بنجاح.", complaint.ComplaintId);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل تحديث الشكوى: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// حذف شكوى نهائياً (للأدمن - بدون قيود الحالة)
+        /// </summary>
+        public async Task<ResponseDto> DeleteComplaintAsync(int complaintId)
+        {
+            try
+            {
+                var complaint = await _context.Complaints.FindAsync(complaintId);
+
+                if (complaint == null)
+                    return ResponseDto.FailureResponse("الشكوى غير موجودة.");
+
+                _context.Complaints.Remove(complaint);
+                await _context.SaveChangesAsync();
+
+                return ResponseDto.SuccessResponse("تم حذف الشكوى بنجاح.");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل حذف الشكوى: {ex.Message}");
+            }
+        }
+
+        #endregion
     }
 }

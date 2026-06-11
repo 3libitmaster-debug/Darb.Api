@@ -1,4 +1,5 @@
 using Darb.Api.Models;
+using Darb.Api.Models.Enums;
 using Darb.Core.Entities;
 using Microsoft.EntityFrameworkCore;
 
@@ -32,6 +33,7 @@ namespace darbWebApp.Data
     public DbSet<Review> Review { get; set; }
     public DbSet<Notification> Notifications { get; set; }
     public DbSet<DeviceToken> DeviceTokens { get; set; }
+    public DbSet<Complaint> Complaints { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -50,6 +52,15 @@ namespace darbWebApp.Data
       modelBuilder.Entity<CompanySubscription>()
          .Property(u => u.PlanType)
          .HasConversion<string>();
+
+      // Convert Complaint Enums to String in Database
+      modelBuilder.Entity<Complaint>()
+          .Property(c => c.ComplaintType)
+          .HasConversion<string>();
+
+      modelBuilder.Entity<Complaint>()
+          .Property(c => c.Status)
+          .HasConversion<string>();
 
       // Ensure Email uniqueness for security and login integrity
       modelBuilder.Entity<User>()
@@ -283,6 +294,22 @@ namespace darbWebApp.Data
           .WithMany(u => u.ReceivedNotifications)
           .HasForeignKey(n => n.ReceiverId)
           .OnDelete(DeleteBehavior.Cascade);
+
+      // --- Complaint Relationships ---
+      // حذف العميل يحذف شكاواه تلقائياً (تم التعديل إلى Restrict لتجنب تعارض الحذف التلقائي المتعدد)
+      modelBuilder.Entity<Complaint>()
+          .HasOne(c => c.Customer)
+          .WithMany(cu => cu.Complaints)
+          .HasForeignKey(c => c.CustomerId)
+          .OnDelete(DeleteBehavior.Restrict);
+
+      // حذف الشركة يجعل CompanyId = null (لا يُحذف سجل الشكوى)
+      modelBuilder.Entity<Complaint>()
+          .HasOne(c => c.Company)
+          .WithMany(co => co.Complaints)
+          .HasForeignKey(c => c.CompanyId)
+          .IsRequired(false)
+          .OnDelete(DeleteBehavior.SetNull);
 
     }
   }

@@ -332,5 +332,95 @@ namespace Darb.Api.Controllers
 
         #endregion
 
+        #region Customer Complaints Endpoints
+
+        [HttpPost("complaints/company")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Submit Company Complaint",
+            Description = "إرسال شكوى موجهة ضد شركة نقل معينة. يجب تحديد CompanyId مع عنوان وتفاصيل الشكوى.")]
+        public async Task<IActionResult> SubmitCompanyComplaint([FromBody] Darb.Api.DTOs.customer.Complaints.SubmitCompanyComplaintDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(Darb.Api.DTOs.Base.ResponseDto.FailureResponse("بيانات الشكوى غير مكتملة أو غير صالحة."));
+
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.SubmitCompanyComplaintAsync(customerId, dto);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpPost("complaints/technical")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Submit Technical Support Complaint",
+            Description = "إرسال شكوى دعم فني عام لا تستهدف شركة بعينها. يكفي تحديد العنوان والتفاصيل.")]
+        public async Task<IActionResult> SubmitTechnicalComplaint([FromBody] Darb.Api.DTOs.customer.Complaints.SubmitTechnicalComplaintDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(Darb.Api.DTOs.Base.ResponseDto.FailureResponse("بيانات طلب الدعم الفني غير مكتملة أو غير صالحة."));
+
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.SubmitTechnicalComplaintAsync(customerId, dto);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpGet("complaints")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Get My Complaints",
+            Description = "جلب قائمة بجميع الشكاوي التي أرسلها العميل الحالي مرتبةً من الأحدث إلى الأقدم.")]
+        public async Task<IActionResult> GetMyComplaints()
+        {
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.GetMyComplaintsAsync(customerId);
+            return Ok(response);
+        }
+
+        [HttpGet("complaints/{complaintId:int}")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Get Complaint By ID",
+            Description = "جلب تفاصيل شكوى محددة تخص العميل الحالي فقط.")]
+        public async Task<IActionResult> GetComplaintById(int complaintId)
+        {
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.GetComplaintByIdAsync(complaintId, customerId);
+
+            return response.Success ? Ok(response) : NotFound(response);
+        }
+
+        [HttpPut("complaints/{complaintId:int}")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Update Complaint",
+            Description = "تعديل عنوان وتفاصيل شكوى موجودة. مسموح فقط إذا كانت الشكوى بحالة Pending.")]
+        public async Task<IActionResult> UpdateComplaint(int complaintId, [FromBody] Darb.Api.DTOs.customer.Complaints.UpdateComplaintDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(Darb.Api.DTOs.Base.ResponseDto.FailureResponse("بيانات التعديل غير مكتملة أو غير صالحة."));
+
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.UpdateComplaintAsync(complaintId, customerId, dto);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        [HttpDelete("complaints/{complaintId:int}")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Delete Complaint",
+            Description = "حذف شكوى. مسموح فقط إذا كانت الشكوى بحالة Pending ولم تُراجع بعد.")]
+        public async Task<IActionResult> DeleteComplaint(int complaintId)
+        {
+            int customerId = User.GetCustomerId();
+            var response = await _customerService.DeleteComplaintAsync(complaintId, customerId);
+
+            return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        #endregion
+
     }
 }

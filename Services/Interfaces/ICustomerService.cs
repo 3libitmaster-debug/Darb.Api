@@ -62,5 +62,39 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetReviewByIdAsync(int reviewId);
 
         #endregion
+
+        #region Complaint Management Methods
+
+        /// <summary>
+        /// إرسال شكوى ضد شركة نقل معينة
+        /// </summary>
+        Task<ResponseDto> SubmitCompanyComplaintAsync(int customerId, Darb.Api.DTOs.customer.Complaints.SubmitCompanyComplaintDto dto);
+
+        /// <summary>
+        /// إرسال شكوى دعم فني عام
+        /// </summary>
+        Task<ResponseDto> SubmitTechnicalComplaintAsync(int customerId, Darb.Api.DTOs.customer.Complaints.SubmitTechnicalComplaintDto dto);
+
+        /// <summary>
+        /// جلب جميع شكاوي العميل الحالي
+        /// </summary>
+        Task<ResponseDto> GetMyComplaintsAsync(int customerId);
+
+        /// <summary>
+        /// جلب تفاصيل شكوى محددة (تخص العميل الحالي)
+        /// </summary>
+        Task<ResponseDto> GetComplaintByIdAsync(int complaintId, int customerId);
+
+        /// <summary>
+        /// تعديل شكوى (مسموح فقط إذا كانت بحالة Pending)
+        /// </summary>
+        Task<ResponseDto> UpdateComplaintAsync(int complaintId, int customerId, Darb.Api.DTOs.customer.Complaints.UpdateComplaintDto dto);
+
+        /// <summary>
+        /// حذف شكوى (مسموح فقط إذا كانت بحالة Pending)
+        /// </summary>
+        Task<ResponseDto> DeleteComplaintAsync(int complaintId, int customerId);
+
+        #endregion
     }
 }

@@ -221,5 +221,40 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> RejectSubscription(int id) => Ok(await _adminService.RejectSubscriptionAsync(id));
 
         #endregion
+
+        #region Complaints Management Endpoints
+
+        [HttpGet("complaints")]
+        [SwaggerOperation(
+            Summary = "Get All Complaints",
+            Description = "جلب جميع الشكاوي في النظام مع بيانات العميل وبيانات الشركة (إن وُجدت)، مرتبةً من الأحدث إلى الأقدم.")]
+        public async Task<IActionResult> GetAllComplaints() => Ok(await _adminService.GetAllComplaintsAsync());
+
+        [HttpGet("complaints/{id:int}")]
+        [SwaggerOperation(
+            Summary = "Get Complaint By ID",
+            Description = "جلب تفاصيل شكوى محددة مع كافة بيانات العميل والشركة المرتبطة بها.")]
+        public async Task<IActionResult> GetComplaintById(int id) => Ok(await _adminService.GetComplaintByIdAsync(id));
+
+        [HttpPut("complaints/{id:int}/respond")]
+        [SwaggerOperation(
+            Summary = "Respond To Complaint",
+            Description = "يتيح للأدمن إضافة رد على الشكوى وتغيير حالتها (Pending / InReview / Resolved / Rejected).")]
+        public async Task<IActionResult> RespondToComplaint(int id, [FromBody] Darb.Api.DTOs.admin.Complaints.AdminRespondToComplaintDto dto)
+        {
+            if (!ModelState.IsValid)
+                return BadRequest(Darb.Api.DTOs.Base.ResponseDto.FailureResponse("بيانات الرد غير صالحة."));
+
+            var result = await _adminService.RespondToComplaintAsync(id, dto);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpDelete("complaints/{id:int}")]
+        [SwaggerOperation(
+            Summary = "Delete Complaint",
+            Description = "حذف شكوى نهائياً من النظام. الأدمن يستطيع الحذف بغض النظر عن حالة الشكوى.")]
+        public async Task<IActionResult> DeleteComplaint(int id) => Ok(await _adminService.DeleteComplaintAsync(id));
+
+        #endregion
     }
 }

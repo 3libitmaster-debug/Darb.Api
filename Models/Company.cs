@@ -43,5 +43,6 @@ namespace Darb.Api.Models
 
         public ICollection<Review>? Review { get; set; }
 
+        public ICollection<Complaint>? Complaints { get; set; }
     }
 }

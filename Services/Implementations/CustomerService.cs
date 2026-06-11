@@ -1,6 +1,7 @@
 using Darb.Api.DTOs.Base;
 using Darb.Api.DTOs.Booking;
 using Darb.Api.DTOs.customer;
+using Darb.Api.DTOs.customer.Complaints;
 using Darb.Api.DTOs.customer.MyBookings;
 using Darb.Api.DTOs.passengerDtos.bookingDtos;
 using Darb.Api.DTOs.passengerDtos.homePageDtos;
@@ -803,6 +804,186 @@ namespace Darb.Api.Services.Implementations
       {
         // Log the exception details internally if needed and return standard failure response
         return ResponseDto.FailureResponse($"فشل في معالجة طلب الإلغاء: {ex.Message}");
+      }
+    }
+
+    #endregion
+
+    #region CRUD Complaints Logic
+
+    public async Task<ResponseDto> SubmitCompanyComplaintAsync(int customerId,SubmitCompanyComplaintDto dto)
+    {
+      try
+      {
+        // التحقق من وجود الشركة
+        var company = await _context.Companies.FindAsync(dto.CompanyId);
+        if (company == null)
+          return ResponseDto.FailureResponse("الشركة المحددة غير موجودة في النظام.");
+
+        var complaint = new Complaint
+        {
+          CustomerId = customerId,
+          ComplaintType = Models.Enums.ComplaintType.Company,
+          CompanyId = dto.CompanyId,
+          Title = dto.Title,
+          Description = dto.Description,
+          Status = Models.Enums.ComplaintStatus.Pending,
+          CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Complaints.Add(complaint);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم إرسال شكواك ضد الشركة بنجاح. سيتم مراجعتها من قبل الإدارة.", complaint.ComplaintId);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل إرسال الشكوى: {ex.Message}");
+      }
+    }
+
+    
+    public async Task<ResponseDto> SubmitTechnicalComplaintAsync(int customerId, SubmitTechnicalComplaintDto dto)
+    {
+      try
+      {
+        var complaint = new Complaint
+        {
+          CustomerId = customerId,
+          ComplaintType = Models.Enums.ComplaintType.Technical,
+          CompanyId = null,
+          Title = dto.Title,
+          Description = dto.Description,
+          Status = Models.Enums.ComplaintStatus.Pending,
+          CreatedAt = DateTime.UtcNow
+        };
+
+        _context.Complaints.Add(complaint);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم إرسال طلب الدعم الفني بنجاح. سيتم الرد عليك في أقرب وقت ممكن.", complaint.ComplaintId);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل إرسال طلب الدعم الفني: {ex.Message}");
+      }
+    }
+
+   
+    public async Task<ResponseDto> GetMyComplaintsAsync(int customerId)
+    {
+      try
+      {
+        var complaints = await _context.Complaints
+            .Include(c => c.Company)
+            .Where(c => c.CustomerId == customerId)
+            .OrderByDescending(c => c.CreatedAt)
+            .Select(c => new CustomerComplaintResponseDto
+            {
+              ComplaintId = c.ComplaintId,
+              ComplaintType = c.ComplaintType.ToString(),
+              CompanyName = c.Company != null ? c.Company.Name : null,
+              Title = c.Title,
+              Description = c.Description,
+              Status = c.Status.ToString(),
+              CreatedAt = c.CreatedAt,
+              AdminResponse = c.AdminResponse
+            })
+            .ToListAsync();
+
+        return ResponseDto.SuccessResponse($"تم استرجاع شكاواك بنجاح. ({complaints.Count})", complaints);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل استرجاع الشكاوي: {ex.Message}");
+      }
+    }
+
+    public async Task<ResponseDto> GetComplaintByIdAsync(int complaintId, int customerId)
+    {
+      try
+      {
+        var complaint = await _context.Complaints
+            .Include(c => c.Company)
+            .Where(c => c.ComplaintId == complaintId && c.CustomerId == customerId)
+            .Select(c => new CustomerComplaintResponseDto
+            {
+              ComplaintId = c.ComplaintId,
+              ComplaintType = c.ComplaintType.ToString(),
+              CompanyName = c.Company != null ? c.Company.Name : null,
+              Title = c.Title,
+              Description = c.Description,
+              Status = c.Status.ToString(),
+              CreatedAt = c.CreatedAt,
+              AdminResponse = c.AdminResponse
+            })
+            .FirstOrDefaultAsync();
+
+        if (complaint == null)
+          return ResponseDto.FailureResponse("الشكوى غير موجودة أو لا تملك صلاحية الوصول إليها.");
+
+        return ResponseDto.SuccessResponse("تم استرجاع تفاصيل الشكوى بنجاح.", complaint);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل استرجاع الشكوى: {ex.Message}");
+      }
+    }
+
+    
+    public async Task<ResponseDto> UpdateComplaintAsync(int complaintId, int customerId, Darb.Api.DTOs.customer.Complaints.UpdateComplaintDto dto)
+    {
+      try
+      {
+        var complaint = await _context.Complaints
+            .FirstOrDefaultAsync(c => c.ComplaintId == complaintId && c.CustomerId == customerId);
+
+        if (complaint == null)
+          return ResponseDto.FailureResponse("الشكوى غير موجودة أو لا تملك صلاحية تعديلها.");
+
+        // التحقق من أن الشكوى لا تزال قيد الانتظار قبل السماح بالتعديل
+        if (complaint.Status != Models.Enums.ComplaintStatus.Pending)
+          return ResponseDto.FailureResponse($"لا يمكن تعديل الشكوى بعد مراجعتها. الحالة الحالية: {complaint.Status}");
+
+        complaint.Title = dto.Title;
+        complaint.Description = dto.Description;
+
+        _context.Complaints.Update(complaint);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم تعديل الشكوى بنجاح.", complaint.ComplaintId);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل تعديل الشكوى: {ex.Message}");
+      }
+    }
+
+    /// <summary>
+    /// حذف شكوى - مسموح فقط إذا كانت بحالة Pending
+    /// </summary>
+    public async Task<ResponseDto> DeleteComplaintAsync(int complaintId, int customerId)
+    {
+      try
+      {
+        var complaint = await _context.Complaints
+            .FirstOrDefaultAsync(c => c.ComplaintId == complaintId && c.CustomerId == customerId);
+
+        if (complaint == null)
+          return ResponseDto.FailureResponse("الشكوى غير موجودة أو لا تملك صلاحية حذفها.");
+
+        // التحقق من أن الشكوى لا تزال قيد الانتظار قبل السماح بالحذف
+        if (complaint.Status != Models.Enums.ComplaintStatus.Pending)
+          return ResponseDto.FailureResponse($"لا يمكن حذف الشكوى بعد مراجعتها. الحالة الحالية: {complaint.Status}");
+
+        _context.Complaints.Remove(complaint);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم حذف الشكوى بنجاح.");
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل حذف الشكوى: {ex.Message}");
       }
     }
 
