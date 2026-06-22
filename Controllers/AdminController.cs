@@ -228,7 +228,7 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(
             Summary = "Get All Complaints",
             Description = "جلب جميع الشكاوي في النظام مع بيانات العميل وبيانات الشركة (إن وُجدت)، مرتبةً من الأحدث إلى الأقدم.")]
-        public async Task<IActionResult> GetAllComplaints() => Ok(await _adminService.GetAllComplaintsAsync());
+        public async Task<IActionResult> GetAllComplaints() => Ok(await _adminService.GetAllPendingComplaintsAsync());
 
         [HttpGet("complaints/{id:int}")]
         [SwaggerOperation(

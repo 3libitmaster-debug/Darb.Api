@@ -4,8 +4,6 @@ namespace Darb.Api.Models.Enums
 {
     public enum BookingStatus
     {
-        [Display(Name = "ﬁÌœ «·«‰ Ÿ«— (»«‰ Ÿ«— —›⁄ «·”‰œ)")]
-        PendingAttachment = 0,
 
         [Display(Name = "›Ì «‰ Ÿ«— «· √ﬂÌœ")]
         AwaitingConfirmation = 1,

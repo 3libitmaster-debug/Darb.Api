@@ -493,6 +493,9 @@ namespace Darb.Api.Services.Implementations
             if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
                 return ResponseDto.FailureResponse("البريد الإلكتروني مسجل مسبقاً في النظام.");
 
+            if (await _context.Customers.AnyAsync(c => c.Phone == dto.Phone))
+                return ResponseDto.FailureResponse("رقم الهاتف مسجل مسبقاً لعميل آخر.");
+
             var user = new User
             {
                 Email = dto.Email,
@@ -507,6 +510,7 @@ namespace Darb.Api.Services.Implementations
             var customer = new Customer
             {
                 UserId = user.UserId,
+                User = user,
                 FullName = dto.FullName,
                 DateOfBirth = dto.DateOfBirth,
                 Phone = dto.Phone,
@@ -526,7 +530,7 @@ namespace Darb.Api.Services.Implementations
 
             if (!string.IsNullOrEmpty(dto.Email) && dto.Email != customer.User.Email)
             {
-                if (await _context.Users.AnyAsync(u => u.Email == dto.Email))
+                if (await _context.Users.AnyAsync(u => u.Email == dto.Email && u.UserId != customer.UserId))
                     return ResponseDto.FailureResponse("البريد الإلكتروني الجديد مستخدم بالفعل.");
                 customer.User.Email = dto.Email;
             }
@@ -534,7 +538,12 @@ namespace Darb.Api.Services.Implementations
 
             if (!string.IsNullOrEmpty(dto.FullName)) customer.FullName = dto.FullName;
             if (dto.DateOfBirth.HasValue) customer.DateOfBirth = dto.DateOfBirth.Value;
-            if (!string.IsNullOrEmpty(dto.Phone)) customer.Phone = dto.Phone;
+            if (!string.IsNullOrEmpty(dto.Phone) && dto.Phone != customer.Phone)
+            {
+                if (await _context.Customers.AnyAsync(c => c.Phone == dto.Phone && c.CustomerId != id))
+                    return ResponseDto.FailureResponse("رقم الهاتف الجديد مستخدم بالفعل لعميل آخر.");
+                customer.Phone = dto.Phone;
+            }
             if (!string.IsNullOrEmpty(dto.Address)) customer.Address = dto.Address;
             if (!string.IsNullOrEmpty(dto.NationalId)) customer.NationalId = dto.NationalId;
 
@@ -871,19 +880,24 @@ namespace Darb.Api.Services.Implementations
         /// <summary>
         /// جلب جميع الشكاوي مع بيانات العميل والشركة (للأدمن)
         /// </summary>
-        public async Task<ResponseDto> GetAllComplaintsAsync()
+        public async Task<ResponseDto> GetAllPendingComplaintsAsync()
         {
             try
             {
+                // 1. تحديد الحالة المطلوب الفلترة بناءً عليها
+                // تأكد أن ComplaintStatus.Pending هو الاسم الصحيح للـ Enum لديك
+                var pendingStatus = ComplaintStatus.Pending;
+
                 var complaints = await _context.Complaints
                     .Include(c => c.Customer)
                     .Include(c => c.Company)
+                    .Where(c => c.Status == pendingStatus) // الفلترة على الشكاوي المعلقة فقط
                     .OrderByDescending(c => c.CreatedAt)
                     .Select(c => new Darb.Api.DTOs.admin.Complaints.AdminComplaintResponseDto
                     {
                         ComplaintId = c.ComplaintId,
                         CustomerId = c.CustomerId,
-                        CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
+                        UserId = c.Customer != null ? c.Customer.UserId : 0, 
                         ComplaintType = c.ComplaintType.ToString(),
                         CompanyId = c.CompanyId,
                         CompanyName = c.Company != null ? c.Company.Name : null,
@@ -895,11 +909,11 @@ namespace Darb.Api.Services.Implementations
                     })
                     .ToListAsync();
 
-                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى بنجاح.", complaints);
+                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى معلقة بنجاح.", complaints);
             }
             catch (Exception ex)
             {
-                return ResponseDto.FailureResponse($"فشل استرجاع الشكاوي: {ex.Message}");
+                return ResponseDto.FailureResponse($"فشل استرجاع الشكاوي المعلقة: {ex.Message}");
             }
         }
 

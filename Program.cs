@@ -5,7 +5,6 @@ using Darb.Api.Repository.Interfaces;
 using Darb.Api.Services.Implementations;
 using Darb.Api.Services.Implemention;
 using Darb.Api.Services.Interfaces;
-using Darb.Api.Services.BackgroundServices;
 using darbWebApp.Data;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.EntityFrameworkCore;
@@ -162,8 +161,6 @@ builder.Services.AddScoped<IQrCodeService, QrCodeService>();
 builder.Services.AddScoped<IEmailService, EmailService>();
 builder.Services.AddScoped<INotificationService, NotificationService>();
 
-// --- Background Hosted Services ---
-builder.Services.AddHostedService<DatabaseCleanupService>();
 
 // --- Options Pattern Settings Mapping ---
 builder.Services.Configure<ApiSettings>(builder.Configuration.GetSection("ApiSettings"));

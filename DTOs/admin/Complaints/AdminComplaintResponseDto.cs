@@ -3,6 +3,7 @@ namespace Darb.Api.DTOs.admin.Complaints
    
     public class AdminComplaintResponseDto
     {
+        public int UserId { get; set; }
         public int ComplaintId { get; set; }
 
        

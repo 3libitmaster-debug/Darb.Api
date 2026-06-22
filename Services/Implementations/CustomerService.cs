@@ -307,7 +307,7 @@ namespace Darb.Api.Services.Implementations
             TripRouteId = TripRoute.TripRouteId,
             ReservedSeatsCount = totalSeatsRequired,
             TotalAmount = totalAmount,
-            Status = BookingStatus.PendingAttachment, // Phase 1: Waiting for receipt upload
+            Status = BookingStatus.AwaitingConfirmation, 
             BookingAt = DateHelper.GetYemenTime()
           };
 
@@ -377,8 +377,6 @@ namespace Darb.Api.Services.Implementations
       if (booking == null)
         return ResponseDto.FailureResponse("Booking not found or does not belong to you.");
 
-      if (booking.Status != BookingStatus.PendingAttachment)
-        return ResponseDto.FailureResponse("This booking is no longer pending receipt upload.");
 
       if (request.ReceiptImage == null)
         return ResponseDto.FailureResponse("Receipt image is required.");
@@ -780,10 +778,7 @@ namespace Darb.Api.Services.Implementations
           {
             return ResponseDto.FailureResponse("هذا الحجز ملغي بالفعل.");
           }
-          if (booking.Status == BookingStatus.PendingAttachment)
-          {
-            return ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار إرفاق سند الدفع.");
-          }
+          
           if (booking.Status == BookingStatus.AwaitingConfirmation)
           {
             return ResponseDto.FailureResponse("لا يمكنك تقديم طلب إلغاء؛ الحجز بانتظار تأكيد الدفع والقبول من الإدارة.");
