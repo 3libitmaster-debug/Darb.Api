@@ -71,9 +71,11 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> RejectSubscriptionAsync(int subscriptionId);
 
         #region Complaints Management
-        Task<ResponseDto> GetAllPendingComplaintsAsync();
+        Task<ResponseDto> GetAllPendingCompanyComplaintsAsync();
+        Task<ResponseDto> GetAllPendingTechnicalComplaintsAsync();
         Task<ResponseDto> GetComplaintByIdAsync(int complaintId);
-        Task<ResponseDto> RespondToComplaintAsync(int complaintId, AdminRespondToComplaintDto dto);
+        Task<ResponseDto> RespondToCompanyComplaintAsync(int complaintId, AdminRespondToCompanyComplaintDto dto);
+        Task<ResponseDto> RespondToTechnicalComplaintAsync(int complaintId);
         Task<ResponseDto> DeleteComplaintAsync(int complaintId);
         #endregion
     }

@@ -1,4 +1,5 @@
 using Darb.Api.DTOs.admin;
+using Darb.Api.DTOs.admin.Complaints;
 using Darb.Api.DTOs.admin.Company;
 using Darb.Api.DTOs.admin.Customers;
 using Darb.Api.DTOs.adminDtos.Advertisement;
@@ -28,8 +29,9 @@ namespace Darb.Api.Services.Implementations
         private readonly ApplicationDbContext _context;
         private readonly string _baseUrl;
         private readonly IEmailService _emailService;
+        private readonly INotificationService _notificationService;
 
-        public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context, IOptions<ApiSettings> apiOptions, IEmailService emailService)
+        public AdminService(IRepository<Governorate> govRepo, IRepository<City> cityRepo, IRepository<Advertisement> adRepo, IImageService imageService, ApplicationDbContext context, IOptions<ApiSettings> apiOptions, IEmailService emailService, INotificationService notificationService)
         {
             _govRepo = govRepo;
             _cityRepo = cityRepo;
@@ -38,6 +40,7 @@ namespace Darb.Api.Services.Implementations
             _context = context;
             _baseUrl = apiOptions.Value.BaseUrl ?? string.Empty;
             _emailService = emailService;
+            _notificationService = notificationService;
         }
 
         #region Dashboard Statistics Logic
@@ -878,26 +881,23 @@ namespace Darb.Api.Services.Implementations
         #region Complaints Management Logic
 
         /// <summary>
-        /// جلب جميع الشكاوي مع بيانات العميل والشركة (للأدمن)
+        /// جلب جميع الشكاوي المعلقة من نوع (شكوى عن شركة) فقط
         /// </summary>
-        public async Task<ResponseDto> GetAllPendingComplaintsAsync()
+        public async Task<ResponseDto> GetAllPendingCompanyComplaintsAsync()
         {
             try
             {
-                // 1. تحديد الحالة المطلوب الفلترة بناءً عليها
-                // تأكد أن ComplaintStatus.Pending هو الاسم الصحيح للـ Enum لديك
-                var pendingStatus = ComplaintStatus.Pending;
-
                 var complaints = await _context.Complaints
                     .Include(c => c.Customer)
                     .Include(c => c.Company)
-                    .Where(c => c.Status == pendingStatus) // الفلترة على الشكاوي المعلقة فقط
+                    .Where(c => c.Status == ComplaintStatus.Pending && c.ComplaintType == ComplaintType.Company)
                     .OrderByDescending(c => c.CreatedAt)
-                    .Select(c => new Darb.Api.DTOs.admin.Complaints.AdminComplaintResponseDto
+                    .Select(c => new AdminComplaintResponseDto
                     {
                         ComplaintId = c.ComplaintId,
                         CustomerId = c.CustomerId,
-                        UserId = c.Customer != null ? c.Customer.UserId : 0, 
+                        UserId = c.Customer != null ? c.Customer.UserId : 0,
+                        CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
                         ComplaintType = c.ComplaintType.ToString(),
                         CompanyId = c.CompanyId,
                         CompanyName = c.Company != null ? c.Company.Name : null,
@@ -909,11 +909,47 @@ namespace Darb.Api.Services.Implementations
                     })
                     .ToListAsync();
 
-                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى معلقة بنجاح.", complaints);
+                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى عن شركة معلقة بنجاح.", complaints);
             }
             catch (Exception ex)
             {
-                return ResponseDto.FailureResponse($"فشل استرجاع الشكاوي المعلقة: {ex.Message}");
+                return ResponseDto.FailureResponse($"فشل استرجاع شكاوي الشركات المعلقة: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// جلب جميع الشكاوي المعلقة من نوع (دعم فني) فقط
+        /// </summary>
+        public async Task<ResponseDto> GetAllPendingTechnicalComplaintsAsync()
+        {
+            try
+            {
+                var complaints = await _context.Complaints
+                    .Include(c => c.Customer)
+                    .Where(c => c.Status == ComplaintStatus.Pending && c.ComplaintType == ComplaintType.Technical)
+                    .OrderByDescending(c => c.CreatedAt)
+                    .Select(c => new AdminComplaintResponseDto
+                    {
+                        ComplaintId = c.ComplaintId,
+                        CustomerId = c.CustomerId,
+                        UserId = c.Customer != null ? c.Customer.UserId : 0,
+                        CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
+                        ComplaintType = c.ComplaintType.ToString(),
+                        CompanyId = null,
+                        CompanyName = null,
+                        Title = c.Title,
+                        Description = c.Description,
+                        Status = c.Status.ToString(),
+                        CreatedAt = c.CreatedAt,
+                        AdminResponse = c.AdminResponse
+                    })
+                    .ToListAsync();
+
+                return ResponseDto.SuccessResponse($"تم استرجاع ({complaints.Count}) شكوى دعم فني معلقة بنجاح.", complaints);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل استرجاع شكاوي الدعم الفني المعلقة: {ex.Message}");
             }
         }
 
@@ -928,10 +964,11 @@ namespace Darb.Api.Services.Implementations
                     .Include(c => c.Customer)
                     .Include(c => c.Company)
                     .Where(c => c.ComplaintId == complaintId)
-                    .Select(c => new Darb.Api.DTOs.admin.Complaints.AdminComplaintResponseDto
+                    .Select(c => new AdminComplaintResponseDto
                     {
                         ComplaintId = c.ComplaintId,
                         CustomerId = c.CustomerId,
+                        UserId = c.Customer != null ? c.Customer.UserId : 0,
                         CustomerName = c.Customer != null ? c.Customer.FullName : "غير متوفر",
                         ComplaintType = c.ComplaintType.ToString(),
                         CompanyId = c.CompanyId,
@@ -956,28 +993,110 @@ namespace Darb.Api.Services.Implementations
         }
 
         /// <summary>
-        /// الرد على شكوى وتحديث حالتها (للأدمن)
+        /// الاستجابة لشكوى عن شركة:
+        /// 1. تحويل الحالة إلى Resolved
+        /// 2. إرسال إشعار تلقائي للعميل بأنه تم اتخاذ الإجراء المناسب
+        /// 3. إرسال إشعار مخصص للشركة المعنية (العنوان والوصف من الأدمن)
         /// </summary>
-        public async Task<ResponseDto> RespondToComplaintAsync(int complaintId, Darb.Api.DTOs.admin.Complaints.AdminRespondToComplaintDto dto)
+        public async Task<ResponseDto> RespondToCompanyComplaintAsync(int complaintId, AdminRespondToCompanyComplaintDto dto)
         {
             try
             {
-                var complaint = await _context.Complaints.FindAsync(complaintId);
+                // 1. جلب الشكوى مع بيانات العميل والشركة
+                var complaint = await _context.Complaints
+                    .Include(c => c.Customer)
+                    .Include(c => c.Company)
+                    .FirstOrDefaultAsync(c => c.ComplaintId == complaintId);
 
                 if (complaint == null)
                     return ResponseDto.FailureResponse("الشكوى غير موجودة.");
 
-                complaint.AdminResponse = dto.AdminResponse;
-                complaint.Status = dto.Status;
+                if (complaint.ComplaintType != ComplaintType.Company)
+                    return ResponseDto.FailureResponse("هذه الشكوى ليست من نوع (شكوى عن شركة). استخدم نقطة النهاية الصحيحة.");
 
+                if (complaint.CompanyId == null)
+                    return ResponseDto.FailureResponse("الشكوى لا تحتوي على شركة مرتبطة.");
+
+                // 2. تحويل حالة الشكوى إلى Resolved
+                complaint.Status = ComplaintStatus.Resolved;
                 _context.Complaints.Update(complaint);
                 await _context.SaveChangesAsync();
 
-                return ResponseDto.SuccessResponse("تم تحديث الشكوى والرد عليها بنجاح.", complaint.ComplaintId);
+                // 3. إرسال إشعار تلقائي للعميل
+                if (complaint.Customer != null)
+                {
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: complaint.Customer.UserId,
+                        title: "تم اتخاذ الإجراء بشأن شكواك",
+                        body: "تمت مراجعة شكواك ضد الشركة واتخاذ الإجراء المناسب. شكراً لتواصلك معنا.",
+                        category: NotificationCategory.Alert,
+                        senderType: SenderRole.SuperAdmin
+                    );
+                }
+
+                // 4. إرسال إشعار مخصص للشركة المعنية (العنوان والوصف من الأدمن)
+                var company = complaint.Company;
+                if (company != null)
+                {
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: company.UserId,
+                        title: dto.CompanyNotificationTitle,
+                        body: dto.CompanyNotificationBody,
+                        category: NotificationCategory.Alert,
+                        senderType: SenderRole.SuperAdmin
+                    );
+                }
+
+                return ResponseDto.SuccessResponse("تم الاستجابة للشكوى وإرسال الإشعارات بنجاح.", complaint.ComplaintId);
             }
             catch (Exception ex)
             {
-                return ResponseDto.FailureResponse($"فشل تحديث الشكوى: {ex.Message}");
+                return ResponseDto.FailureResponse($"فشل الاستجابة للشكوى: {ex.Message}");
+            }
+        }
+
+        /// <summary>
+        /// الاستجابة لشكوى دعم فني:
+        /// 1. تحويل الحالة إلى Resolved
+        /// 2. إرسال إشعار تلقائي للعميل بأنه تم اتخاذ الإجراء المناسب
+        /// </summary>
+        public async Task<ResponseDto> RespondToTechnicalComplaintAsync(int complaintId)
+        {
+            try
+            {
+                // 1. جلب الشكوى مع بيانات العميل
+                var complaint = await _context.Complaints
+                    .Include(c => c.Customer)
+                    .FirstOrDefaultAsync(c => c.ComplaintId == complaintId);
+
+                if (complaint == null)
+                    return ResponseDto.FailureResponse("الشكوى غير موجودة.");
+
+                if (complaint.ComplaintType != ComplaintType.Technical)
+                    return ResponseDto.FailureResponse("هذه الشكوى ليست من نوع (دعم فني). استخدم نقطة النهاية الصحيحة.");
+
+                // 2. تحويل حالة الشكوى إلى Resolved
+                complaint.Status = ComplaintStatus.Resolved;
+                _context.Complaints.Update(complaint);
+                await _context.SaveChangesAsync();
+
+                // 3. إرسال إشعار تلقائي للعميل
+                if (complaint.Customer != null)
+                {
+                    await _notificationService.SendIndividualNotificationAsync(
+                        receiverId: complaint.Customer.UserId,
+                        title: "تم اتخاذ الإجراء بشأن طلب الدعم الفني",
+                        body: "تمت مراجعة طلب الدعم الفني الخاص بك واتخاذ الإجراء المناسب. شكراً لتواصلك معنا.",
+                        category: NotificationCategory.Alert,
+                        senderType: SenderRole.SuperAdmin
+                    );
+                }
+
+                return ResponseDto.SuccessResponse("تم الاستجابة لشكوى الدعم الفني وإرسال الإشعار للعميل بنجاح.", complaint.ComplaintId);
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل الاستجابة لشكوى الدعم الفني: {ex.Message}");
             }
         }
 

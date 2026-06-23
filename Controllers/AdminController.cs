@@ -224,28 +224,49 @@ namespace Darb.Api.Controllers
 
         #region Complaints Management Endpoints
 
-        [HttpGet("complaints")]
+        [HttpGet("complaints/company")]
         [SwaggerOperation(
-            Summary = "Get All Complaints",
-            Description = "جلب جميع الشكاوي في النظام مع بيانات العميل وبيانات الشركة (إن وُجدت)، مرتبةً من الأحدث إلى الأقدم.")]
-        public async Task<IActionResult> GetAllComplaints() => Ok(await _adminService.GetAllPendingComplaintsAsync());
+            Summary = "Get Pending Company Complaints",
+            Description = "جلب جميع الشكاوي المعلقة من نوع (شكوى عن شركة) فقط.")]
+        public async Task<IActionResult> GetPendingCompanyComplaints()
+            => Ok(await _adminService.GetAllPendingCompanyComplaintsAsync());
+
+        [HttpGet("complaints/technical")]
+        [SwaggerOperation(
+            Summary = "Get Pending Technical Complaints",
+            Description = "جلب جميع الشكاوي المعلقة من نوع (دعم فني) فقط.")]
+        public async Task<IActionResult> GetPendingTechnicalComplaints()
+            => Ok(await _adminService.GetAllPendingTechnicalComplaintsAsync());
 
         [HttpGet("complaints/{id:int}")]
         [SwaggerOperation(
             Summary = "Get Complaint By ID",
             Description = "جلب تفاصيل شكوى محددة مع كافة بيانات العميل والشركة المرتبطة بها.")]
-        public async Task<IActionResult> GetComplaintById(int id) => Ok(await _adminService.GetComplaintByIdAsync(id));
+        public async Task<IActionResult> GetComplaintById(int id)
+            => Ok(await _adminService.GetComplaintByIdAsync(id));
 
-        [HttpPut("complaints/{id:int}/respond")]
+        [HttpPut("complaints/{id:int}/respond/company")]
         [SwaggerOperation(
-            Summary = "Respond To Complaint",
-            Description = "يتيح للأدمن إضافة رد على الشكوى وتغيير حالتها (Pending / InReview / Resolved / Rejected).")]
-        public async Task<IActionResult> RespondToComplaint(int id, [FromBody] Darb.Api.DTOs.admin.Complaints.AdminRespondToComplaintDto dto)
+            Summary = "Respond To Company Complaint",
+            Description = "الاستجابة لشكوى موجهة ضد شركة: يُحوَّل الحالة إلى (تم الاستجابة)، ويُرسَل إشعار تلقائي للعميل، وإشعار مخصص للشركة المعنية بعنوان ونص يحددهما الأدمن.")]
+        public async Task<IActionResult> RespondToCompanyComplaint(
+            int id,
+            [FromBody] Darb.Api.DTOs.admin.Complaints.AdminRespondToCompanyComplaintDto dto)
         {
             if (!ModelState.IsValid)
                 return BadRequest(Darb.Api.DTOs.Base.ResponseDto.FailureResponse("بيانات الرد غير صالحة."));
 
-            var result = await _adminService.RespondToComplaintAsync(id, dto);
+            var result = await _adminService.RespondToCompanyComplaintAsync(id, dto);
+            return result.Success ? Ok(result) : BadRequest(result);
+        }
+
+        [HttpPut("complaints/{id:int}/respond/technical")]
+        [SwaggerOperation(
+            Summary = "Respond To Technical Complaint",
+            Description = "الاستجابة لشكوى دعم فني: يُحوَّل الحالة إلى (تم الاستجابة) ويُرسَل إشعار تلقائي للعميل. لا يتطلب أي بيانات من الأدمن.")]
+        public async Task<IActionResult> RespondToTechnicalComplaint(int id)
+        {
+            var result = await _adminService.RespondToTechnicalComplaintAsync(id);
             return result.Success ? Ok(result) : BadRequest(result);
         }
 
@@ -253,7 +274,8 @@ namespace Darb.Api.Controllers
         [SwaggerOperation(
             Summary = "Delete Complaint",
             Description = "حذف شكوى نهائياً من النظام. الأدمن يستطيع الحذف بغض النظر عن حالة الشكوى.")]
-        public async Task<IActionResult> DeleteComplaint(int id) => Ok(await _adminService.DeleteComplaintAsync(id));
+        public async Task<IActionResult> DeleteComplaint(int id)
+            => Ok(await _adminService.DeleteComplaintAsync(id));
 
         #endregion
     }
