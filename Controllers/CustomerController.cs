@@ -113,6 +113,34 @@ namespace Darb.Api.Controllers
             }
         }
 
+        [HttpPut("settings/profile")]
+        [Authorize(Roles = "Customer")]
+        [SwaggerOperation(
+            Summary = "Update Customer Profile",
+            Description = "Updates personal profile details for the authenticated customer.")]
+        public async Task<IActionResult> UpdateProfile([FromBody] UpdateCustomerProfileDto request)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ResponseDto.FailureResponse("بيانات الملف الشخصي غير صالحة.", ModelState));
+                }
+
+                int customerId = User.GetCustomerId();
+                var response = await _customerService.UpdateProfileAsync(customerId, request);
+
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
+        }
+
 
         [HttpPost("trips/book")]
         [Authorize(Roles = "Customer")]
@@ -328,6 +356,21 @@ namespace Darb.Api.Controllers
             var response = await _customerService.DeleteReviewAsync(customerId, reviewId);
 
             return response.Success ? Ok(response) : BadRequest(response);
+        }
+
+        /// <summary>
+        /// Retrieves all reviews for a specific company by its ID.
+        /// </summary>
+        [HttpGet("company/{companyId}/reviews")]
+        [SwaggerOperation(Summary = "Get Company Reviews")]
+        public async Task<IActionResult> GetCompanyReviews(int companyId)
+        {
+            var response = await _customerService.GetCompanyReviewsAsync(companyId);
+
+            if (!response.Success)
+                return NotFound(response);
+
+            return Ok(response);
         }
 
         #endregion

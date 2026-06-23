@@ -311,6 +311,32 @@ namespace Darb.Api.Services.Implementations
 
             return ResponseDto.SuccessResponse("تمت إعادة تعيين كلمة المرور بنجاح.");
         }
+
+        public async Task<ResponseDto> ChangePasswordAsync(int userId, ChangePasswordDto dto)
+        {
+            try
+            {
+                var user = await _context.Users.FindAsync(userId);
+                if (user == null)
+                    return ResponseDto.FailureResponse("المستخدم غير موجود.");
+
+                // تشفير كلمة المرور القديمة ومقارنتها بالمسجلة في قاعدة البيانات
+                var oldBase64Password = SecurityHelper.ConvertToBase64(dto.OldPassword);
+                if (user.Password != oldBase64Password)
+                    return ResponseDto.FailureResponse("كلمة المرور السابقة غير صحيحة.");
+
+                // تشفير كلمة المرور الجديدة وحفظها
+                user.Password = SecurityHelper.ConvertToBase64(dto.NewPassword);
+                _context.Users.Update(user);
+                await _context.SaveChangesAsync();
+
+                return ResponseDto.SuccessResponse("تم تحديث كلمة المرور بنجاح.");
+            }
+            catch (Exception ex)
+            {
+                return ResponseDto.FailureResponse($"فشل تحديث كلمة المرور: {ex.Message}");
+            }
+        }
         #endregion
     }
 }

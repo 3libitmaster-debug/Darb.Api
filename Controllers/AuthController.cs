@@ -2,6 +2,8 @@ using Darb.Api.DTOs.AuthDtos;
 using Darb.Api.DTOs.auth;
 using Darb.Api.DTOs.Base;
 using Darb.Api.Models;
+using Microsoft.AspNetCore.Authorization;
+using Darb.Api.Extensions;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using Darb.Api.Services.Interfaces;
@@ -121,7 +123,7 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> ForgetPassword([FromBody] ForgetPasswordDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ResponseDto.FailureResponse("ÇáÈíÇäÇÊ ÇáãÏÎáÉ ÛíÑ ÕÍíÍÉ.", ModelState));
+                return BadRequest(ResponseDto.FailureResponse("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.", ModelState));
 
             var result = await _authService.ForgetPasswordAsync(dto);
             if (!result.Success)
@@ -135,13 +137,39 @@ namespace Darb.Api.Controllers
         public async Task<IActionResult> ResetPassword([FromBody] ResetPasswordDto dto)
         {
             if (!ModelState.IsValid)
-                return BadRequest(ResponseDto.FailureResponse("ÇáÈíÇäÇÊ ÇáãÏÎáÉ ÛíÑ ÕÍíÍÉ.", ModelState));
+                return BadRequest(ResponseDto.FailureResponse("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½.", ModelState));
 
             var result = await _authService.ResetPasswordAsync(dto);
             if (!result.Success)
                 return BadRequest(result);
 
             return Ok(result);
+        }
+
+        [HttpPut("change-password")]
+        [Authorize]
+        [SwaggerOperation(Summary = "Change Password", Description = "Updates the authenticated user's password using the old password and the new password.")]
+        public async Task<IActionResult> ChangePassword([FromBody] ChangePasswordDto dto)
+        {
+            try
+            {
+                if (!ModelState.IsValid)
+                {
+                    return BadRequest(ResponseDto.FailureResponse("Ø¨ÙŠØ§Ù†Ø§Øª ØªØºÙŠÙŠØ± ÙƒÙ„Ù…Ø© Ø§Ù„Ù…Ø±ÙˆØ± ØºÙŠØ± ØµØ§Ù„Ø­Ø©.", ModelState));
+                }
+
+                int userId = User.GetAccountId();
+                var response = await _authService.ChangePasswordAsync(userId, dto);
+
+                if (!response.Success)
+                    return BadRequest(response);
+
+                return Ok(response);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, ResponseDto.FailureResponse($"An unexpected error occurred: {ex.Message}"));
+            }
         }
 
     }

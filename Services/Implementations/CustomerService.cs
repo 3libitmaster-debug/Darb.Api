@@ -429,11 +429,76 @@ namespace Darb.Api.Services.Implementations
         if (profile == null)
           return ResponseDto.FailureResponse("لم يتم العثور على بيانات الحساب الشخصي.");
 
+        if (!string.IsNullOrEmpty(profile.Password))
+        {
+          try
+          {
+            profile.Password = SecurityHelper.DecodeFromBase64(profile.Password);
+          }
+          catch
+          {
+            // Keep as is if not valid base64
+          }
+        }
+
         return ResponseDto.SuccessResponse("تم استرجاع بيانات الحساب الشخصي بنجاح.", profile);
       }
       catch (Exception ex)
       {
         return ResponseDto.FailureResponse($"فشل استرجاع بيانات الحساب الشخصي: {ex.Message}");
+      }
+    }
+
+    /// <summary>
+    /// Updates the profile data for a customer, validating unique fields (Phone, Email).
+    /// </summary>
+    public async Task<ResponseDto> UpdateProfileAsync(int customerId, UpdateCustomerProfileDto request)
+    {
+      try
+      {
+        var customer = await _context.Customers
+            .Include(p => p.User)
+            .FirstOrDefaultAsync(p => p.CustomerId == customerId);
+
+        if (customer == null)
+          return ResponseDto.FailureResponse("لم يتم العثور على بيانات الحساب الشخصي.");
+
+        // التحقق من عدم استخدام البريد الإلكتروني من قبل مستخدم آخر
+        if (customer.User != null && !string.Equals(customer.User.Email, request.Email, StringComparison.OrdinalIgnoreCase))
+        {
+          var emailExists = await _context.Users.AnyAsync(u => u.Email == request.Email && u.UserId != customer.UserId);
+          if (emailExists)
+          {
+            return ResponseDto.FailureResponse("البريد الإلكتروني مستخدم بالفعل من قبل حساب آخر.");
+          }
+          customer.User.Email = request.Email;
+        }
+
+        // التحقق من عدم استخدام رقم الهاتف من قبل عميل آخر
+        if (!string.Equals(customer.Phone, request.PhoneNumber, StringComparison.OrdinalIgnoreCase))
+        {
+          var phoneExists = await _context.Customers.AnyAsync(c => c.Phone == request.PhoneNumber && c.CustomerId != customerId);
+          if (phoneExists)
+          {
+            return ResponseDto.FailureResponse("رقم الهاتف مستخدم بالفعل من قبل حساب آخر.");
+          }
+          customer.Phone = request.PhoneNumber;
+        }
+
+        // تحديث الحقول الشخصية الأساسية
+        customer.FullName = request.FullName;
+        customer.DateOfBirth = request.DateOfBirth;
+        customer.Address = request.Address;
+        customer.NationalId = request.NationalId;
+
+        _context.Customers.Update(customer);
+        await _context.SaveChangesAsync();
+
+        return ResponseDto.SuccessResponse("تم تحديث بيانات الملف الشخصي بنجاح.");
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"فشل تحديث بيانات الملف الشخصي: {ex.Message}");
       }
     }
     #endregion
@@ -611,6 +676,39 @@ namespace Darb.Api.Services.Implementations
       catch (Exception ex)
       {
         return ResponseDto.FailureResponse($"An error occurred: {ex.Message}");
+      }
+    }
+
+    /// <summary>
+    /// Retrieves all reviews for a specific company, mapping them to CompanyReviewResponseDto.
+    /// </summary>
+    public async Task<ResponseDto> GetCompanyReviewsAsync(int companyId)
+    {
+      try
+      {
+        var companyExists = await _context.Companies.AnyAsync(c => c.CompanyId == companyId);
+        if (!companyExists)
+        {
+          return ResponseDto.FailureResponse("الشركة المطلوبة غير موجودة");
+        }
+
+        var reviews = await _context.Review
+            .Where(r => r.CompanyId == companyId)
+            .Select(r => new CompanyReviewResponseDto
+            {
+              ReviewId = r.ReviewId,
+              CustomerName = r.Customer != null ? r.Customer.FullName : null,
+              Rating = r.Rating,
+              Description = r.Description,
+              Date = r.ReviewDate.ToString("yyyy-MM-dd")
+            })
+            .ToListAsync();
+
+        return ResponseDto.SuccessResponse("تم جلب التقييمات بنجاح", reviews);
+      }
+      catch (Exception ex)
+      {
+        return ResponseDto.FailureResponse($"خطأ أثناء جلب تقييمات الشركة: {ex.Message}");
       }
     }
 

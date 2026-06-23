@@ -16,6 +16,7 @@ namespace Darb.Api.Services.Interfaces
         Task<ResponseDto> GetTripStationsAsync(int tripId);
         Task<ResponseDto> GetCompanyBankAccountsAsync(int companyId);
         Task<ResponseDto> GetProfileAsync(int customerId);
+        Task<ResponseDto> UpdateProfileAsync(int customerId, UpdateCustomerProfileDto request);
         Task<ResponseDto> BookTripAsync(int UserId, BookingRequestDto request);
         Task<ResponseDto> UploadReceiptAsync(int UserId, UploadReceiptDto request);
 
@@ -60,6 +61,12 @@ namespace Darb.Api.Services.Interfaces
         /// </summary>
         /// <param name="reviewId">The unique ID of the review.</param>
         Task<ResponseDto> GetReviewByIdAsync(int reviewId);
+
+        /// <summary>
+        /// Retrieves all reviews for a specific company by its ID.
+        /// </summary>
+        /// <param name="companyId">The ID of the company.</param>
+        Task<ResponseDto> GetCompanyReviewsAsync(int companyId);
 
         #endregion
 

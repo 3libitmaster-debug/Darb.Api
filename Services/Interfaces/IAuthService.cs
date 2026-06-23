@@ -31,5 +31,6 @@ namespace Darb.Api.Services.Interfaces
 
         Task<ResponseDto> ForgetPasswordAsync(ForgetPasswordDto dto);
         Task<ResponseDto> ResetPasswordAsync(ResetPasswordDto dto);
+        Task<ResponseDto> ChangePasswordAsync(int userId, ChangePasswordDto dto);
     }
 }
